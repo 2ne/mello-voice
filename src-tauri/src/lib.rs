@@ -21,11 +21,27 @@ fn show_main_and_overlay(app: &tauri::AppHandle) {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+enum ThemeMode {
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct AppPrefs {
     #[serde(default = "default_show_overlay_bar")]
     show_overlay_bar: bool,
+    #[serde(default)]
+    theme: ThemeMode,
+    /// Bumped when prefs shape changes; used for one-time migrations.
+    #[serde(default)]
+    prefs_version: u32,
 }
+
+const PREFS_VERSION: u32 = 2;
 
 fn default_show_overlay_bar() -> bool {
     true
@@ -35,6 +51,8 @@ impl Default for AppPrefs {
     fn default() -> Self {
         Self {
             show_overlay_bar: true,
+            theme: ThemeMode::default(),
+            prefs_version: PREFS_VERSION,
         }
     }
 }
@@ -52,10 +70,27 @@ fn load_prefs(app: &tauri::AppHandle) -> AppPrefs {
     if !path.exists() {
         return AppPrefs::default();
     }
-    fs::read_to_string(&path)
+    let mut prefs = fs::read_to_string(&path)
         .ok()
         .and_then(|raw| serde_json::from_str::<AppPrefs>(&raw).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+
+    let mut dirty = false;
+    // Legacy: prefs before prefs_version tracked dictation bar default.
+    if prefs.prefs_version < 1 {
+        prefs.show_overlay_bar = true;
+        prefs.prefs_version = 1;
+        dirty = true;
+    }
+    if prefs.prefs_version < 2 {
+        prefs.prefs_version = 2;
+        dirty = true;
+    }
+    if dirty {
+        let _ = save_prefs(app, &prefs);
+    }
+
+    prefs
 }
 
 fn save_prefs(app: &tauri::AppHandle, prefs: &AppPrefs) -> Result<(), String> {
@@ -68,6 +103,29 @@ fn save_prefs(app: &tauri::AppHandle, prefs: &AppPrefs) -> Result<(), String> {
 #[tauri::command]
 fn get_overlay_bar_enabled(app: tauri::AppHandle) -> Result<bool, String> {
     Ok(load_prefs(&app).show_overlay_bar)
+}
+
+#[tauri::command]
+fn get_theme(app: tauri::AppHandle) -> Result<String, String> {
+    let v = match load_prefs(&app).theme {
+        ThemeMode::System => "system",
+        ThemeMode::Light => "light",
+        ThemeMode::Dark => "dark",
+    };
+    Ok(v.to_string())
+}
+
+#[tauri::command]
+fn set_theme(app: tauri::AppHandle, theme: String) -> Result<(), String> {
+    let mode = match theme.as_str() {
+        "light" => ThemeMode::Light,
+        "dark" => ThemeMode::Dark,
+        _ => ThemeMode::System,
+    };
+    let mut prefs = load_prefs(&app);
+    prefs.theme = mode;
+    save_prefs(&app, &prefs)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -194,10 +252,20 @@ pub fn run() {
             show_overlay_window,
             get_overlay_bar_enabled,
             set_overlay_bar_enabled,
+            get_theme,
+            set_theme,
         ])
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_log::Builder::default().build())
         .setup(|app| {
+            // Persist default prefs on first run so dictation bar defaults to visible
+            let app_handle = app.handle().clone();
+            if let Ok(path) = prefs_path(&app_handle) {
+                if !path.exists() {
+                    let _ = save_prefs(&app_handle, &AppPrefs::default());
+                }
+            }
+
             // Build tray menu
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;

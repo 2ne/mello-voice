@@ -3,8 +3,58 @@ import { listen, emit } from "@tauri-apps/api/event";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
+import { Settings } from "lucide-react";
 import { getHistory, clearHistory, type HistoryEntry } from "../history";
-import { DICTATION_SHORTCUT_OPTIONS, getDictationShortcut, setDictationShortcut, DEFAULT_DICTATION_SHORTCUT } from "../dictationShortcut";
+import {
+  DICTATION_SHORTCUT_OPTIONS,
+  getDictationShortcut,
+  setDictationShortcut,
+  DEFAULT_DICTATION_SHORTCUT,
+} from "../dictationShortcut";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  parseThemePreference,
+  syncDocumentTheme,
+  THEME_STORAGE_KEY,
+  type ThemePreference,
+} from "@/themePreference";
+
+/** Same shell + body padding for empty state and every history row. */
+const HISTORY_CARD_SHELL =
+  "gap-0 rounded-2xl border border-border/70 bg-card/80 py-0 shadow-sm ring-1 ring-border/30 dark:bg-card/50 dark:ring-border/25";
+const HISTORY_CARD_BODY = "px-4 py-3.5";
+/** Hover/focus affordances layered on top of HISTORY_CARD_SHELL */
+const HISTORY_CARD_INTERACTIVE =
+  "group cursor-pointer transition-[background-color,box-shadow,transform] duration-100 hover:bg-accent/40 hover:ring-foreground/10 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-ring";
+
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+
+/** Preset pills: foreground labels when idle; selected = primary fill — primary-foreground on blue (light), background ink on blue (dark). */
+function settingsSegmentClass(selected: boolean): string {
+  return cn(
+    "box-border inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-3.5 text-[12px] font-normal transition-colors",
+    "border-border bg-background outline-none hover:bg-muted/70",
+    "text-foreground",
+    "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+    selected &&
+      "border-primary bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-foreground dark:text-background dark:hover:text-background dark:hover:bg-primary-hover",
+  );
+}
 
 function formatTime(timestamp: number): string {
   const d = new Date(timestamp);
@@ -18,7 +68,12 @@ function formatTime(timestamp: number): string {
   if (d.toDateString() === yesterday.toDateString()) {
     return `Yesterday ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
   }
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function HistoryItem({ entry, onCopy }: { entry: HistoryEntry; onCopy: (text: string) => void }) {
@@ -56,24 +111,25 @@ function HistoryItem({ entry, onCopy }: { entry: HistoryEntry; onCopy: (text: st
   );
 
   return (
-    <li className="history-item" role="button" tabIndex={0} data-copied={copied} onClick={handleCopy} onKeyDown={handleKeyDown}>
-      <p className="history-item-text">{entry.text}</p>
-      <div className="history-item-meta">
-        <span className="history-item-time">{formatTime(entry.timestamp)}</span>
-        <span className="history-item-copy">{copied ? "Copied" : "Copy"}</span>
-      </div>
-    </li>
-  );
-}
-
-function SettingsGearIcon() {
-  return (
-    <svg className="main-window-cog-svg" width="20" height="20" viewBox="0 0 24 24" aria-hidden>
-      <path
-        fill="currentColor"
-        d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
-      />
-    </svg>
+    <Card
+      role="button"
+      tabIndex={0}
+      data-copied={copied}
+      size="sm"
+      onClick={handleCopy}
+      onKeyDown={handleKeyDown}
+      className={cn(HISTORY_CARD_SHELL, HISTORY_CARD_INTERACTIVE, copied && "ring-foreground/15")}
+    >
+      <CardContent className={HISTORY_CARD_BODY}>
+        <div className="text-[13px] leading-relaxed text-foreground">{entry.text}</div>
+        <div className="mt-2 flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <span>{formatTime(entry.timestamp)}</span>
+          <span className={cn("text-muted-foreground transition-colors", copied ? "text-success" : "group-hover:text-primary")}>
+            {copied ? "Copied" : "Copy"}
+          </span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -83,7 +139,7 @@ function MainWindow() {
   const [appVersion, setAppVersion] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [overlayBarEnabled, setOverlayBarEnabled] = useState(true);
-  const settingsAnchorRef = useRef<HTMLDivElement>(null);
+  const [themePreference, setThemePreference] = useState<ThemePreference>("system");
   const registeredShortcutRef = useRef<string | null>(null);
 
   const refreshHistory = useCallback(async () => {
@@ -154,6 +210,14 @@ function MainWindow() {
   }, []);
 
   useEffect(() => {
+    void invoke<string>("get_theme")
+      .then((s) => setThemePreference(parseThemePreference(s)))
+      .catch(() =>
+        setThemePreference(parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY))),
+      );
+  }, []);
+
+  useEffect(() => {
     const setup = async () => {
       const previous = registeredShortcutRef.current;
       if (previous !== null) {
@@ -217,25 +281,12 @@ function MainWindow() {
     void invoke<boolean>("get_overlay_bar_enabled")
       .then(setOverlayBarEnabled)
       .catch(() => {});
+    void invoke<string>("get_theme")
+      .then((s) => setThemePreference(parseThemePreference(s)))
+      .catch(() =>
+        setThemePreference(parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY))),
+      );
     setLiveShortcut(getDictationShortcut());
-  }, [settingsOpen]);
-
-  useEffect(() => {
-    if (!settingsOpen) return;
-    const onMouseDown = (e: MouseEvent) => {
-      if (settingsAnchorRef.current && !settingsAnchorRef.current.contains(e.target as Node)) {
-        setSettingsOpen(false);
-      }
-    };
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSettingsOpen(false);
-    };
-    document.addEventListener("mousedown", onMouseDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onMouseDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
   }, [settingsOpen]);
 
   const handleCopy = useCallback(async (text: string) => {
@@ -268,109 +319,168 @@ function MainWindow() {
     }
   }, []);
 
+  const applyThemePreference = useCallback(async (next: ThemePreference) => {
+    setThemePreference(next);
+    localStorage.setItem(THEME_STORAGE_KEY, next);
+    syncDocumentTheme(next);
+    try {
+      await invoke("set_theme", { theme: next });
+    } catch {
+      /* Browser dev without Tauri backend */
+    }
+    await emit("theme-changed", next).catch(() => {});
+  }, []);
+
   return (
-    <div className="main-window">
-      <header className="main-window-header">
-        <div className="main-window-header-row">
-          <div className="main-window-header-left">
-            <div className="main-window-title-row">
-              <h1>Mello Voice</h1>
-              {appVersion ? (
-                <span className="main-window-version" title={`Mello Voice ${appVersion}`}>
-                  v{appVersion}
-                </span>
-              ) : null}
-            </div>
-            <p className="main-window-subhint">Close this window to minimize to tray.</p>
-          </div>
-          <div className="main-window-settings-anchor" ref={settingsAnchorRef}>
-            <button
-              type="button"
-              className="main-window-cog"
-              aria-label="Settings"
-              aria-expanded={settingsOpen}
-              aria-haspopup="dialog"
-              onClick={() => setSettingsOpen((o) => !o)}
-            >
-              <SettingsGearIcon />
-            </button>
-            {settingsOpen ? (
-              <div className="settings-popover" role="dialog" aria-label="Settings">
-                <div className="settings-popover-section">
-                  <div className="settings-popover-control-row">
-                    <div className="settings-popover-copy">
-                      <p className="settings-popover-label">Dictation bar</p>
-                      <p className="settings-popover-hint">
-                        Show the floating recording indicator at the top of the screen.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className={`settings-switch${overlayBarEnabled ? " settings-switch-on" : ""}`}
-                      role="switch"
-                      aria-checked={overlayBarEnabled}
-                      onClick={() => void setDictationBarPreference(!overlayBarEnabled)}
-                    >
-                      <span className="settings-switch-thumb" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="settings-popover-divider" />
-
-                <div className="settings-popover-section">
-                  <p className="settings-popover-label">Dictation shortcut</p>
-                  <p className="settings-popover-hint">Hold this key combination while you speak to record dictation.</p>
-                  <div className="shortcut-presets settings-popover-presets" role="radiogroup" aria-label="Dictation shortcut">
-                    {DICTATION_SHORTCUT_OPTIONS.map((preset) => {
-                      const selected = liveShortcut === preset;
-                      return (
-                        <button
-                          key={preset}
-                          type="button"
-                          role="radio"
-                          aria-checked={selected}
-                          className={`shortcut-preset-chip${selected ? " shortcut-preset-chip-selected" : ""}`}
-                          onClick={() => selectPresetShortcut(preset)}
-                        >
-                          {preset}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
+    <div className="flex min-h-svh select-none flex-col bg-background px-5 pb-8 pt-6 text-foreground">
+      <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/80 pb-6">
+        <div className="min-w-0 space-y-1.5">
+          <div className="flex flex-wrap items-baseline gap-2.5">
+            <h1 className="text-[22px] font-medium tracking-[-0.02em] text-foreground">Mello Voice</h1>
+            {appVersion ? (
+              <Badge variant="secondary" className="font-normal tabular-nums" title={`Mello Voice ${appVersion}`}>
+                v{appVersion}
+              </Badge>
             ) : null}
           </div>
+          <p className="text-[13px] text-muted-foreground">Close this window to minimize to tray.</p>
         </div>
+
+        <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="surface" size="icon" aria-label="Settings">
+              <Settings strokeWidth={1.5} className="size-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-[min(100vw-2rem,22rem)] gap-0 rounded-3xl p-0">
+            <div className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium leading-snug text-foreground">Dictation bar</p>
+                  <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground pr-21">
+                    Show the floating recording indicator at the top of the screen.
+                  </p>
+                </div>
+                <div className="shrink-0 pt-px">
+                  <Switch
+                    aria-label="Dictation bar"
+                    checked={overlayBarEnabled}
+                    onToggle={() => void setDictationBarPreference(!overlayBarEnabled)}
+                    className="p-1 pr-0 pl-0"
+                  />
+                </div>
+              </div>
+            </div>
+            <Separator className="bg-border/80" />
+            <div className="p-4">
+              <p className="text-[13px] font-medium text-foreground">Dictation shortcut</p>
+              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground pr-21">
+                Hold this key combination while you speak to record dictation.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Dictation shortcut">
+                {DICTATION_SHORTCUT_OPTIONS.map((preset) => {
+                  const selected = liveShortcut === preset;
+                  return (
+                    <button
+                      key={preset}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      className={settingsSegmentClass(selected)}
+                      onClick={() => selectPresetShortcut(preset)}
+                    >
+                      {preset}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <Separator className="bg-border/80" />
+            <div className="p-4">
+              <p className="text-[13px] font-medium text-foreground">Appearance</p>
+              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground pr-21">
+                Match your system theme, or keep Mello light or dark.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Appearance theme">
+                {THEME_OPTIONS.map(({ value, label }) => {
+                  const selected = themePreference === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      className={settingsSegmentClass(selected)}
+                      onClick={() => void applyThemePreference(value)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
       </header>
 
-      <section className="history-section">
-        <div className="history-header">
-          <h2>History{history.length > 0 ? ` · ${history.length}` : ""}</h2>
-          {history.length > 0 && (
-            <button type="button" className="history-clear" onClick={handleClear}>
+      <section className="mt-6 flex min-h-0 flex-1 flex-col gap-4">
+        <div className="flex min-h-8 items-center justify-between gap-3">
+          <h2 className="min-w-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="inline-flex items-baseline gap-1.5">
+              <span>History</span>
+              <span className="tabular-nums opacity-90">· {history.length}</span>
+            </span>
+          </h2>
+          <div className="flex shrink-0 justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className={cn(
+                "h-7 min-w-[4.5rem] justify-center text-[12px] text-muted-foreground hover:text-destructive",
+                history.length === 0 && "invisible pointer-events-none",
+              )}
+              onClick={handleClear}
+              tabIndex={history.length === 0 ? -1 : 0}
+              aria-hidden={history.length === 0}
+            >
               Clear all
-            </button>
-          )}
+            </Button>
+          </div>
         </div>
 
-        {history.length === 0 ? (
-          <div className="history-empty" role="status" aria-live="polite">
-            <p className="history-empty-title">No transcriptions yet</p>
-            <p className="history-empty-step">1. Click where you want to type.</p>
-            <p className="history-empty-step">
-              2. Hold <kbd>{liveShortcut}</kbd> and speak.
-            </p>
-            <p className="history-empty-note">Your words are pasted into the focused field.</p>
-          </div>
-        ) : (
-          <ul className="history-list">
-            {history.map((entry) => (
-              <HistoryItem key={entry.id} entry={entry} onCopy={handleCopy} />
-            ))}
+        <ScrollArea className="min-h-0 flex-1">
+          <ul className="flex flex-col gap-2.5 pb-1 pt-0">
+            {history.length === 0 ? (
+              <li className="min-w-0">
+                <Card size="sm" className={HISTORY_CARD_SHELL}>
+                  <CardContent className={HISTORY_CARD_BODY}>
+                    <div className="space-y-3 text-[13px] leading-relaxed">
+                      <p className="text-[15px] font-medium text-foreground">No transcriptions yet</p>
+                      <div className="space-y-2 text-muted-foreground">
+                        <p>1. Click where you want to type.</p>
+                        <p>
+                          2. Hold{" "}
+                          <kbd className="inline-flex items-center rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[12px] leading-none text-foreground">
+                            {liveShortcut}
+                          </kbd>{" "}
+                          and speak.
+                        </p>
+                        <p>3. Your words are pasted into the focused field.</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </li>
+            ) : (
+              history.map((entry) => (
+                <li key={entry.id} className="min-w-0">
+                  <HistoryItem entry={entry} onCopy={handleCopy} />
+                </li>
+              ))
+            )}
           </ul>
-        )}
+        </ScrollArea>
       </section>
     </div>
   );

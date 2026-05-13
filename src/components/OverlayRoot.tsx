@@ -249,7 +249,7 @@ function OverlayRoot() {
   return (
     <div
       ref={overlayRef}
-      className="overlay-root"
+      className="pointer-events-auto flex min-h-full w-full cursor-default items-start justify-center px-2 pb-2 pt-2.5"
       data-expanded="true"
       data-inline-hide={inlineHideOpen}
       data-session-visible={sessionChromeVisible}
