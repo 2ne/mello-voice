@@ -54,6 +54,8 @@ npm run tauri build
 
 ## Usage
 
+The first time you use dictation, **Windows** or the app may show a **microphone** or **privacy** prompt. Choose **Allow** / **Yes** / **Accept** so Mello Voice can hear you. If you choose **Block** or **Deny**, speech recognition will not work until you turn the microphone on for this app in **Settings → Privacy & security → Microphone** (Windows).
+
 1. Open Mello Voice – main window and tray icon appear.
 2. Optionally close the main window – the app keeps running in the tray.
 3. **Settings (gear)**  
@@ -66,7 +68,7 @@ npm run tauri build
 
 ## Windows notes
 
-- **Microphone**: Allow access when Windows prompts; denial shows an error in the bar.
+- **Microphone**: You must **allow** access when prompted (especially on first run); otherwise the bar may show errors like “Microphone access denied” and dictation will fail.
 - **Speech quality**: Depends on language settings and network (Web Speech uses the Chromium stack).
 - **Shortcut conflicts**: Pick a different preset in Settings if one combination is taken by another app.
 
