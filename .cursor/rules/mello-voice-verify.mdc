@@ -1,0 +1,19 @@
+---
+description: Run full automated verification before finishing mello-voice work (tests + build + Rust).
+alwaysApply: true
+---
+
+# Mello Voice — automated verification (agent-owned)
+
+The human does **not** run tests for routine changes. **You** own verification end-to-end.
+
+## Before you finish
+
+1. From the repo root, run **`npm run verify`** (Vitest → TypeScript/Vite production build → `cargo test`).
+2. Read the **full command output**. Confirm **every step exits successfully** (Vitest files/tests passed, `vite build` completed, Rust tests **ok**, overall exit code **0**).
+3. If anything fails: **diagnose from the logs**, fix the issue, and **`npm run verify`** again. Repeat until green.
+4. Do **not** ask the user to run tests or paste logs unless something is blocked outside the repo (missing toolchain, OS-only failures you cannot reproduce).
+
+## Scope
+
+Passing `verify` means the **automated suite and compile pipeline** are healthy. It does **not** prove microphone/WebView2/soak behavior unless those are covered by tests.

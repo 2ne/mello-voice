@@ -2,11 +2,66 @@ use enigo::{Direction, Enigo, Key, Keyboard};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+use std::sync::Mutex;
 use tauri::{
+    image::Image,
     menu::{Menu, MenuItem},
+    path::BaseDirectory,
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager,
+    Emitter, Manager,
 };
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod whisper_daemon;
+
+/// whisper.cpp CPU/GPU builds ship DLLs next to whisper-cli.exe; bundled under resource `whisper_runtime/`.
+#[cfg(all(not(any(target_os = "android", target_os = "ios")), target_os = "windows"))]
+fn prepend_whisper_runtime_to_path(handle: &tauri::AppHandle) {
+    let Ok(mark) =
+        handle.path().resolve("whisper_runtime/ggml.dll", tauri::path::BaseDirectory::Resource)
+    else {
+        log::warn!(
+            "Whisper runtime DLL path could not be resolved — run npm run setup:whisper before building"
+        );
+        return;
+    };
+    if !mark.exists() {
+        log::warn!(
+            "Bundled Whisper DLLs missing (expected {}) — transcription sidecars may fail to start",
+            mark.display()
+        );
+        return;
+    }
+    let Some(dir) = mark.parent().map(std::path::Path::to_path_buf) else {
+        return;
+    };
+    match std::env::var_os("PATH") {
+        Some(prev) => {
+            let mut merged =
+                std::ffi::OsString::with_capacity(dir.as_os_str().len() + prev.len() + 1);
+            merged.push(&dir);
+            merged.push(";");
+            merged.push(prev);
+            std::env::set_var("PATH", merged);
+            log::info!(
+                "Prepended Whisper DLL directory to PATH ({})",
+                dir.display()
+            );
+        }
+        None => {
+            std::env::set_var("PATH", &dir);
+            log::info!(
+                "PATH set to Whisper DLL directory ({})",
+                dir.display()
+            );
+        }
+    }
+}
+
+mod transcribe;
+mod post_process;
+mod cloud_stt;
 
 const HISTORY_FILE: &str = "history.json";
 const PREFS_FILE: &str = "app-prefs.json";
@@ -19,6 +74,34 @@ fn show_main_and_overlay(app: &tauri::AppHandle) {
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+
+fn universal_tray_icon_image(app: &tauri::AppHandle) -> Image<'static> {
+    if let Ok(p) = app.path().resolve(
+        "icons/runtime/mello-voice-universal-32.png",
+        BaseDirectory::Resource,
+    ) {
+        if p.exists() {
+            if let Ok(img) = Image::from_path(p) {
+                return img.to_owned();
+            }
+        }
+    }
+    let dev_png = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("icons/runtime/mello-voice-universal-32.png");
+    if dev_png.exists() {
+        if let Ok(img) = Image::from_path(&dev_png) {
+            return img.to_owned();
+        }
+    }
+    let fallback_png = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("icons/32x32.png");
+    if fallback_png.exists() {
+        if let Ok(img) = Image::from_path(&fallback_png) {
+            return img.to_owned();
+        }
+    }
+
+    panic!("tray icon: expected bundled icons/32x32.png or runtime universal PNG");
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -216,6 +299,48 @@ fn clear_history(app: tauri::AppHandle) -> Result<(), String> {
     save_history(&app, &[])
 }
 
+/// Wakes the overlay webview before emitting `dictation-hotkey`. The global shortcut handler runs in
+/// the main window; a hidden overlay WebView2 can throttle JS so `listen` misses `Released`,
+/// leaving dictation stuck until the next session.
+#[tauri::command]
+async fn relay_dictation_hotkey(app: tauri::AppHandle, state: String) -> Result<(), String> {
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        let _ = (app, state);
+        return Ok(());
+    }
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        if state != "Pressed" && state != "Released" {
+            return Ok(());
+        }
+        if let Some(overlay) = app.get_webview_window("overlay") {
+            let _ = overlay.show();
+            let _ = overlay.unminimize();
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(55)).await;
+        app.emit(
+            "dictation-hotkey",
+            serde_json::json!({ "state": state }),
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[tauri::command]
+fn is_whisper_daemon_ready(app: tauri::AppHandle) -> bool {
+    whisper_daemon::is_daemon_running(&app)
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+#[tauri::command]
+fn is_whisper_daemon_ready(_app: tauri::AppHandle) -> bool {
+    false
+}
+
 #[tauri::command]
 fn paste_text(text: String) -> Result<(), String> {
     if text.is_empty() {
@@ -239,11 +364,15 @@ fn paste_text(text: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             show_main_and_overlay(app);
         }))
         .plugin(tauri_plugin_positioner::init())
         .invoke_handler(tauri::generate_handler![
+            transcribe::transcribe_wav,
+            post_process::polish_final_transcript,
+            cloud_stt::groq_cloud_transcribe_wav,
             paste_text,
             add_to_history,
             get_history,
@@ -254,6 +383,8 @@ pub fn run() {
             set_overlay_bar_enabled,
             get_theme,
             set_theme,
+            relay_dictation_hotkey,
+            is_whisper_daemon_ready,
         ])
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_log::Builder::default().build())
@@ -266,13 +397,22 @@ pub fn run() {
                 }
             }
 
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                #[cfg(target_os = "windows")]
+                prepend_whisper_runtime_to_path(&app_handle);
+
+                app.manage(whisper_daemon::WhisperDaemonSlot(Mutex::new(None)));
+                whisper_daemon::start_daemon_background(app.handle().clone());
+            }
+
             // Build tray menu
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
 
-            let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+            let _tray = TrayIconBuilder::with_id("main")
+                .icon(universal_tray_icon_image(app.handle()))
                 .menu(&menu)
                 .tooltip("Mello Voice — hold your dictation shortcut to speak")
                 .on_menu_event(move |app, event| {
@@ -310,6 +450,10 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            whisper_daemon::on_app_run_event(&app_handle, &event);
+        });
 }

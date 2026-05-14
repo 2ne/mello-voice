@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
@@ -10,6 +10,7 @@ import {
   getAppliedThemePreference,
   THEME_STORAGE_KEY,
 } from './themePreference'
+import { setupThemeAwareIcons } from './themeAwareIcons'
 
 function isTauriRuntime(): boolean {
   return (
@@ -28,6 +29,7 @@ function isOverlayWindow(): boolean {
 
 function App() {
   const isOverlay = isOverlayWindow()
+  const unThemeIconsRef = useRef<(() => void) | undefined>(undefined)
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
@@ -47,7 +49,13 @@ function App() {
       syncDocumentTheme(t)
     }
 
-    void loadStoredTheme()
+    void (async () => {
+      await loadStoredTheme()
+      if (!isOverlay) {
+        unThemeIconsRef.current?.()
+        unThemeIconsRef.current = await setupThemeAwareIcons()
+      }
+    })()
 
     const onMq = () => {
       if (getAppliedThemePreference() === 'system') syncDocumentTheme('system')
@@ -67,8 +75,10 @@ function App() {
     return () => {
       mq.removeEventListener('change', onMq)
       unlisten?.()
+      unThemeIconsRef.current?.()
+      unThemeIconsRef.current = undefined
     }
-  }, [])
+  }, [isOverlay])
 
   useEffect(() => {
     document.documentElement.classList.toggle('overlay-window', isOverlay)

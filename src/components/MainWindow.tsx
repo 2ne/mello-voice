@@ -3,7 +3,7 @@ import { listen, emit } from "@tauri-apps/api/event";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
-import { Settings } from "lucide-react";
+import { SettingsGearIcon } from "@/components/icons/SettingsGearIcon";
 import { getHistory, clearHistory, type HistoryEntry } from "../history";
 import {
   DICTATION_SHORTCUT_OPTIONS,
@@ -225,7 +225,7 @@ function MainWindow() {
       }
       try {
         await register(liveShortcut, (event) => {
-          void emit("dictation-hotkey", { state: event.state });
+          void invoke("relay_dictation_hotkey", { state: event.state }).catch(() => {});
         });
         registeredShortcutRef.current = liveShortcut;
       } catch (e) {
@@ -234,7 +234,7 @@ function MainWindow() {
         if (previous !== null) {
           try {
             await register(previous, (event) => {
-              void emit("dictation-hotkey", { state: event.state });
+              void invoke("relay_dictation_hotkey", { state: event.state }).catch(() => {});
             });
             registeredShortcutRef.current = previous;
             recovered = previous;
@@ -242,7 +242,7 @@ function MainWindow() {
             recovered = DEFAULT_DICTATION_SHORTCUT;
             try {
               await register(recovered, (event) => {
-                void emit("dictation-hotkey", { state: event.state });
+                void invoke("relay_dictation_hotkey", { state: event.state }).catch(() => {});
               });
               registeredShortcutRef.current = recovered;
             } catch {
@@ -252,7 +252,7 @@ function MainWindow() {
         } else {
           try {
             await register(DEFAULT_DICTATION_SHORTCUT, (event) => {
-              void emit("dictation-hotkey", { state: event.state });
+              void invoke("relay_dictation_hotkey", { state: event.state }).catch(() => {});
             });
             registeredShortcutRef.current = DEFAULT_DICTATION_SHORTCUT;
             recovered = DEFAULT_DICTATION_SHORTCUT;
@@ -349,7 +349,7 @@ function MainWindow() {
         <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
           <PopoverTrigger asChild>
             <Button type="button" variant="surface" size="icon" aria-label="Settings">
-              <Settings strokeWidth={1.5} className="size-4" />
+              <SettingsGearIcon strokeWidth={1.5} className="size-4" />
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-[min(100vw-2rem,22rem)] gap-0 rounded-3xl p-0">

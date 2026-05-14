@@ -91,9 +91,11 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       setIsListening(false)
     }
     recognition.onerror = (e) => {
-      if (e.error !== 'aborted') {
-        setError(e.error === 'not-allowed' ? 'Microphone access denied' : `Error: ${e.error}`)
-      }
+      /** Benign Chromium / WebSpeech cases while the mic is idle or between phrases. */
+      const benign = new Set(["aborted", "no-speech", "captured"])
+      if (benign.has(e.error)) return
+      if (e.error === "audio-capture") return
+      setError(e.error === "not-allowed" ? "Microphone access denied" : `Error: ${e.error}`)
     }
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {

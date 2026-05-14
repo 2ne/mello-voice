@@ -22,6 +22,10 @@ lerna-debug.log*
 .env.*
 !.env.example
 
+# Whisper / Tauri large local assets (use `npm run setup:whisper`)
+src-tauri/binaries/whisper-cli-*.*
+src-tauri/resources/models/*.bin
+
 # Rust / Tauri — release & debug artifacts, deps cache
 src-tauri/target/
 

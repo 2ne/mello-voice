@@ -7,6 +7,21 @@
   ],
   "permissions": [
     "core:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "args": true,
+          "name": "binaries/whisper-cli",
+          "sidecar": true
+        },
+        {
+          "args": true,
+          "name": "binaries/whisper-server",
+          "sidecar": true
+        }
+      ]
+    },
     "core:app:allow-version",
     "core:window:allow-show",
     "core:window:allow-hide",
@@ -18,6 +33,13 @@
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
     "core:event:allow-listen",
-    "core:event:allow-emit"
+    "core:event:allow-emit",
+    "core:window:allow-set-icon",
+    "core:window:allow-theme",
+    "core:tray:allow-get-by-id",
+    "core:tray:allow-set-icon",
+    "core:image:allow-from-path",
+    "core:path:allow-join",
+    "core:path:allow-resolve-directory"
   ]
 }

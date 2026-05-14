@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 
@@ -182,15 +181,133 @@ html.overlay-window .floating-overlay {
   filter: none !important;
 }
 
-/* Listening / transcribing — same idea as pre-refactor overlay (opacity + scale, no outer glow) */
-@keyframes overlay-chrome-pulse {
+/*
+ * Floating bar motion — refined easing via linear() stops (see
+ * https://www.joshwcomeau.com/animation/linear-timing-function/ ),
+ * interpolate-size ( https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/interpolate-size ),
+ * @starting-style ( https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@starting-style ).
+ */
+html.overlay-window .floating-overlay.floating-overlay-chrome {
+  /* Prefer smooth interpolation when sizing involves keywords / intrinsic layout */
+  interpolate-size: allow-keywords;
+  --overlay-chrome-duration: 260ms;
+  /* ease-out-ish curve via linear() stops — avoids generic ease-out feel */
+  --overlay-chrome-ease: linear(
+    0,
+    0.14 14%,
+    0.42 32%,
+    0.72 56%,
+    0.92 78%,
+    1
+  );
+  transition-property: width, min-height, padding-block, padding-inline, border-color, background-color;
+  transition-duration: var(--overlay-chrome-duration);
+  transition-timing-function: var(--overlay-chrome-ease);
+}
+
+/* Idle “Ready” pill: quicker feedback on hover width/min-height morph */
+html.overlay-window .floating-overlay.floating-overlay-chrome[data-chrome-variant="mini"] {
+  --overlay-chrome-duration: 155ms;
+  --overlay-chrome-ease: linear(0, 0.52 42%, 0.82 72%, 1);
+}
+
+/*
+ * Expanded chrome: don’t tween min-height/padding with justify-center —
+ * the flex column recenters children as the box grows and “Ready” appears to slide upward.
+ * Width morphs; border-radius snaps (no tween — avoids awkward capsule interpolation).
+ */
+html.overlay-window .floating-overlay.floating-overlay-chrome[data-chrome-variant="expanded"] {
+  transition-property: width, border-color, background-color;
+}
+
+/*
+ * Idle “Ready” + hide menu: stays rounded-full; vertical reveal is the hide-slot grid only.
+ */
+html.overlay-window .floating-overlay-chrome[data-chrome-variant="idle-menu"] {
+  --overlay-chrome-duration: 175ms;
+  transition-property: padding-block, padding-inline, border-color, background-color;
+  transition-duration: var(--overlay-chrome-duration);
+  transition-timing-function: var(--overlay-chrome-ease);
+}
+
+/* Inline menu: accordion row — avoids mount/unmount height jumps */
+html.overlay-window .floating-overlay-hide-slot {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 240ms var(--overlay-chrome-ease);
+}
+
+html.overlay-window .floating-overlay-hide-slot[data-expanded] {
+  grid-template-rows: 1fr;
+}
+
+html.overlay-window .floating-overlay-hide-slot-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.overlay-window .floating-overlay-hide-actions {
+  padding-top: 0.625rem; /* replaces Tailwind mt-2.5 inside measurable slot */
+}
+
+html.overlay-window .floating-overlay-hide-slot:not([data-expanded]) .floating-overlay-hide-actions {
+  pointer-events: none;
+}
+
+/* Listening / transcribing — pulse only a tint layer so label opacity stays solid */
+@keyframes overlay-chrome-pulse-wash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+html.overlay-window .floating-overlay-chrome-pulse::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background-color: color-mix(in oklab, var(--overlay-chrome-fg) 16%, transparent);
+  opacity: 0;
+  animation-name: overlay-chrome-pulse-wash;
+  animation-duration: 1s;
+  animation-timing-function: linear(
+    0,
+    0.12 22%,
+    0.48 42%,
+    0.52 58%,
+    0.88 78%,
+    1
+  );
+  animation-iteration-count: infinite;
+}
+
+html.overlay-window .floating-overlay-chrome-pulse > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Whole-bar opacity breathe while listening — visible on “Listening…” and with live text */
+@keyframes overlay-chrome-listening-opacity-breathe {
   0%,
   100% {
     opacity: 1;
-    transform: scale(1);
   }
   50% {
-    opacity: 0.75;
-    transform: scale(0.975);
+    opacity: 0.82;
   }
+}
+
+html.overlay-window .floating-overlay-chrome-listening-breathe {
+  animation: overlay-chrome-listening-opacity-breathe 1s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: gray transparent;
 }

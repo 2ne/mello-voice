@@ -1,0 +1,34 @@
+
+Tauri Whisper sidecar bundle
+===========================
+
+Naming
+------
+  whisper-cli-<RUST_HOST_TRIPLE>[.exe]     (`rustc --print host-tuple`)
+  whisper-server-<RUST_HOST_TRIPLE>[.exe]  (same triple; warm HTTP daemon)
+
+Setup (Windows host)
+--------------------
+  npm run setup:whisper          # downloads OpenBLAS CPU CLI + quantized base.en (q8_0)
+
+  npm run setup:whisper -- --gpu # optional: NVIDIA CUDA 12.4 cuBLAS binaries (requires CUDA runtime)
+
+Windows also requires the **DLL bundle** from that zip (copied by the script into):
+  `src-tauri/resources/whisper_runtime/` — `ggml.dll`, `libopenblas.dll`, etc. The app prepends this
+  directory to `PATH` at startup so whisper-cli / whisper-server load correctly in dev and in the
+  installed bundle.
+
+Bundled assets are git‑ignored (*.exe, *.bin) — run setup after clone.
+
+Groq‑powered polishing & fallback (desktop, opt‑in env only)
+------------------------------------------------------------
+Requires a Groq API key and explicit flags — no UI toggles:
+
+  • MELLOVOICE_GROQ_API_KEY=<key>
+  • MELLOVOICE_GROQ_POLISH=1     — Llama refinement after heuristic cleanup
+  • MELLOVOICE_GROQ_CLOUD=1      — remote Whisper when local Whisper + Web Speech are both empty
+
+Non‑Windows desktops: build whisper.cpp CLI from source and drop it into `binaries/` with the
+correct Rust triple suffix. Keep `resources/models/ggml-base.en-q8_0.bin` alongside (or run the
+setup script until the download finishes on any Node-capable CI host).
+

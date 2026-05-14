@@ -4,14 +4,12 @@ import {
   forwardRef,
   useRef,
   useState,
-  useEffect,
+  useLayoutEffect,
   useCallback,
   type HTMLAttributes,
 } from "react";
-import { motion, useMotionValue, animate } from "framer-motion";
 import * as SwitchPrimitive from "@radix-ui/react-switch";
 import { cn } from "@/lib/utils";
-import { springs } from "@/lib/springs";
 
 interface SwitchProps extends HTMLAttributes<HTMLDivElement> {
   /** Optional; omit for control-only rows (no On/Off copy). */
@@ -31,14 +29,18 @@ const PRESS_EXTEND = 4;
 const PRESS_SHRINK = 4;
 const DRAG_DEAD_ZONE = 2;
 
+/** Slight overshoot, no Framer — matches prior “moderate spring” feel */
+const THUMB_TRANSITION =
+  "transform 220ms cubic-bezier(0.34, 1.25, 0.64, 1), width 200ms cubic-bezier(0.34, 1.25, 0.64, 1), height 200ms cubic-bezier(0.34, 1.25, 0.64, 1)";
+
 const Switch = forwardRef<HTMLDivElement, SwitchProps>(
   ({ label, checked, onToggle, disabled = false, className, ...props }, ref) => {
     const showLabel = Boolean(label?.trim());
     const hasMounted = useRef(false);
     const [hovered, setHovered] = useState(false);
     const [pressed, setPressed] = useState(false);
+    const thumbRef = useRef<HTMLSpanElement>(null);
 
-    // Drag refs (not state to avoid re-renders during drag)
     const dragging = useRef(false);
     const didDrag = useRef(false);
     const pointerStart = useRef<{
@@ -46,16 +48,6 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
       originX: number;
     } | null>(null);
 
-    // Motion value for thumb x-axis
-    const motionX = useMotionValue(
-      checked ? THUMB_OFFSET + THUMB_TRAVEL : THUMB_OFFSET
-    );
-
-    useEffect(() => {
-      hasMounted.current = true;
-    }, []);
-
-    // Compute thumb shape
     const thumbWidth = pressed
       ? THUMB_SIZE + PRESS_EXTEND
       : hovered
@@ -64,21 +56,25 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
     const thumbHeight = pressed ? THUMB_SIZE - PRESS_SHRINK : THUMB_SIZE;
     const thumbY = pressed ? THUMB_OFFSET + PRESS_SHRINK / 2 : THUMB_OFFSET;
     const extraWidth = thumbWidth - THUMB_SIZE;
-    const thumbX = checked
-      ? THUMB_OFFSET + THUMB_TRAVEL - extraWidth
-      : THUMB_OFFSET;
+    const thumbX = checked ? THUMB_OFFSET + THUMB_TRAVEL - extraWidth : THUMB_OFFSET;
 
-    // Sync motionX when thumbX changes (hover/press/checked) and not dragging
-    useEffect(() => {
+    const paintThumb = useCallback(
+      (x: number, y: number, w: number, h: number, animate: boolean) => {
+        const el = thumbRef.current;
+        if (!el) return;
+        el.style.transition = animate ? THUMB_TRANSITION : "none";
+        el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+        el.style.width = `${w}px`;
+        el.style.height = `${h}px`;
+      },
+      [],
+    );
+
+    useLayoutEffect(() => {
       if (dragging.current) return;
-      if (!hasMounted.current) {
-        motionX.set(thumbX);
-      } else {
-        animate(motionX, thumbX, springs.moderate);
-      }
-    }, [thumbX, motionX]);
-
-    // --- Pointer handlers ---
+      paintThumb(thumbX, thumbY, thumbWidth, thumbHeight, hasMounted.current);
+      hasMounted.current = true;
+    }, [thumbX, thumbY, thumbWidth, thumbHeight, paintThumb]);
 
     const handlePointerDown = useCallback(
       (e: React.PointerEvent<HTMLDivElement>) => {
@@ -87,13 +83,15 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
         setPressed(true);
         dragging.current = false;
         didDrag.current = false;
+        const originXPressed =
+          checked ? THUMB_OFFSET + THUMB_TRAVEL - PRESS_EXTEND : THUMB_OFFSET;
         pointerStart.current = {
           clientX: e.clientX,
-          originX: motionX.get(),
+          originX: originXPressed,
         };
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       },
-      [disabled, motionX]
+      [disabled, checked],
     );
 
     const handlePointerMove = useCallback(
@@ -110,47 +108,46 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
         const pressedThumbWidth = THUMB_SIZE + PRESS_EXTEND;
         const dragMax = TRACK_WIDTH - THUMB_OFFSET - pressedThumbWidth;
         const rawX = pointerStart.current.originX + delta;
-        motionX.set(Math.max(dragMin, Math.min(dragMax, rawX)));
+        const x = Math.max(dragMin, Math.min(dragMax, rawX));
+        const py = THUMB_OFFSET + PRESS_SHRINK / 2;
+        const pw = pressedThumbWidth;
+        const ph = THUMB_SIZE - PRESS_SHRINK;
+        paintThumb(x, py, pw, ph, false);
       },
-      [motionX]
+      [paintThumb],
     );
 
-    const handlePointerUp = useCallback(
-      () => {
-        if (!pointerStart.current) return;
-        setPressed(false);
+    const handlePointerUp = useCallback(() => {
+      if (!pointerStart.current) return;
+      setPressed(false);
 
-        if (dragging.current) {
-          didDrag.current = true;
-          dragging.current = false;
+      if (dragging.current) {
+        didDrag.current = true;
+        dragging.current = false;
 
-          const currentX = motionX.get();
-          const dragMin = THUMB_OFFSET;
-          const pressedThumbWidth = THUMB_SIZE + PRESS_EXTEND;
-          const dragMax = TRACK_WIDTH - THUMB_OFFSET - pressedThumbWidth;
-          const midpoint = (dragMin + dragMax) / 2;
-
-          const shouldBeOn = currentX > midpoint;
-
-          if (shouldBeOn !== checked) {
-            onToggle();
-          } else {
-            // Snap back to current resting position (un-pressed)
-            const snapTarget = checked
-              ? THUMB_OFFSET + THUMB_TRAVEL
-              : THUMB_OFFSET;
-            animate(motionX, snapTarget, springs.moderate);
-          }
-
-          requestAnimationFrame(() => {
-            didDrag.current = false;
-          });
+        const el = thumbRef.current;
+        let currentX = thumbX;
+        if (el) {
+          const m = el.style.transform.match(/translate3d\(([-0-9.]+)px/);
+          if (m) currentX = Number.parseFloat(m[1]);
         }
 
-        pointerStart.current = null;
-      },
-      [checked, onToggle, motionX]
-    );
+        const dragMin = THUMB_OFFSET;
+        const pressedThumbWidth = THUMB_SIZE + PRESS_EXTEND;
+        const dragMax = TRACK_WIDTH - THUMB_OFFSET - pressedThumbWidth;
+        const midpoint = (dragMin + dragMax) / 2;
+        const shouldBeOn = currentX > midpoint;
+
+        if (shouldBeOn !== checked) {
+          onToggle();
+        }
+        requestAnimationFrame(() => {
+          didDrag.current = false;
+        });
+      }
+
+      pointerStart.current = null;
+    }, [checked, onToggle, thumbX]);
 
     return (
       <div
@@ -159,7 +156,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
           "relative z-10 flex cursor-pointer touch-none select-none items-center",
           showLabel ? "gap-2.5 px-3 py-2" : "gap-0 p-1",
           disabled && "pointer-events-none opacity-50",
-          className
+          className,
         )}
         onPointerEnter={(e) => {
           if (e.pointerType === "mouse") setHovered(true);
@@ -174,7 +171,6 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
         }}
         {...props}
       >
-        {/* Switch */}
         <SwitchPrimitive.Root
           checked={checked}
           onCheckedChange={() => {
@@ -184,9 +180,9 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
           disabled={disabled}
           tabIndex={0}
           className={cn(
-            "relative shrink-0 rounded-full outline-none cursor-pointer",
+            "relative shrink-0 cursor-pointer rounded-full outline-none",
             "transition-colors duration-80",
-            "focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            "focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           )}
           style={{
             width: TRACK_WIDTH,
@@ -202,16 +198,9 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
           onClick={(e) => e.stopPropagation()}
         >
           <SwitchPrimitive.Thumb asChild>
-            <motion.span
-              className="absolute top-0 left-0 block rounded-full bg-[var(--switch-thumb)] shadow-sm"
-              initial={false}
-              style={{ x: motionX }}
-              animate={{
-                y: thumbY,
-                width: thumbWidth,
-                height: thumbHeight,
-              }}
-              transition={hasMounted.current ? springs.moderate : { duration: 0 }}
+            <span
+              ref={thumbRef}
+              className="absolute top-0 left-0 block rounded-full bg-[var(--switch-thumb)] shadow-sm will-change-transform"
             />
           </SwitchPrimitive.Thumb>
         </SwitchPrimitive.Root>
@@ -228,7 +217,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
         ) : null}
       </div>
     );
-  }
+  },
 );
 
 Switch.displayName = "Switch";
