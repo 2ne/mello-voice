@@ -34,5 +34,22 @@ jobs:
             librsvg2-dev \
             libxdo-dev
 
+      - name: Prepare Tauri CI sidecars
+        run: |
+          triple="$(rustc --print host-tuple)"
+          mkdir -p \
+            src-tauri/binaries \
+            src-tauri/resources/models \
+            src-tauri/resources/whisper_public \
+            src-tauri/resources/whisper_runtime
+
+          for name in whisper-cli whisper-server; do
+            bin="src-tauri/binaries/${name}-${triple}"
+            printf '#!/usr/bin/env sh\nprintf "CI placeholder for %s; not used by tests.\\n" "$0" >&2\nexit 1\n' > "$bin"
+            chmod +x "$bin"
+          done
+
+          touch src-tauri/resources/models/ggml-base.en-q8_0.bin
+
       - name: Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
