@@ -1,0 +1,42 @@
+name: macOS Build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    name: Build macOS bundle
+    runs-on: macos-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare Whisper assets
+        run: npm run setup:whisper
+
+      - name: Build macOS app
+        run: npm run tauri build
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mello-voice-macos-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.app.tar.gz

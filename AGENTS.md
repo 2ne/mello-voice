@@ -7,7 +7,7 @@ Use these conventions before introducing new libraries or animation helpers:
 - **Frontend:** React 19 + TypeScript + Vite (`vite.config.ts`).
 - **Desktop shell:** Tauri 2 (`src-tauri/`).
 - **Styling:** Tailwind CSS v4 with `@import "tailwindcss"` and tokens in `src/style.css`; utility merging via `tailwind-merge` / `clsx` (`src/lib/utils.ts`).
-- **Components:** App-specific UI under `src/components/ui/` (buttons, card, badge, separator, scroll area, switch, etc.). Overlay / floating primitives use **`radix-ui`** where helpful; **main-window settings** use **`vaul`**’s **`Drawer`** (see **Animations**).
+- **Components:** App-specific UI under `src/components/ui/` (buttons, card, badge, separator, scroll area, etc.). Overlay / floating primitives use **`radix-ui`** where helpful; **main-window settings** use **`vaul`**’s **`Drawer`** (see **Animations**).
 - **Icons:** Prefer **small inline SVG components** under `src/components/icons/` (see `SettingsGearIcon.tsx`). Avoid pulling in icon packs unless several icons are needed.
 - **Overlay window:** Transparent overlay chrome is styled under `html.overlay-window` in `src/style.css`; pill UI lives in `src/components/FloatingOverlay.tsx` / `OverlayRoot.tsx`. **Not** the surface ladder below—uses `--overlay-chrome-*` only.
 
@@ -17,7 +17,7 @@ Use these conventions before introducing new libraries or animation helpers:
 
 - **Root:** `<SurfaceProvider value={1}>` in `main.tsx`.
 - **Raised UI:** wrap with **`<Elevated offset={n}>`** (optional **`shadowLevel`**). **`Card`** defaults **`surfaceOffset={1}`**; drawer offset lives in **`MainWindow.tsx`**. **`useSurface()`** + **`SURFACE_BG`** for inset fills (e.g. settings segment buttons). Tailwind needs **literal** `bg-surface-*` / `shadow-surface-*`—use **`surface-classes.ts`** maps, not templates.
-- **Chrome:** elevated things use **soft `ring-*` + Fluid shadow in light**. **Do not stack a hard `border` on the same outer edge** as elevation shadow (looks double / harsh). **`Elevated`** owns the shared **`dark:shadow-none`** rule—**dark mode = ring + fill only, no box-shadow** on those surfaces; **`Button` `variant="surface"`** and switch thumb match that (see `button.tsx`, `switch.tsx`).
+- **Chrome:** elevated things use **soft `ring-*` + Fluid shadow in light**. **Do not stack a hard `border` on the same outer edge** as elevation shadow (looks double / harsh). **`Elevated`** owns the shared **`dark:shadow-none`** rule—**dark mode = ring + fill only, no box-shadow** on those surfaces; **`Button` `variant="surface"`** follows the same language (see `button.tsx`).
 - **`variant="surface"`** (settings icon): **`bg-card`** (+1 step vs page), same ring language as elevated surfaces; meant for **substrate 1** (header). If reused deeper in the tree, reconsider or use substrate-aware classes.
 
 ## Animations — CSS first
@@ -27,7 +27,7 @@ Prefer **native CSS** for motion (transitions, `@keyframes`, `linear()` easing, 
 ### Easing
 
 - **Prefer `linear(...)`** multi-stop curves for motion we define in stylesheet CSS (overlay chrome, drawers, etc.) so easing stays consistent across the app — see [Josh Comeau — Linear easing functions](https://www.joshwcomeau.com/animation/linear-timing-function/).
-- **Shared tokens (`:root`):** **`--ease-ui`**, **`--ease-ui-snappy`**, **`--ease-opacity-breathe`**, **`--ease-switch-thumb`**, **`--ease-spinner-dash`** in **`src/style.css`**. Prefer these (or **`var(--overlay-chrome-ease)`**, **`var(--settings-drawer-ease)`**) over **`cubic-bezier`** / **`ease-in-out`** / Tailwind’s default **`ease`** on any transition or animation we control.
+- **Shared tokens (`:root`):** **`--ease-ui`**, **`--ease-ui-snappy`**, **`--ease-opacity-breathe`**, **`--ease-spinner-dash`** in **`src/style.css`**. Prefer these (or **`var(--overlay-chrome-ease)`**, **`var(--settings-drawer-ease)`**) over **`cubic-bezier`** / **`ease-in-out`** / Tailwind’s default **`ease`** on any transition or animation we control.
 - Keep **explicit durations** (~150–260ms chrome; drawer ~200ms) and align related nodes on the same **`--*-ease`** family when they should move together.
 
 - Use **`transition`** when the element **stays mounted** and only property values change.

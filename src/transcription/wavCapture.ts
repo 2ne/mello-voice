@@ -78,6 +78,15 @@ export async function ensureMicPermission(): Promise<boolean> {
   }
 }
 
+/** Best-effort permission probe; logs in dev when microphone access is not usable. */
+export function warmUpMicPermissionForWebview(context: string): void {
+  void ensureMicPermission().then((ok) => {
+    if (!ok && import.meta.env.DEV) {
+      console.warn(`[mello] mic permission warm-up (${context}): not granted or unavailable`)
+    }
+  })
+}
+
 function totalChunkSamples(chunks: readonly Float32Array[]): number {
   let n = 0
   for (const c of chunks) {

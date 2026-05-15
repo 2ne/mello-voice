@@ -1,0 +1,26 @@
+{
+  "identifier": "overlay-capability",
+  "description": "minimal permissions for the floating dictation overlay",
+  "windows": ["overlay"],
+  "permissions": [
+    "core:default",
+    "core:event:allow-listen",
+    "core:event:allow-emit",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-outer-position",
+    "core:window:allow-cursor-position",
+    "core:window:allow-set-position",
+    "core:window:allow-set-size",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "args": true,
+          "name": "binaries/whisper-cli",
+          "sidecar": true
+        }
+      ]
+    }
+  ]
+}

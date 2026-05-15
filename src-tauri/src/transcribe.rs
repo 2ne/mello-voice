@@ -1,4 +1,4 @@
-//! Local Whisper transcription: warm `whisper-server` when available, else one-shot `whisper-cli`.
+//! Local Whisper transcription through the bundled `whisper-cli` sidecar.
 
 use base64::{engine::general_purpose::STANDARD as B64_STANDARD, Engine as _};
 use serde::Deserialize;
@@ -11,11 +11,10 @@ use tauri_plugin_shell::ShellExt;
 use tokio::time::{timeout, Duration};
 use uuid::Uuid;
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-use crate::whisper_daemon::try_daemon_infer;
-
 const MODEL_REL: &str = "models/ggml-base.en-q8_0.bin";
 const TRANSCRIBE_DEFAULT_SECS: u64 = 120;
+const MAX_WAV_BYTES: usize = 32 * 1024 * 1024;
+const MAX_BASE64_CHARS: usize = ((MAX_WAV_BYTES + 2) / 3) * 4;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -38,24 +37,14 @@ pub async fn transcribe_wav(app: AppHandle, payload: TranscribePayload) -> Resul
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 async fn transcribe_desktop_inner(app: AppHandle, payload: TranscribePayload) -> Result<String, String> {
+    validate_base64_payload_len(payload.audio_wav_base64.len())?;
     let buf = decode_wav(&payload.audio_wav_base64)?;
     if buf.len() < 48 {
         return Err("recording too short or invalid wav".into());
     }
+    validate_decoded_wav_len(buf.len())?;
 
     let wall = clamp_timeout(payload.timeout_secs);
-
-    match try_daemon_infer(&app, &buf, wall).await {
-        Ok(t) => {
-            let transcript = trim_transcript(t);
-            if !transcript.is_empty() {
-                return Ok(transcript);
-            }
-        }
-        Err(e) => {
-            log::debug!("whisper-server transcribe skipped: {}", e);
-        }
-    }
 
     let model_path = resolve_model_path(&app)?;
 
@@ -162,6 +151,30 @@ fn decode_wav(b64: &str) -> Result<Vec<u8>, String> {
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn wav_too_large_err() -> String {
+    format!(
+        "recording too long; max wav payload is {} MiB",
+        MAX_WAV_BYTES / (1024 * 1024)
+    )
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn validate_base64_payload_len(encoded_len: usize) -> Result<(), String> {
+    if encoded_len > MAX_BASE64_CHARS {
+        return Err(wav_too_large_err());
+    }
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn validate_decoded_wav_len(decoded_len: usize) -> Result<(), String> {
+    if decoded_len > MAX_WAV_BYTES {
+        return Err(wav_too_large_err());
+    }
+    Ok(())
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn resolve_model_path(app: &AppHandle) -> Result<PathBuf, String> {
     let p = app
         .path()
@@ -210,4 +223,28 @@ fn trim_transcript(s: String) -> String {
         .join(" ")
         .trim()
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn payload_size_guards_allow_boundary_values() {
+        assert!(validate_base64_payload_len(MAX_BASE64_CHARS).is_ok());
+        assert!(validate_decoded_wav_len(MAX_WAV_BYTES).is_ok());
+    }
+
+    #[test]
+    fn payload_size_guards_reject_oversized_values() {
+        assert!(validate_base64_payload_len(MAX_BASE64_CHARS + 1).is_err());
+        assert!(validate_decoded_wav_len(MAX_WAV_BYTES + 1).is_err());
+    }
+
+    #[test]
+    fn timeout_is_clamped_to_expected_bounds() {
+        assert_eq!(clamp_timeout(Some(1)), 18);
+        assert_eq!(clamp_timeout(Some(120)), 120);
+        assert_eq!(clamp_timeout(Some(999)), 240);
+    }
 }

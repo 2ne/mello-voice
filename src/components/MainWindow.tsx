@@ -15,7 +15,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { SettingsGearIcon } from "@/components/icons/SettingsGearIcon";
 import { CloseIcon } from "@/components/icons/CloseIcon";
-import { ChevronDownIcon } from "@/components/icons/ChevronDownIcon";
 import { getHistory, clearHistory, type HistoryEntry } from "../history";
 import {
   DICTATION_SHORTCUT_OPTIONS,
@@ -28,16 +27,13 @@ import {
 import { cn } from "@/lib/utils";
 import { Elevated } from "@/lib/elevated";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  settingsControlTriggerCn,
 } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Drawer } from "vaul";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,6 +51,18 @@ import {
   parseAfterDictationAction,
   type AfterDictationActionOption,
 } from "../afterDictationAction";
+import {
+  DICTATION_BAR_MODE_OPTIONS,
+  dictationBarModeLabel,
+  dictationBarModeFromEnabled,
+  overlayBarEnabledFromMode,
+  parseDictationBarMode,
+} from "../dictationBarMode";
+import {
+  FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS,
+  fetchOverlayBarEnabledWithRetry,
+} from "../overlayBarPrefFetch";
+import { warmUpMicPermissionForWebview } from "../transcription/wavCapture";
 
 function isTauriRuntime(): boolean {
   return (
@@ -95,10 +103,6 @@ const INITIAL_SETTINGS_PREFS: SettingsPrefs = {
 
 function settingsPrefsReducer(state: SettingsPrefs, patch: Partial<SettingsPrefs>): SettingsPrefs {
   return { ...state, ...patch };
-}
-
-function dictationBarModeLabel(alwaysShowWhenIdle: boolean): string {
-  return alwaysShowWhenIdle ? "Always visible" : "Hide when idle";
 }
 
 /** ChatGPT-like row: stacked label/description left, trailing control aligned right. */
@@ -211,6 +215,11 @@ function MainWindow() {
   /** Semver shown in Settings footer + used for native window title. */
   const [appVersionLabel, setAppVersionLabel] = useState<string | null>(null);
   const [settingsPrefs, updateSettingsPrefs] = useReducer(settingsPrefsReducer, INITIAL_SETTINGS_PREFS);
+  const [overlayBarPrefResolved, setOverlayBarPrefResolved] = useState(false);
+  /** Synchronous mirror of `overlayBarPrefResolved` — lets late boot fetches skip clobbering a fresher event-driven write. */
+  const overlayBarPrefResolvedRef = useRef(false);
+  /** One-shot guard so opening Settings repeatedly doesn't spam `getUserMedia()` warm-up calls. */
+  const mainMicWarmupDoneRef = useRef(false);
   const registeredShortcutRef = useRef<string | null>(null);
   const { overlayBarEnabled, afterDictationAction, themePreference } = settingsPrefs;
 
@@ -219,13 +228,46 @@ function MainWindow() {
     setHistoryEntries(entries);
   }, []);
 
-  const syncOverlayFromPrefs = useEffectEvent(async () => {
-    try {
-      const show = await invoke<boolean>("get_overlay_bar_enabled");
-      updateSettingsPrefs({ overlayBarEnabled: show });
-    } catch {
-      /* ignore */
-    }
+  /** Single fetch+apply for `get_overlay_bar_enabled`. Skips its write if an event-listener path already resolved the pref with a fresher value. */
+  const applyOverlayBarPrefFromIpc = useEffectEvent(async () => {
+    const enabled = await fetchOverlayBarEnabledWithRetry(
+      () => invoke<boolean>("get_overlay_bar_enabled"),
+      FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS,
+    );
+    if (overlayBarPrefResolvedRef.current) return;
+    overlayBarPrefResolvedRef.current = true;
+    updateSettingsPrefs({ overlayBarEnabled: enabled });
+    setOverlayBarPrefResolved(true);
+  });
+
+  const applyAllSettingsFromIpc = useEffectEvent(async () => {
+    const [overlayBarShowResult, themeResult, afterDictationActionResult] = await Promise.allSettled([
+      fetchOverlayBarEnabledWithRetry(
+        () => invoke<boolean>("get_overlay_bar_enabled"),
+        FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS,
+      ),
+      invoke<string>("get_theme"),
+      invoke<string>("get_after_dictation_action"),
+    ]);
+    /** If a fresher `overlay-bar-enabled-changed` arrived during the await, use the in-memory pref instead of the fetched one. */
+    const overlayBarShow = overlayBarPrefResolvedRef.current
+      ? overlayBarEnabled
+      : overlayBarShowResult.status === "fulfilled"
+        ? overlayBarShowResult.value
+        : overlayBarEnabled;
+    overlayBarPrefResolvedRef.current = true;
+    updateSettingsPrefs({
+      overlayBarEnabled: overlayBarShow,
+      themePreference:
+        themeResult.status === "fulfilled"
+          ? parseThemePreference(themeResult.value)
+          : parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY)),
+      afterDictationAction:
+        afterDictationActionResult.status === "fulfilled"
+          ? parseAfterDictationAction(afterDictationActionResult.value)
+          : afterDictationAction,
+    });
+    setOverlayBarPrefResolved(true);
   });
 
   useEffect(() => {
@@ -246,9 +288,11 @@ function MainWindow() {
     listen<string>("dictation-shortcut-changed", (e) => setLiveShortcut(e.payload)).then((fn) => {
       unlistenShortcutOk = fn;
     });
-    listen<boolean>("overlay-bar-enabled-changed", (e) =>
-      updateSettingsPrefs({ overlayBarEnabled: e.payload }),
-    ).then((fn) => {
+    listen<boolean>("overlay-bar-enabled-changed", (e) => {
+      overlayBarPrefResolvedRef.current = true;
+      setOverlayBarPrefResolved(true);
+      updateSettingsPrefs({ overlayBarEnabled: e.payload });
+    }).then((fn) => {
       unlistenOverlayPref = fn;
     });
 
@@ -257,7 +301,9 @@ function MainWindow() {
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         void refreshHistory();
-        void syncOverlayFromPrefs();
+        /** Force a re-read on tab return — overlay window may have toggled the pref while we were hidden. */
+        overlayBarPrefResolvedRef.current = false;
+        void applyOverlayBarPrefFromIpc();
       }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -291,10 +337,20 @@ function MainWindow() {
     })();
   }, []);
 
+  /**
+   * WebView2 (Windows) can keep microphone permission separate per webview. If the overlay stays hidden
+   * (“hide when idle”), we warm up mic from the main window only after the user opens Settings (explicit
+   * dictation UX context) — avoids a surprise permission prompt right after launch. One-shot per session.
+   */
   useEffect(() => {
-    void invoke<boolean>("get_overlay_bar_enabled")
-      .then((overlayBarEnabled) => updateSettingsPrefs({ overlayBarEnabled }))
-      .catch(() => {});
+    if (mainMicWarmupDoneRef.current) return;
+    if (!isTauriRuntime() || !settingsOpen || !overlayBarPrefResolved || overlayBarEnabled) return;
+    mainMicWarmupDoneRef.current = true;
+    warmUpMicPermissionForWebview("settings-hide-bar-main");
+  }, [settingsOpen, overlayBarEnabled, overlayBarPrefResolved]);
+
+  useEffect(() => {
+    void applyOverlayBarPrefFromIpc();
     void invoke<string>("get_after_dictation_action")
       .then((s) => updateSettingsPrefs({ afterDictationAction: parseAfterDictationAction(s) }))
       .catch(() => {});
@@ -371,29 +427,10 @@ function MainWindow() {
 
   useEffect(() => {
     if (!settingsOpen) return;
-    void (async () => {
-      const [overlayBarEnabledResult, themeResult, afterDictationActionResult] = await Promise.allSettled([
-        invoke<boolean>("get_overlay_bar_enabled"),
-        invoke<string>("get_theme"),
-        invoke<string>("get_after_dictation_action"),
-      ]);
-      updateSettingsPrefs({
-        overlayBarEnabled:
-          overlayBarEnabledResult.status === "fulfilled"
-            ? overlayBarEnabledResult.value
-            : overlayBarEnabled,
-        themePreference:
-          themeResult.status === "fulfilled"
-            ? parseThemePreference(themeResult.value)
-            : parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY)),
-        afterDictationAction:
-          afterDictationActionResult.status === "fulfilled"
-            ? parseAfterDictationAction(afterDictationActionResult.value)
-            : afterDictationAction,
-      });
-    })();
+    overlayBarPrefResolvedRef.current = false;
+    void applyAllSettingsFromIpc();
     setLiveShortcut(getDictationShortcut());
-  }, [afterDictationAction, overlayBarEnabled, settingsOpen]);
+  }, [settingsOpen]);
 
   const handleCopy = useCallback(async (text: string) => {
     try {
@@ -421,8 +458,14 @@ function MainWindow() {
   const setDictationBarPreference = useCallback(async (enabled: boolean) => {
     try {
       await invoke("set_overlay_bar_enabled", { enabled });
+      overlayBarPrefResolvedRef.current = true;
       updateSettingsPrefs({ overlayBarEnabled: enabled });
-      await emit("overlay-bar-enabled-changed", enabled);
+      setOverlayBarPrefResolved(true);
+      /** Rust emits `overlay-bar-enabled-changed` so the overlay window sees it; no JS-side fan-out needed. */
+      if (!enabled && isTauriRuntime() && !mainMicWarmupDoneRef.current) {
+        mainMicWarmupDoneRef.current = true;
+        warmUpMicPermissionForWebview("preference-hide-bar-main");
+      }
     } catch (e) {
       console.error(e);
     }
@@ -527,44 +570,25 @@ function MainWindow() {
                   <Separator className="bg-border/80" />
                   <SettingsSettingRow
                     title="Dictation bar"
-                    description="Turn off to hide when not in use."
+                    description="Show the floating bar all the time or only while dictating."
                   >
-                    <Popover modal={false}>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          aria-haspopup="dialog"
-                          className={cn(settingsControlTriggerCn(), "w-full max-w-none")}
-                          aria-label={`Dictation bar visibility: ${dictationBarModeLabel(overlayBarEnabled)}`}
-                        >
-                          <span className="min-w-0 flex-1 truncate text-left">{dictationBarModeLabel(overlayBarEnabled)}</span>
-                          <ChevronDownIcon className="size-4 shrink-0 opacity-65" strokeWidth={1.75} />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        align="end"
-                        sideOffset={6}
-                        collisionPadding={16}
-                        className="min-w-[10rem] max-w-[min(18rem,calc(100vw-2rem))] p-1"
-                      >
-                        <div
-                          role="presentation"
-                          className="flex items-center justify-between gap-4 px-2.5 py-1"
-                          onPointerDown={(e) => e.stopPropagation()}
-                        >
-                          <span className="min-w-0 flex-1 truncate text-[13px] text-card-foreground">
-                            {dictationBarModeLabel(overlayBarEnabled)}
-                          </span>
-                          <Switch
-                            variant="onRaisedSurface"
-                            aria-label="Dictation bar"
-                            checked={overlayBarEnabled}
-                            onToggle={() => void setDictationBarPreference(!overlayBarEnabled)}
-                            className="shrink-0 p-1 pr-0 pl-0"
-                          />
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    <Select
+                      value={dictationBarModeFromEnabled(overlayBarEnabled)}
+                      onValueChange={(v) =>
+                        void setDictationBarPreference(overlayBarEnabledFromMode(parseDictationBarMode(v)))
+                      }
+                    >
+                      <SelectTrigger aria-label="Dictation bar visibility" className="w-full max-w-none">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DICTATION_BAR_MODE_OPTIONS.map((opt) => (
+                          <SelectItem key={opt} value={opt}>
+                            {dictationBarModeLabel(opt)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </SettingsSettingRow>
                   <Separator className="bg-border/80" />
                   <SettingsSettingRow

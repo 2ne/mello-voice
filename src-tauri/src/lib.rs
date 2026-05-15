@@ -4,18 +4,14 @@ use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::path::PathBuf;
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
 use std::sync::Mutex;
 use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
     path::BaseDirectory,
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager,
+    Emitter, Manager, State,
 };
-
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-mod whisper_daemon;
 
 /// whisper.cpp CPU/GPU builds ship DLLs next to whisper-cli.exe; bundled under resource `whisper_runtime/`.
 #[cfg(all(not(any(target_os = "android", target_os = "ios")), target_os = "windows"))]
@@ -98,9 +94,10 @@ fn prepend_whisper_dylibs_to_dyld(handle: &tauri::AppHandle) {
 mod transcribe;
 mod post_process;
 
-const HISTORY_FILE: &str = "history.json";
 const PREFS_FILE: &str = "app-prefs.json";
+const HISTORY_FILE: &str = "history.json";
 const MAX_ENTRIES: usize = 500;
+const MAX_PASTE_TEXT_CHARS: usize = 20_000;
 
 /// Show and focus the main window. The dictation overlay is shown only when the user preference allows it
 /// (restored from the main window when it becomes visible).
@@ -264,11 +261,16 @@ fn set_overlay_bar_enabled(app: tauri::AppHandle, enabled: bool) -> Result<(), S
     let mut prefs = load_prefs(&app);
     prefs.show_overlay_bar = enabled;
     save_prefs(&app, &prefs)?;
-    if !enabled {
-        if let Some(overlay) = app.get_webview_window("overlay") {
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        if enabled {
+            overlay.show().map_err(|e| e.to_string())?;
+        } else {
             overlay.hide().map_err(|e| e.to_string())?;
         }
     }
+    // Notify both windows in one place — frontend no longer fans this out, so the Rust command is the single emitter.
+    app.emit("overlay-bar-enabled-changed", enabled)
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -313,6 +315,8 @@ struct HistoryEntry {
     timestamp: i64,
 }
 
+struct HistoryStore(Mutex<Vec<HistoryEntry>>);
+
 fn history_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -325,7 +329,8 @@ fn load_history(app: &tauri::AppHandle) -> Result<Vec<HistoryEntry>, String> {
         return Ok(vec![]);
     }
     let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let parsed: Vec<HistoryEntry> = serde_json::from_str(&raw).unwrap_or_default();
+    let mut parsed: Vec<HistoryEntry> = serde_json::from_str(&raw).unwrap_or_default();
+    parsed.truncate(MAX_ENTRIES);
     Ok(parsed)
 }
 
@@ -338,13 +343,21 @@ fn save_history(app: &tauri::AppHandle, entries: &[HistoryEntry]) -> Result<(), 
 }
 
 #[tauri::command]
-fn add_to_history(app: tauri::AppHandle, text: String) -> Result<(), String> {
+fn add_to_history(
+    app: tauri::AppHandle,
+    history: State<'_, HistoryStore>,
+    text: String,
+) -> Result<(), String> {
     let trimmed = text.trim();
     if trimmed.is_empty() {
         return Ok(());
     }
-    let mut entries = load_history(&app)?;
-    entries.insert(
+    let mut state_entries = history
+        .0
+        .lock()
+        .map_err(|_| "history store unavailable".to_string())?;
+    let mut next = state_entries.clone();
+    next.insert(
         0,
         HistoryEntry {
             id: uuid::Uuid::new_v4().to_string(),
@@ -355,17 +368,31 @@ fn add_to_history(app: tauri::AppHandle, text: String) -> Result<(), String> {
                 .as_millis() as i64,
         },
     );
-    save_history(&app, &entries)
+    next.truncate(MAX_ENTRIES);
+    save_history(&app, &next)?;
+    *state_entries = next;
+    Ok(())
 }
 
 #[tauri::command]
-fn get_history(app: tauri::AppHandle) -> Result<Vec<HistoryEntry>, String> {
-    load_history(&app)
+fn get_history(history: State<'_, HistoryStore>) -> Result<Vec<HistoryEntry>, String> {
+    let entries = history
+        .0
+        .lock()
+        .map_err(|_| "history store unavailable".to_string())?;
+    Ok(entries.clone())
 }
 
 #[tauri::command]
-fn clear_history(app: tauri::AppHandle) -> Result<(), String> {
-    save_history(&app, &[])
+fn clear_history(app: tauri::AppHandle, history: State<'_, HistoryStore>) -> Result<(), String> {
+    let mut state_entries = history
+        .0
+        .lock()
+        .map_err(|_| "history store unavailable".to_string())?;
+    let next: Vec<HistoryEntry> = vec![];
+    save_history(&app, &next)?;
+    *state_entries = next;
+    Ok(())
 }
 
 /// Wakes the overlay webview before emitting `dictation-hotkey`. The global shortcut handler runs in
@@ -381,12 +408,17 @@ async fn relay_dictation_hotkey(app: tauri::AppHandle, state: String) -> Result<
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
-        if state != "Pressed" && state != "Released" {
-            return Ok(());
-        }
         if let Some(overlay) = app.get_webview_window("overlay") {
             let _ = overlay.show();
             let _ = overlay.unminimize();
+            tokio::time::sleep(std::time::Duration::from_millis(55)).await;
+            overlay
+                .emit(
+                    "dictation-hotkey",
+                    serde_json::json!({ "state": state }),
+                )
+                .map_err(|e| e.to_string())?;
+            return Ok(());
         }
         tokio::time::sleep(std::time::Duration::from_millis(55)).await;
         app.emit(
@@ -396,18 +428,6 @@ async fn relay_dictation_hotkey(app: tauri::AppHandle, state: String) -> Result<
         .map_err(|e| e.to_string())?;
         Ok(())
     }
-}
-
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
-#[tauri::command]
-fn is_whisper_daemon_ready(app: tauri::AppHandle) -> bool {
-    whisper_daemon::is_daemon_running(&app)
-}
-
-#[cfg(any(target_os = "android", target_os = "ios"))]
-#[tauri::command]
-fn is_whisper_daemon_ready(_app: tauri::AppHandle) -> bool {
-    false
 }
 
 fn release_post_dictation_modifiers(enigo: &mut Enigo) {
@@ -439,8 +459,14 @@ fn paste_text(app: tauri::AppHandle, text: String) -> Result<(), String> {
     if text.is_empty() {
         return Ok(());
     }
+    if text.chars().count() > MAX_PASTE_TEXT_CHARS {
+        return Err(format!(
+            "text too long to paste safely (max {MAX_PASTE_TEXT_CHARS} chars)"
+        ));
+    }
     let after = load_prefs(&app).after_dictation;
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    let previous_clipboard_text = clipboard.get_text().ok();
     clipboard.set_text(&text).map_err(|e| e.to_string())?;
     // Ensure clipboard is committed and modifier keys held for the shortcut are released
     std::thread::sleep(std::time::Duration::from_millis(80));
@@ -451,6 +477,10 @@ fn paste_text(app: tauri::AppHandle, text: String) -> Result<(), String> {
     if after == AfterDictationAction::PasteAndSend {
         std::thread::sleep(std::time::Duration::from_millis(90));
         let _ = enigo.key(Key::Return, Direction::Click);
+    }
+    if let Some(previous) = previous_clipboard_text {
+        std::thread::sleep(std::time::Duration::from_millis(120));
+        let _ = clipboard.set_text(previous);
     }
     Ok(())
 }
@@ -479,7 +509,6 @@ pub fn run() {
             get_theme,
             set_theme,
             relay_dictation_hotkey,
-            is_whisper_daemon_ready,
         ])
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_log::Builder::default().build())
@@ -498,10 +527,10 @@ pub fn run() {
                 prepend_whisper_runtime_to_path(&app_handle);
                 #[cfg(target_os = "macos")]
                 prepend_whisper_dylibs_to_dyld(&app_handle);
-
-                app.manage(whisper_daemon::WhisperDaemonSlot(Mutex::new(None)));
-                whisper_daemon::start_daemon_background(app.handle().clone());
             }
+
+            let initial_history = load_history(&app_handle).unwrap_or_default();
+            app.manage(HistoryStore(Mutex::new(initial_history)));
 
             // Build tray menu
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
@@ -549,8 +578,5 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app_handle, event| {
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            whisper_daemon::on_app_run_event(&app_handle, &event);
-        });
+        .run(|_app_handle, _event| {});
 }

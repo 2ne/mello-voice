@@ -8,21 +8,24 @@ import { shouldShowSessionChrome } from "./overlaySessionState";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import {
   ensureMicPermission,
-  peekTailWav,
+  warmUpMicPermissionForWebview,
   startWavMicCapture,
   stopWavMicCapture,
 } from "../transcription/wavCapture";
 import {
   buildFinalDictationText,
   transcribeWithWhisperPreferLocal,
-  transcribeWithWhisperPartialHint,
 } from "../transcription/transcriptionService";
 import { addToHistory } from "../history";
+import {
+  FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS,
+  FALLBACK_OVERLAY_BAR_ENABLED_WHEN_FETCH_FAILS,
+  fetchOverlayBarEnabledWithRetry,
+} from "../overlayBarPrefFetch";
 
 const TOP_OFFSET = 10;
 const OVERLAY_WIDTH = 340;
 const MIN_OVERLAY_HEIGHT = 52;
-const LIVE_WHISPER_INTERVAL_MS = 4200;
 const DUPLICATE_PRESS_DEBOUNCE_MS = 88;
 const RESIZE_HEIGHT_EPSILON = 2;
 const OVERLAY_DRAG_THRESHOLD_PX = 6;
@@ -52,41 +55,42 @@ async function positionOverlayTopCenter() {
   await win.setPosition(new LogicalPosition(x, (pos.y + TOP_OFFSET) / scale));
 }
 
-type HotkeyState = "Pressed" | "Released";
+type HotkeyState = string;
 
 function OverlayRoot() {
   const overlayRef = useRef<HTMLDivElement>(null);
   const shortcutHeldRef = useRef(false);
   const barEnabledRef = useRef(true);
   const errorRef = useRef<string | null>(null);
-  const micWarmupDoneRef = useRef(false);
-  const liveWhisperBusyRef = useRef(false);
-  const liveWhisperLastHintRef = useRef("");
   const lastResizeHeightRef = useRef(0);
   const lastPressAtRef = useRef(-Infinity);
   const isListeningRef = useRef(false);
   const isExpandedRef = useRef(false);
+  /** Synchronous mirror of `barPrefsResolved` so a slow boot fetch can't clobber a fresher event-driven write. */
+  const barPrefsResolvedRef = useRef(false);
+  /** One-shot guard so toggling the bar on/off doesn't re-trigger `getUserMedia()` warm-up. */
+  const overlayMicWarmupDoneRef = useRef(false);
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [inlineHideOpen, setInlineHideOpen] = useState(false);
   const [barEnabled, setBarEnabled] = useState(true);
+  /** After first `get_overlay_bar_enabled` read — avoids mic warm-up while `barEnabled` still reflects only the optimistic default. */
+  const [barPrefsResolved, setBarPrefsResolved] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const {
-    isListening,
     interimTranscript,
     finalTranscript,
-    error,
+    error: speechError,
     startListening,
     stopListening,
     stopAndWaitForFinal,
     clearTranscript,
   } = useSpeechRecognition();
 
-  const [liveWhisperHint, setLiveWhisperHint] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const activeError = error ?? sessionError;
+  const activeError = speechError ?? sessionError;
 
   useEffect(() => {
     errorRef.current = activeError;
@@ -111,8 +115,6 @@ function OverlayRoot() {
     activeError,
     inlineHideOpen,
   });
-
-  const combinedInterim = liveWhisperHint.trim() ? liveWhisperHint : interimTranscript;
 
   const hideOverlayWhenBarPreferOff = useCallback(() => {
     window.setTimeout(() => {
@@ -245,20 +247,24 @@ function OverlayRoot() {
           console.warn("Could not position overlay:", e);
         }
         if (cancelled) return;
-        try {
-          const enabled = await invoke<boolean>("get_overlay_bar_enabled");
-          setBarEnabled(enabled);
-          barEnabledRef.current = enabled;
-          if (enabled) {
-            await getCurrentWindow().show().catch(() => {});
-            await positionOverlayTopCenter().catch(() => {});
-          } else {
-            await getCurrentWindow().hide().catch(() => {});
-          }
-        } catch {
+        const enabled = await fetchOverlayBarEnabledWithRetry(
+          () => invoke<boolean>("get_overlay_bar_enabled"),
+          /** Privacy-first on boot: do not leave an idle overlay visible when persisted preference cannot be read. */
+          FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS,
+        );
+        if (cancelled) return;
+        /** Skip clobbering if the event listener already wrote a fresher value during our await. */
+        if (barPrefsResolvedRef.current) return;
+        barPrefsResolvedRef.current = true;
+        setBarEnabled(enabled);
+        barEnabledRef.current = enabled;
+        if (enabled) {
           await getCurrentWindow().show().catch(() => {});
           await positionOverlayTopCenter().catch(() => {});
+        } else {
+          await getCurrentWindow().hide().catch(() => {});
         }
+        if (!cancelled) setBarPrefsResolved(true);
       })();
     }, 0);
 
@@ -272,6 +278,8 @@ function OverlayRoot() {
     let unlisten: (() => void) | undefined;
     listen<boolean>("overlay-bar-enabled-changed", (event) => {
       const v = event.payload;
+      barPrefsResolvedRef.current = true;
+      setBarPrefsResolved(true);
       setBarEnabled(v);
       barEnabledRef.current = v;
       if (!v) {
@@ -293,57 +301,19 @@ function OverlayRoot() {
     return () => unlisten?.();
   }, []);
 
-  // Ask for microphone permission proactively so first hold-to-talk does not fail.
+  /**
+   * Warm up the overlay's mic permission once the bar pref resolves to "always visible". Per WebView2 (Windows),
+   * the permission store can differ between webviews, so we touch it from this webview specifically. One-shot.
+   */
   useEffect(() => {
-    if (micWarmupDoneRef.current) return;
-    micWarmupDoneRef.current = true;
+    if (overlayMicWarmupDoneRef.current) return;
+    if (!barEnabled || !barPrefsResolved) return;
     const id = window.setTimeout(() => {
-      void ensureMicPermission().catch(() => false);
-    }, 900);
+      overlayMicWarmupDoneRef.current = true;
+      warmUpMicPermissionForWebview("overlay-always-bar");
+    }, 400);
     return () => clearTimeout(id);
-  }, []);
-
-  // Rolling Whisper hints while capturing — only when whisper-server is warm (otherwise whisper-cli partials peg CPU).
-  useEffect(() => {
-    if (!isExpanded || !isListening) {
-      setLiveWhisperHint("");
-      liveWhisperLastHintRef.current = "";
-      return;
-    }
-
-    let stopped = false;
-    const tick = async () => {
-      if (stopped || liveWhisperBusyRef.current) return;
-      const ready = await invoke<boolean>("is_whisper_daemon_ready").catch(() => false);
-      if (!ready) return;
-      const wav = peekTailWav(26);
-      if (wav.byteLength < 4000) return;
-      liveWhisperBusyRef.current = true;
-      try {
-        const hint = await transcribeWithWhisperPartialHint(wav);
-        if (!stopped && hint) {
-          const t = hint.trim();
-          if (t && t !== liveWhisperLastHintRef.current) {
-            liveWhisperLastHintRef.current = t;
-            setLiveWhisperHint(t);
-          }
-        }
-      } catch {
-        /* ignore partial failures */
-      } finally {
-        liveWhisperBusyRef.current = false;
-      }
-    };
-
-    const id = window.setInterval(() => {
-      void tick();
-    }, LIVE_WHISPER_INTERVAL_MS);
-
-    return () => {
-      stopped = true;
-      clearInterval(id);
-    };
-  }, [isExpanded, isListening]);
+  }, [barEnabled, barPrefsResolved]);
 
   // Resize window to fit pill + inline actions
   useEffect(() => {
@@ -376,16 +346,25 @@ function OverlayRoot() {
 
   const handleShortcut = useCallback(
     async (event: { state: HotkeyState }) => {
-      if (event.state === "Pressed") {
+      const normalizedState = event.state.trim().toLowerCase();
+      const isPressedEvent =
+        normalizedState === "pressed" || normalizedState === "press" || normalizedState === "down";
+      const isReleasedEvent =
+        normalizedState === "released" || normalizedState === "release" || normalizedState === "up";
+      if (!isPressedEvent && !isReleasedEvent) return;
+
+      if (isPressedEvent) {
         // Missed Released — reset stale refs only when nothing is actively capturing.
         if (shortcutHeldRef.current) {
           const active = isListeningRef.current || isExpandedRef.current;
+          if (active) {
+            // Global shortcut repeat can emit additional Pressed events while holding; ignore re-entry.
+            return;
+          }
           if (!active) {
             shortcutHeldRef.current = false;
             setIsExpanded(false);
-            setLiveWhisperHint("");
-            liveWhisperLastHintRef.current = "";
-            liveWhisperBusyRef.current = false;
+            setIsListening(false);
             stopListening();
             clearTranscript();
             await stopWavMicCapture().catch(() => {});
@@ -398,19 +377,15 @@ function OverlayRoot() {
         }
         lastPressAtRef.current = now;
 
-        let pref = true;
-        try {
-          pref = await invoke<boolean>("get_overlay_bar_enabled");
-        } catch {
-          pref = true;
-        }
+        const pref = await fetchOverlayBarEnabledWithRetry(
+          () => invoke<boolean>("get_overlay_bar_enabled"),
+          FALLBACK_OVERLAY_BAR_ENABLED_WHEN_FETCH_FAILS,
+        );
         barEnabledRef.current = pref;
 
         shortcutHeldRef.current = true;
         setInlineHideOpen(false);
         setSessionError(null);
-        setLiveWhisperHint("");
-        liveWhisperLastHintRef.current = "";
 
         try {
           await getCurrentWindow().show();
@@ -439,13 +414,13 @@ function OverlayRoot() {
           return;
         }
         startListening();
+        setIsListening(true);
       } else {
         if (!shortcutHeldRef.current) return;
         shortcutHeldRef.current = false;
         lastPressAtRef.current = -Infinity;
         setIsExpanded(false);
-        setLiveWhisperHint("");
-        liveWhisperLastHintRef.current = "";
+        setIsListening(false);
         setIsProcessing(true);
         const wavPromise = stopWavMicCapture().catch((e) => {
           console.warn("stop WAV capture:", e);
@@ -481,7 +456,7 @@ function OverlayRoot() {
         }
       }
     },
-    [startListening, stopListening, stopAndWaitForFinal, clearTranscript, hideOverlayWhenBarPreferOff],
+    [clearTranscript, hideOverlayWhenBarPreferOff, startListening, stopAndWaitForFinal, stopListening],
   );
 
   // Global shortcut is registered on the main window so it still fires while this overlay webview is hidden (WebView2 can stop delivering plugin IPC here).
@@ -521,12 +496,9 @@ function OverlayRoot() {
 
   const hideDictationBar = async () => {
     try {
-      await invoke("set_overlay_bar_enabled", { enabled: false });
       setInlineHideOpen(false);
-      await emit("overlay-bar-enabled-changed", false);
-      setBarEnabled(false);
-      barEnabledRef.current = false;
-      void getCurrentWindow().hide().catch(() => {});
+      /** Rust emits `overlay-bar-enabled-changed` and hides this window — the listener above flips state + chrome. Avoid double-emitting. */
+      await invoke("set_overlay_bar_enabled", { enabled: false });
     } catch {
       /* ignore */
     }
@@ -558,7 +530,7 @@ function OverlayRoot() {
       {sessionChromeVisible ? (
         <FloatingOverlay
           state={displayState}
-          interimTranscript={combinedInterim}
+          interimTranscript={interimTranscript}
           finalTranscript={finalTranscript}
           error={activeError}
           inlineHideOpen={inlineHideOpen}

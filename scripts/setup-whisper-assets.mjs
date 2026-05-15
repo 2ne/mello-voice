@@ -1,6 +1,6 @@
 /**
  * Windows: OpenBLAS whisper-cpp release zip + DLL runtime (optional cuBLAS `--gpu`).
- * macOS: CMake build of whisper.cpp tag (whisper-cli + whisper-server, static libs).
+ * macOS: CMake build of whisper.cpp tag (whisper-cli, static libs).
  * Linux / others: model download only — place sidecars yourself (see `src-tauri/binaries/BINARIES.txt`).
  *
  * Usage: node scripts/setup-whisper-assets.mjs [--gpu]
@@ -142,14 +142,12 @@ async function copyWhisperDlls(sourceReleaseDir, destDir) {
 async function ensureWindowsSidecar(triple) {
   const ext = process.platform === 'win32' ? '.exe' : ''
   const cliDest = path.join(BIN_DIR, `whisper-cli-${triple}${ext}`)
-  const serverDest = path.join(BIN_DIR, `whisper-server-${triple}${ext}`)
-  const haveExes = existsSync(cliDest) && existsSync(serverDest)
+  const haveExes = existsSync(cliDest)
   const haveRuntime = await whisperRuntimeLooksPopulated()
 
   if (haveExes && haveRuntime) {
-    console.log('Whisper sidecars + runtime DLLs already present.')
+    console.log('Whisper CLI sidecar + runtime DLLs already present.')
     console.log(cliDest)
-    console.log(serverDest)
     console.log(RUNTIME_DIR)
     return
   }
@@ -167,12 +165,8 @@ async function ensureWindowsSidecar(triple) {
   await unzipZip(zipPath, staging)
 
   const cliExe = await walkFindExe(staging, /^whisper-cli(?:\.exe)?$/i)
-  const serverExe = await walkFindExe(staging, /^whisper-server(?:\.exe)?$/i)
   if (!cliExe) {
     throw new Error(`whisper-cli executable not found inside ${zipName}`)
-  }
-  if (!serverExe) {
-    throw new Error(`whisper-server executable not found inside ${zipName}`)
   }
 
   const releaseDir = path.dirname(cliExe)
@@ -181,14 +175,11 @@ async function ensureWindowsSidecar(triple) {
   if (!existsSync(cliDest)) {
     await fs.copyFile(cliExe, cliDest)
   }
-  if (!existsSync(serverDest)) {
-    await fs.copyFile(serverExe, serverDest)
-  }
 
   await fs.rm(zipPath, { force: true }).catch(() => {})
   await fs.rm(staging, { recursive: true, force: true })
 
-  console.log('Installed sidecars ->', cliDest, serverDest)
+  console.log('Installed Whisper CLI sidecar ->', cliDest)
 }
 
 async function readDarwinSetupTag() {
@@ -201,12 +192,10 @@ async function readDarwinSetupTag() {
 
 async function ensureDarwinSidecars(triple) {
   const cliDest = path.join(BIN_DIR, `whisper-cli-${triple}`)
-  const srvDest = path.join(BIN_DIR, `whisper-server-${triple}`)
 
-  if (existsSync(cliDest) && existsSync(srvDest) && (await readDarwinSetupTag()) === WHISPER_TAG) {
-    console.log('[setup:whisper] macOS sidecars match', WHISPER_TAG)
+  if (existsSync(cliDest) && (await readDarwinSetupTag()) === WHISPER_TAG) {
+    console.log('[setup:whisper] macOS Whisper CLI sidecar matches', WHISPER_TAG)
     console.log(cliDest)
-    console.log(srvDest)
     return
   }
 
@@ -254,7 +243,7 @@ async function ensureDarwinSidecars(triple) {
     '-DBUILD_SHARED_LIBS=OFF',
     '-DWHISPER_BUILD_TESTS=OFF',
     '-DWHISPER_BUILD_EXAMPLES=ON',
-    '-DWHISPER_BUILD_SERVER=ON',
+    '-DWHISPER_BUILD_SERVER=OFF',
   ])
 
   const jobs = typeof os.availableParallelism === 'function' ? os.availableParallelism() : 4
@@ -267,25 +256,20 @@ async function ensureDarwinSidecars(triple) {
     String(jobs),
     '--target',
     'whisper-cli',
-    'whisper-server',
   ])
 
   const builtBin = path.join(buildDir, 'bin')
   const cliBuilt = path.join(builtBin, 'whisper-cli')
-  const srvBuilt = path.join(builtBin, 'whisper-server')
-  if (!existsSync(cliBuilt) || !existsSync(srvBuilt)) {
-    throw new Error(`Expected ${cliBuilt} and ${srvBuilt} after CMake build`)
+  if (!existsSync(cliBuilt)) {
+    throw new Error(`Expected ${cliBuilt} after CMake build`)
   }
 
   await fs.copyFile(cliBuilt, cliDest)
-  await fs.copyFile(srvBuilt, srvDest)
   await fs.chmod(cliDest, 0o755)
-  await fs.chmod(srvDest, 0o755)
   await fs.writeFile(DARWIN_SETUP_TAG_FILE, `${WHISPER_TAG}\n`, 'utf8')
 
-  console.log('[setup:whisper] Installed macOS sidecars ->')
+  console.log('[setup:whisper] Installed macOS Whisper CLI sidecar ->')
   console.log(cliDest)
-  console.log(srvDest)
 }
 
 async function ensureModel() {
@@ -317,7 +301,6 @@ async function main() {
         '[setup:whisper] Automatic sidecars: Windows zip or macOS CMake only.',
         'On this host, downloading the quantized model only. Build or copy:',
         `  ${path.join('<repo>', 'src-tauri', 'binaries', `whisper-cli-${triple}${process.platform === 'win32' ? '.exe' : ''}`)}`,
-        `  ${path.join('<repo>', 'src-tauri', 'binaries', `whisper-server-${triple}${process.platform === 'win32' ? '.exe' : ''}`)}`,
         'Windows: also copy whisper.cpp DLLs into src-tauri/resources/whisper_runtime/',
         '',
       ].join('\n'),

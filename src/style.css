@@ -143,8 +143,6 @@
     --ring: var(--primary);
     --success: oklch(0.498 0.135 159);
     --success-foreground: oklch(0.985 0 0);
-    --switch-track-off-hover: color-mix(in oklab, var(--accent), var(--foreground) 10%);
-    --switch-thumb: oklch(0.995 0 0);
     /* Floating overlay pill (always reads as dark chrome on transparent OS backdrop) */
     --overlay-chrome-bg: oklch(0.141 0.006 285);
     --overlay-chrome-fg: oklch(0.985 0 0);
@@ -173,7 +171,6 @@
     --ease-ui: linear(0, 0.52 42%, 0.82 72%, 1);
     --ease-ui-snappy: linear(0, 0.4 41%, 0.78 71%, 1);
     --ease-opacity-breathe: linear(0, 0.09 21%, 0.47 50%, 0.91 79%, 1);
-    --ease-switch-thumb: linear(0, 0.36 53%, 0.73 71%, 0.9 82%, 0.97 92%, 1);
     --ease-spinner-dash: linear(0, 0.46 50%, 1);
 }
 
@@ -245,7 +242,6 @@
     --ring: var(--primary);
     --success: oklch(0.696 0.155 159);
     --success-foreground: oklch(0.985 0 0);
-    --switch-track-off-hover: color-mix(in oklab, var(--accent), var(--foreground) 10%);
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);

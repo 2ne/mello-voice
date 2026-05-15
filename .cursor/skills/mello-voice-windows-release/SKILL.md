@@ -36,7 +36,7 @@ npm run tauri build
 
 `npm run setup:whisper` is **mandatory before packaging**:
 
-- Drops `src-tauri/binaries/whisper-cli-<triple>.exe` and `whisper-server-<triple>.exe`
+- Drops `src-tauri/binaries/whisper-cli-<triple>.exe`
 - Copies **OpenBLAS/CUDA DLLs** into `src-tauri/resources/whisper_runtime/` (referenced by `bundle.resources` and `PATH` prepend at runtime)
 - Ensures quantized model `ggml-base.en-q8_0.bin` under `src-tauri/resources/models/`
 

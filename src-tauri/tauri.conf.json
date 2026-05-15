@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Mello Voice",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "identifier": "com.mellovoice.app",
   "build": {
     "frontendDist": "../dist",
@@ -40,7 +40,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' asset: http://asset.localhost; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' asset: http://asset.localhost; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:*; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
     }
   },
   "bundle": {
@@ -57,10 +57,9 @@
       "icons/icon.ico",
       "icons/icon.icns"
     ],
-    "externalBin": ["binaries/whisper-cli", "binaries/whisper-server"],
+    "externalBin": ["binaries/whisper-cli"],
     "resources": {
       "resources/models/ggml-base.en-q8_0.bin": "models/ggml-base.en-q8_0.bin",
-      "resources/whisper_public": "whisper_public",
       "resources/whisper_runtime/**/*": "whisper_runtime/",
       "icons/runtime/": "icons/runtime/"
     }

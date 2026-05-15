@@ -6,7 +6,6 @@ Tauri Whisper sidecar bundle
 Naming
 ------
   whisper-cli-<RUST_HOST_TRIPLE>[.exe]     (`rustc --print host-tuple`)
-  whisper-server-<RUST_HOST_TRIPLE>[.exe]  (same triple; warm HTTP daemon)
 
 Setup (Windows host)
 --------------------
@@ -16,13 +15,12 @@ Setup (Windows host)
 
 Windows also requires the **DLL bundle** from that zip (copied by the script into):
   `src-tauri/resources/whisper_runtime/` — `ggml.dll`, `libopenblas.dll`, etc. The app prepends this
-  directory to `PATH` at startup so whisper-cli / whisper-server load correctly in dev and in the
-  installed bundle.
+  directory to `PATH` at startup so whisper-cli loads correctly in dev and in the installed bundle.
 
 Setup (macOS host)
 ------------------
   `npm run setup:whisper` downloads whisper.cpp **v1.8.4** sources and CMake-builds
-  **`whisper-cli-<triple>`** and **`whisper-server-<triple>`** (`BUILD_SHARED_LIBS=OFF`).
+  **`whisper-cli-<triple>`** (`BUILD_SHARED_LIBS=OFF`).
   Requires **Apple Command Line Tools** (`xcode-select --install`; full Xcode optional), CMake, `tar`, and `rustc`.
 
   Typical triples: `aarch64-apple-darwin`, `x86_64-apple-darwin`.
@@ -32,7 +30,7 @@ Setup (macOS host)
 
 Linux / other hosts
 --------------------
-  npm run setup:whisper downloads the quantized model only. Build whisper.cpp and copy sidecars into
+  npm run setup:whisper downloads the quantized model only. Build whisper.cpp and copy the sidecar into
   **`binaries/`** matching **`rustc --print host-tuple`**.
 
 Bundled assets are git-ignored (*.exe, *.bin, CMake build dirs under `binaries/` on macOS) — run setup after clone.

@@ -40,14 +40,11 @@ jobs:
           mkdir -p \
             src-tauri/binaries \
             src-tauri/resources/models \
-            src-tauri/resources/whisper_public \
             src-tauri/resources/whisper_runtime
 
-          for name in whisper-cli whisper-server; do
-            bin="src-tauri/binaries/${name}-${triple}"
-            printf '#!/usr/bin/env sh\nprintf "CI placeholder for %s; not used by tests.\\n" "$0" >&2\nexit 1\n' > "$bin"
-            chmod +x "$bin"
-          done
+          bin="src-tauri/binaries/whisper-cli-${triple}"
+          printf '#!/usr/bin/env sh\nprintf "CI placeholder for %s; not used by tests.\\n" "$0" >&2\nexit 1\n' > "$bin"
+          chmod +x "$bin"
 
           touch src-tauri/resources/models/ggml-base.en-q8_0.bin
 

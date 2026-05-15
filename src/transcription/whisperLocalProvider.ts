@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 
+export const MAX_LOCAL_WHISPER_WAV_BYTES = 32 * 1024 * 1024
+
 /**
  * Robust base64 from large PCM/WAV payloads — avoids spreading huge arrays onto `fromCharCode`
  * (stack limits) while staying faster than per-byte concatenation.
@@ -22,6 +24,9 @@ export async function whisperTranscribeWavBase64(
 ): Promise<string> {
   if (wav.byteLength < 64) {
     throw new Error('wav too short')
+  }
+  if (wav.byteLength > MAX_LOCAL_WHISPER_WAV_BYTES) {
+    throw new Error('wav too large')
   }
   return invoke<string>('transcribe_wav', {
     audioWavBase64: uint8ToBase64(wav),

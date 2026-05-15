@@ -6,8 +6,8 @@ import { ChevronDownIcon } from "@/components/icons/ChevronDownIcon";
 import { CheckIcon } from "@/components/icons/CheckIcon";
 import { cn } from "@/lib/utils";
 
-/** Shared shell for trailing settings controls (select triggers and popovers). */
-export function settingsControlTriggerCn(className?: string) {
+/** Shared shell for trailing settings controls (currently consumed only by `SelectTrigger` below). */
+function settingsControlTriggerCn(className?: string) {
   return cn(
     "group inline-flex h-9 min-w-[9.5rem] max-w-[12rem] flex-1 shrink-0 items-center justify-between gap-2 rounded-xl border border-border bg-transparent px-3 text-left text-[13px] outline-none cursor-pointer transition-[background-color,color,box-shadow] duration-80 ease-[var(--ease-ui)] touch-manipulation",
     "disabled:pointer-events-none disabled:opacity-50",

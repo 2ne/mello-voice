@@ -5,10 +5,7 @@
     "windows",
     "linux"
   ],
-  "windows": [
-    "main",
-    "overlay"
-  ],
+  "windows": ["overlay"],
   "permissions": [
     "positioner:default"
   ]

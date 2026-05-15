@@ -3,7 +3,6 @@ import { pickBestTranscriptPair } from './transcriptMerge'
 
 const FINAL_WHISPER_TIMEOUT_SECS = 165
 const PARTIAL_WHISPER_TIMEOUT_SECS = 54
-
 /** Local Whisper; returns trimmed text or `null` when Whisper cannot produce a usable transcript. */
 export async function transcribeWithWhisperPreferLocal(
   wav: Uint8Array,
@@ -36,7 +35,9 @@ export async function finalizeDictationPipeline(text: string): Promise<string> {
   }
 }
 
-/** Merge local Whisper output with Web Speech when both exist; otherwise take whichever is non-empty. */
+/**
+ * Merge local Whisper output with Web Speech when both exist; otherwise take whichever is non-empty.
+ */
 export function assembleTranscript(opts: {
   whisperPreferred: string | null
   webSpeechFallback: string

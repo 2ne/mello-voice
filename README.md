@@ -2,7 +2,7 @@
 
 Desktop dictation (**Windows**: primary target; **macOS** supported): **hold a global shortcut**, speak, **release** to finalize. The transcript is copied to the clipboard, then pasted with **Ctrl+V** (**Windows / Linux**) or **⌘V** (**macOS**) into the focused field, and appended to **history** in the main window.
 
-Transcription is **local-first**: bundled **whisper.cpp** (warm `whisper-server` with `whisper-cli` fallback) produces the main result. The overlay also uses the **Web Speech API** in the embedded webview (Edge WebView2 on Windows, WKWebView on macOS) for live hints while you hold the shortcut.
+Transcription is **local-only**: bundled **whisper.cpp** (`whisper-cli`) processes recordings on this machine. The app does not use Web Speech or cloud speech APIs.
 
 This file is the **onboarding map** for contributors and coding agents: product summary, settings, stack, and how to run, build, and ship.
 
@@ -14,14 +14,14 @@ This file is the **onboarding map** for contributors and coding agents: product 
 | UI | **React 19**, **TypeScript**, **Vite**, **Tailwind CSS v4** |
 | Dictation hotkey | `@tauri-apps/plugin-global-shortcut` |
 | Overlay position | `@tauri-apps/plugin-positioner` |
-| STT | **whisper.cpp** sidecars + **Web Speech API** in the overlay WebView |
+| STT | **whisper.cpp** local `whisper-cli` sidecar |
 
 Frontend entry: `src/` (main window, floating overlay, transcription pipeline). Native commands and prefs: `src-tauri/src/`.
 
 ## Features
 
 - **Hold-to-talk** with a **system-wide** shortcut (registered from the main window so it works even when the overlay is not focused).
-- **Floating dictation bar** (overlay): status and live text while dictating; compact when idle depending on settings.
+- **Floating dictation bar** (overlay): status while dictating; compact when idle depending on settings.
 - **Paste-to-focus**: put the caret in the target field, then dictate; final text is pasted via **simulated Ctrl+V** (**⌘V** on macOS) and optionally **Enter** — see settings.
 - **History** in the main window: tap a row to copy; **Clear all**.
 - **Tray**: closing the main window **does not quit** the app; use tray **Show** / **Quit**.
@@ -35,7 +35,7 @@ All of these live in the main window **Settings** drawer (gear). Values are pers
 | ------- | ------- |
 | **Dictation shortcut** | Preset global hotkey. **Hold** while speaking, **release** to finish. Choices: `Ctrl+Shift+Space`, `Ctrl+Alt+Space`. Default: `Ctrl+Shift+Space`. If registration fails (another app owns the combo), the app falls back when it can and updates the effective shortcut. |
 | **Dictation bar** | **Always visible** vs **Hide when idle** (overlay presence when you are not dictating). You can also **Hide dictation bar** from the bar’s context menu. |
-| **After dictation** | **Paste text** — clipboard + **Ctrl+V** only. **Paste and send** — same, then simulates **Enter** (useful for chat-style fields). |
+| **After dictation** | **Paste text** — clipboard + **Ctrl+V** only. **Paste and send** — same, then simulates **Enter** for chat-style fields. |
 | **Appearance** | **System**, **Light**, or **Dark**. |
 
 ## Prerequisites
@@ -120,7 +120,7 @@ Unsigned builds may trigger **SmartScreen** (“Unknown publisher”). Code sign
 
 1. First run: allow **microphone** when Windows prompts; if blocked, fix under **Settings → Privacy & security → Microphone**.
 2. Open the app (main window + tray). You may close the main window; dictation keeps running from the tray.
-3. Focus the target field, **hold** the dictation shortcut, speak, **release** — text pastes (and may send) per **After dictation**.
+3. Focus the target field, **hold** the dictation shortcut, speak, **release** — text pastes and may send per **After dictation**.
 4. Tray: **Show** / **Quit**. Dictation bar: right‑click for **Hide dictation bar**.
 
 ## Repo layout (high level)
@@ -128,9 +128,9 @@ Unsigned builds may trigger **SmartScreen** (“Unknown publisher”). Code sign
 ```
 mello-voice/
 ├── src/                    # React UI, hooks, transcription glue
-├── src-tauri/              # Tauri app, Rust commands, Whisper sidecars
-│   ├── binaries/           # whisper-cli / whisper-server (after setup)
-│   └── resources/          # models, runtime DLLs, whisper-server static dir
+├── src-tauri/              # Tauri app, Rust commands, Whisper sidecar
+│   ├── binaries/           # whisper-cli (after setup)
+│   └── resources/          # models and runtime DLLs
 └── scripts/setup-whisper-assets.mjs
 ```
 
