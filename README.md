@@ -1,151 +1,130 @@
 # Mello Voice
 
-**Release:** `0.5.0` (see `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`).
+Windows desktop dictation: **hold a global shortcut**, speak, **release** to finalize. The app copies the transcript to the clipboard, **pastes with Ctrl+V** into whatever window is focused, and appends it to **history** in the main window.
 
-A **Windows** tray app built with **Tauri** and **React**. **Hold your dictation shortcut** while you speak; on release, the transcript is **pasted into the focused window** (simulated **Ctrl+V**) and saved to **history**.
+Transcription is **local-first**: bundled **whisper.cpp** (warm `whisper-server` with `whisper-cli` fallback) produces the main result. The overlay also uses the **Web Speech API** in WebView2 for live hints while you hold the shortcut.
 
-Transcription is **local-first**: bundled **whisper.cpp** (warm **whisper-server** + **whisper-cli** fallback) runs the main pass. The **Web Speech API** still runs in the overlay for live hints and redundancy. Optional **Groq** polish / cloud STT is available via environment variables only (no extra settings UI).
+This file is the **onboarding map** for contributors and coding agents: product summary, settings, stack, and how to run, build, and ship.
+
+## Tech stack
+
+| Layer | Choice |
+| ----- | ------ |
+| Desktop shell | **Tauri 2** (Rust `src-tauri/`, tray, IPC, global shortcut plugin) |
+| UI | **React 19**, **TypeScript**, **Vite**, **Tailwind CSS v4** |
+| Dictation hotkey | `@tauri-apps/plugin-global-shortcut` |
+| Overlay position | `@tauri-apps/plugin-positioner` |
+| STT | **whisper.cpp** sidecars + **Web Speech API** in the overlay WebView |
+
+Frontend entry: `src/` (main window, floating overlay, transcription pipeline). Native commands and prefs: `src-tauri/src/`.
 
 ## Features
 
-- **Hold-to-talk**: Press and hold a configurable shortcut to listen; release to finalize, polish, paste, and return to idle.
-- **Live text on the dictation bar**: Interim Web Speech text plus rolling **Whisper hints** while you hold the shortcut; release merges **local Whisper** with Web Speech (and optional cloud when both are empty).
-- **Paste-to-focus**: After release, the app pastes via **Ctrl+V** (place the cursor in the target field first).
-- **Floating dictation bar**: Status pill at the top (**Ready**, listening, live transcribing, processing steps, errors). Compact when idle; expands while dictating.
-- **Dictation bar toggle**: Always visible, or only while holding the shortcut / processing — **Settings** or **Hide dictation bar** on the bar.
-- **Settings** (gear): dictation bar on/off, shortcut presets, after-dictation behaviour, and appearance.
-- **History** in the main window; copy or clear.
-- **Tray**: closing the main window keeps the app running; tray **Show** / **Quit**.
+- **Hold-to-talk** with a **system-wide** shortcut (registered from the main window so it works even when the overlay is not focused).
+- **Floating dictation bar** (overlay): status and live text while dictating; compact when idle depending on settings.
+- **Paste-to-focus**: put the caret in the target field, then dictate; final text is pasted via **simulated Ctrl+V** (and optionally **Enter** — see settings).
+- **History** in the main window: tap a row to copy; **Clear all**.
+- **Tray**: closing the main window **does not quit** the app; use tray **Show** / **Quit**.
+- **Theme**: system / light / dark (applies to main window and overlay).
 
-## Dictation shortcuts
+## Settings
 
-Default: **`Ctrl+Shift+Space`**.
+All of these live in the main window **Settings** drawer (gear). Values are persisted (Rust prefs for most; dictation shortcut preset also in `localStorage` on the web side).
 
-Presets in Settings:
-
-- `Ctrl+Shift+Space`
-- `Ctrl+Alt+Space`
-
-If another app owns a combo, Mello falls back when possible and updates the shortcut shown in Settings.
+| Setting | Meaning |
+| ------- | ------- |
+| **Dictation shortcut** | Preset global hotkey. **Hold** while speaking, **release** to finish. Choices: `Ctrl+Shift+Space`, `Ctrl+Alt+Space`. Default: `Ctrl+Shift+Space`. If registration fails (another app owns the combo), the app falls back when it can and updates the effective shortcut. |
+| **Dictation bar** | **Always visible** vs **Hide when idle** (overlay presence when you are not dictating). You can also **Hide dictation bar** from the bar’s context menu. |
+| **After dictation** | **Paste text** — clipboard + **Ctrl+V** only. **Paste and send** — same, then simulates **Enter** (useful for chat-style fields). |
+| **Appearance** | **System**, **Light**, or **Dark**. |
 
 ## Prerequisites
 
-**Developers / building from source**
+**To develop or build from source**
 
-- **Node.js** 18+ and npm (see `package.json` if tools warn about newer Node)
-- **Rust** — [rustup.rs](https://rustup.rs), **Windows MSVC** target
-- **Windows 10** or later (this repo is oriented to Windows)
-- **Microsoft Edge WebView2** — usually already on Windows 10/11  
-- **WiX** + **NSIS** on the build machine if you want **`npm run tauri build`** to produce installers (follow [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/))
+- **Windows 10+** (this repo targets Windows).
+- **Node.js 18+** and npm.
+- **Rust** ([rustup](https://rustup.rs)), **MSVC** toolchain.
+- **Microsoft Edge WebView2** (usual on Windows 10/11).
+- For **installers** from `npm run tauri build`: **WiX** and **NSIS** on the machine, per [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/).
 
-**End users (installed build)**
+**End users (installed app)**
 
-- Windows 10/11, **WebView2**, microphone allowed for the app.
+- Windows 10/11, WebView2, microphone permission for the app.
 
-## Setup (clone → run)
+## Clone, install, Whisper assets
 
 ```bash
 npm install
 ```
 
-**Windows:** download Whisper binaries, runtime DLLs, and the quantized model into the Tauri tree (required for `tauri dev` / `tauri build`):
+On Windows, fetch Whisper binaries, runtime DLLs, and the quantized model (needed for `tauri dev` / `tauri build`):
 
 ```bash
 npm run setup:whisper
 ```
 
-Optional **NVIDIA cuBLAS** CPU/GPU Whisper build from the same release stream (needs CUDA runtime where applicable):
+Optional: download the **NVIDIA/cuBLAS**-capable Whisper build (CUDA where applicable):
 
 ```bash
 npm run setup:whisper -- --gpu
 ```
 
-Non-Windows hosts: the script can still fetch the **model**; you must place **`whisper-cli-<triple>`** and **`whisper-server-<triple>`** manually under `src-tauri/binaries/` and DLLs under `src-tauri/resources/whisper_runtime/` — see `src-tauri/binaries/BINARIES.txt`.
+On non-Windows machines the script may still fetch the **model**; you must place compatible `whisper-cli` / `whisper-server` binaries and DLLs yourself — see `src-tauri/binaries/BINARIES.txt`.
 
-**Icons**: `npm run tauri icon` (uses `app-icon.svg`), or `npm run tauri icon path/to/icon.png`.
+App icons: `npm run tauri icon` (expects `app-icon.svg` or pass a path to a PNG).
 
-## Run & build
+## Run
 
 ```bash
-# Development (Vite + Tauri)
+# Full desktop app (Vite + Tauri)
 npm run tauri dev
 
-# Frontend alone (no desktop)
+# Web UI only (no Tauri / no dictation shell)
 npm run dev
-npm run build
 ```
 
-Production **installers** (after `npm install` and `npm run setup:whisper` on Windows):
+Automated check used in this repo (**Vitest + production Vite build + `cargo test`**):
+
+```bash
+npm run verify
+```
+
+## Build and distribute
+
+Production build (after `npm install` and, on Windows, `npm run setup:whisper`):
 
 ```bash
 npm run tauri build
 ```
 
-Artifacts appear under `src-tauri/target/release/bundle/` (version comes from Tauri config). For **0.5.0** the filenames look like:
+Installers and bundles appear under `src-tauri/target/release/bundle/`, typically:
 
-- `nsis/Mello Voice_0.5.0_x64-setup.exe` — typical “send to a friend” installer  
-- `msi/Mello Voice_0.5.0_x64_en-US.msi` — MSI / IT-style install  
+- NSIS: `nsis/Mello Voice_<version>_x64-setup.exe`
+- MSI: `msi/Mello Voice_<version>_x64_en-US.msi`
 
-If the build fails with **cannot remove `target\release\app.exe` (Access denied)**, stop any running dev build or run `taskkill /IM app.exe /F`, then rebuild.
+Version comes from `src-tauri/tauri.conf.json` (and related package metadata).
 
-**Release workflow cheatsheet** for maintainers: `AGENTS.md` and `.cursor/skills/mello-voice-windows-release/SKILL.md`.
+If the build fails because **`app.exe` cannot be overwritten (Access denied)**, close dev instances or run `taskkill /IM app.exe /F`, then build again.
 
-## 0.5.0 notes
+Unsigned builds may trigger **SmartScreen** (“Unknown publisher”). Code signing is outside this repo.
 
-- React code audited with React Doctor and tuned to a clean `100 / 100` score.
-- Settings drawer preference loading now follows React 19 patterns and keeps related settings state together.
-- Local UI primitives use React 19 ref props, leaner exports, and tighter accessibility for custom overlay controls.
-- Project metadata is aligned for the `0.5.0` desktop build.
+## Usage (quick)
 
-## Groq (optional, developer-only)
+1. First run: allow **microphone** when Windows prompts; if blocked, fix under **Settings → Privacy & security → Microphone**.
+2. Open the app (main window + tray). You may close the main window; dictation keeps running from the tray.
+3. Focus the target field, **hold** the dictation shortcut, speak, **release** — text pastes (and may send) per **After dictation**.
+4. Tray: **Show** / **Quit**. Dictation bar: right‑click for **Hide dictation bar**.
 
-No UI toggles. Requires a Groq API key and explicit env flags on the **desktop** process:
-
-- `MELLOVOICE_GROQ_API_KEY` — API key  
-- `MELLOVOICE_GROQ_POLISH=1` — LLM polish after heuristics  
-- `MELLOVOICE_GROQ_CLOUD=1` — cloud transcription when local paths are empty  
-
-Details: `src-tauri/binaries/BINARIES.txt`.
-
-## Usage
-
-The first time you dictate, **Windows** may prompt for **microphone** access — choose **Allow**. If denied, fix under **Settings → Privacy & security → Microphone**.
-
-1. Launch Mello Voice (main window + tray). You can close the main window; the app stays in the tray.
-2. **Settings**: dictation bar preference and shortcut preset.
-3. Focus the field where text should go, **hold the shortcut**, speak, **release** — text is pasted and added to history.
-4. Tray: **Show** / **Quit**. Dictation bar **right‑click**: **Hide dictation bar**.
-
-### Windows / distribution notes
-
-- **SmartScreen**: Builds are **not code-signed in this repo**. Users may see **Unknown publisher** until you add Authenticode signing in CI; they can use **More info → Run anyway** where policy allows.
-- **Corporate PCs** may block unsigned installers regardless.
-- **Accuracy** is dominated by **local Whisper**; Web Speech is supplementary. Network is not required for core dictation unless you enable Groq cloud.
-
-## Project structure (high level)
+## Repo layout (high level)
 
 ```
 mello-voice/
-├── src/                          # React + Vite frontend
-│   ├── components/               # Main window, overlay, UI
-│   ├── hooks/useSpeechRecognition.ts
-│   └── transcription/           # WAV capture, Whisper invoke, pipeline
-├── src-tauri/
-│   ├── binaries/                 # whisper-cli / whisper-server (after setup)
-│   ├── resources/
-│   │   ├── models/               # ggml-base.en-q8_0.bin (after setup)
-│   │   ├── whisper_runtime/      # OpenBLAS/CUDA DLLs (after setup)
-│   │   └── whisper_public/       # static dir for whisper-server --public
-│   ├── src/                     # transcribe, whisper_daemon, post_process, …
-│   └── tauri.conf.json
-├── scripts/setup-whisper-assets.mjs
-└── README.md
+├── src/                    # React UI, hooks, transcription glue
+├── src-tauri/              # Tauri app, Rust commands, Whisper sidecars
+│   ├── binaries/           # whisper-cli / whisper-server (after setup)
+│   └── resources/          # models, runtime DLLs, whisper-server static dir
+└── scripts/setup-whisper-assets.mjs
 ```
 
-## Tech stack
-
-- **Tauri v2** — desktop shell, tray, IPC, sidecars  
-- **React**, **TypeScript**, **Vite**, **Tailwind**  
-- **whisper.cpp** — `whisper-server` (warm HTTP) + `whisper-cli` fallback  
-- **Web Speech API** — interim / fallback in WebView2  
-- **@tauri-apps/plugin-global-shortcut** — dictation hotkey  
+Maintainer-oriented Windows release notes and troubleshooting live in **`AGENTS.md`** and **`.cursor/skills/mello-voice-windows-release/SKILL.md`** — not duplicated here.
