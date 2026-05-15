@@ -1,12 +1,12 @@
 "use client";
 
 import {
-  forwardRef,
   useRef,
   useState,
   useLayoutEffect,
   useCallback,
   type HTMLAttributes,
+  type Ref,
 } from "react";
 import * as SwitchPrimitive from "@radix-ui/react-switch";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,7 @@ interface SwitchProps extends HTMLAttributes<HTMLDivElement> {
    * sits too close to the surrounding fill.
    */
   variant?: "default" | "onRaisedSurface";
+  ref?: Ref<HTMLDivElement>;
 }
 
 const TRACK_WIDTH = 34;
@@ -38,8 +39,16 @@ const DRAG_DEAD_ZONE = 2;
 const THUMB_TRANSITION =
   "transform 220ms var(--ease-switch-thumb), width 200ms var(--ease-switch-thumb), height 200ms var(--ease-switch-thumb)";
 
-const Switch = forwardRef<HTMLDivElement, SwitchProps>(
-  ({ label, checked, onToggle, disabled = false, variant = "default", className, ...props }, ref) => {
+function Switch({
+  label,
+  checked,
+  onToggle,
+  disabled = false,
+  variant = "default",
+  className,
+  ref,
+  ...props
+}: SwitchProps) {
     const showLabel = Boolean(label?.trim());
     const hasMounted = useRef(false);
     const [hovered, setHovered] = useState(false);
@@ -67,10 +76,12 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
       (x: number, y: number, w: number, h: number, animate: boolean) => {
         const el = thumbRef.current;
         if (!el) return;
-        el.style.transition = animate ? THUMB_TRANSITION : "none";
-        el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-        el.style.width = `${w}px`;
-        el.style.height = `${h}px`;
+        Object.assign(el.style, {
+          transition: animate ? THUMB_TRANSITION : "none",
+          transform: `translate3d(${x}px, ${y}px, 0)`,
+          width: `${w}px`,
+          height: `${h}px`,
+        });
       },
       [],
     );
@@ -157,6 +168,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
     return (
       <div
         ref={ref}
+        role="group"
         className={cn(
           "relative z-10 flex cursor-pointer touch-none select-none items-center",
           showLabel ? "gap-2.5 px-3 py-2" : "gap-0 p-1",
@@ -170,6 +182,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onKeyDown={() => {}}
         onClick={() => {
           if (disabled || didDrag.current) return;
           onToggle();
@@ -236,10 +249,6 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
         ) : null}
       </div>
     );
-  },
-);
-
-Switch.displayName = "Switch";
+}
 
 export { Switch };
-export type { SwitchProps };

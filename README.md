@@ -1,6 +1,6 @@
 # Mello Voice
 
-**Release:** `0.4.0` (see `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`).
+**Release:** `0.5.0` (see `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`).
 
 A **Windows** tray app built with **Tauri** and **React**. **Hold your dictation shortcut** while you speak; on release, the transcript is **pasted into the focused window** (simulated **Ctrl+V**) and saved to **history**.
 
@@ -13,7 +13,7 @@ Transcription is **local-first**: bundled **whisper.cpp** (warm **whisper-server
 - **Paste-to-focus**: After release, the app pastes via **Ctrl+V** (place the cursor in the target field first).
 - **Floating dictation bar**: Status pill at the top (**Ready**, listening, live transcribing, processing steps, errors). Compact when idle; expands while dictating.
 - **Dictation bar toggle**: Always visible, or only while holding the shortcut / processing — **Settings** or **Hide dictation bar** on the bar.
-- **Settings** (gear): dictation bar on/off, shortcut presets.
+- **Settings** (gear): dictation bar on/off, shortcut presets, after-dictation behaviour, and appearance.
 - **History** in the main window; copy or clear.
 - **Tray**: closing the main window keeps the app running; tray **Show** / **Quit**.
 
@@ -81,14 +81,21 @@ Production **installers** (after `npm install` and `npm run setup:whisper` on Wi
 npm run tauri build
 ```
 
-Artifacts appear under `src-tauri/target/release/bundle/` (version comes from Tauri config). For **0.4.0** the filenames look like:
+Artifacts appear under `src-tauri/target/release/bundle/` (version comes from Tauri config). For **0.5.0** the filenames look like:
 
-- `nsis/Mello Voice_0.4.0_x64-setup.exe` — typical “send to a friend” installer  
-- `msi/Mello Voice_0.4.0_x64_en-US.msi` — MSI / IT-style install  
+- `nsis/Mello Voice_0.5.0_x64-setup.exe` — typical “send to a friend” installer  
+- `msi/Mello Voice_0.5.0_x64_en-US.msi` — MSI / IT-style install  
 
 If the build fails with **cannot remove `target\release\app.exe` (Access denied)**, stop any running dev build or run `taskkill /IM app.exe /F`, then rebuild.
 
 **Release workflow cheatsheet** for maintainers: `AGENTS.md` and `.cursor/skills/mello-voice-windows-release/SKILL.md`.
+
+## 0.5.0 notes
+
+- React code audited with React Doctor and tuned to a clean `100 / 100` score.
+- Settings drawer preference loading now follows React 19 patterns and keeps related settings state together.
+- Local UI primitives use React 19 ref props, leaner exports, and tighter accessibility for custom overlay controls.
+- Project metadata is aligned for the `0.5.0` desktop build.
 
 ## Groq (optional, developer-only)
 

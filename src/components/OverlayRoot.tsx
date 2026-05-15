@@ -36,13 +36,17 @@ function isTauriRuntime(): boolean {
 
 async function positionOverlayTopCenter() {
   const win = getCurrentWindow();
-  const [monitor, winSize] = await Promise.all([primaryMonitor(), win.outerSize()]);
+  const monitor = await primaryMonitor();
   if (!monitor) return;
+  const winSize = await win.outerSize();
   const scale = monitor.scaleFactor;
   const x = (monitor.position.x + (monitor.size.width - winSize.width) / 2) / scale;
   const y = (monitor.position.y + TOP_OFFSET) / scale;
-  await win.setPosition(new LogicalPosition(x, y));
-  await moveWindow(Position.TopCenter);
+  // react-doctor-disable-next-line react-doctor/async-parallel -- Tauri window placement has to settle before the final readback adjustment.
+  await Promise.all([
+    win.setPosition(new LogicalPosition(x, y)),
+    moveWindow(Position.TopCenter),
+  ]);
   const pos = await win.outerPosition();
   await win.setPosition(new LogicalPosition(x, (pos.y + TOP_OFFSET) / scale));
 }
@@ -64,7 +68,6 @@ function OverlayRoot() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [inlineHideOpen, setInlineHideOpen] = useState(false);
   const [barEnabled, setBarEnabled] = useState(true);
-  const [daemonWarm, setDaemonWarm] = useState(false);
 
   const {
     isListening,
@@ -281,32 +284,9 @@ function OverlayRoot() {
     return () => unlisten?.();
   }, []);
 
-  /** Detect whisper-server once recording starts (cheap invoke vs spawning whisper-cli every few seconds). */
-  useEffect(() => {
-    if (!isExpanded || !isListening) {
-      setDaemonWarm(false);
-      return;
-    }
-    let cancelled = false;
-    const refresh = async () => {
-      try {
-        const ready = await invoke<boolean>("is_whisper_daemon_ready");
-        if (!cancelled) setDaemonWarm(ready);
-      } catch {
-        if (!cancelled) setDaemonWarm(false);
-      }
-    };
-    void refresh();
-    const pollId = window.setInterval(refresh, 8000);
-    return () => {
-      cancelled = true;
-      clearInterval(pollId);
-    };
-  }, [isExpanded, isListening]);
-
   // Rolling Whisper hints while capturing — only when whisper-server is warm (otherwise whisper-cli partials peg CPU).
   useEffect(() => {
-    if (!isExpanded || !isListening || !daemonWarm) {
+    if (!isExpanded || !isListening) {
       setLiveWhisperHint("");
       liveWhisperLastHintRef.current = "";
       return;
@@ -315,6 +295,8 @@ function OverlayRoot() {
     let stopped = false;
     const tick = async () => {
       if (stopped || liveWhisperBusyRef.current) return;
+      const ready = await invoke<boolean>("is_whisper_daemon_ready").catch(() => false);
+      if (!ready) return;
       const wav = peekTailWav(26);
       if (wav.byteLength < 4000) return;
       liveWhisperBusyRef.current = true;
@@ -342,7 +324,7 @@ function OverlayRoot() {
       stopped = true;
       clearInterval(id);
     };
-  }, [isExpanded, isListening, daemonWarm]);
+  }, [isExpanded, isListening]);
 
   // Resize window to fit pill + inline actions
   useEffect(() => {
@@ -495,7 +477,7 @@ function OverlayRoot() {
         ? "listening"
         : "idle";
 
-  const onBarToggleHideMenu = (e: React.MouseEvent) => {
+  const onBarToggleHideMenu = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.preventDefault();
     if (!sessionChromeVisible) return;
     setInlineHideOpen((v) => !v);

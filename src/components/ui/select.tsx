@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from "react";
+import { type ComponentProps } from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { ChevronDownIcon } from "@/components/icons/ChevronDownIcon";
 import { CheckIcon } from "@/components/icons/CheckIcon";
@@ -19,14 +19,10 @@ export function settingsControlTriggerCn(className?: string) {
 
 const Select = SelectPrimitive.Root;
 
-const SelectGroup = SelectPrimitive.Group;
-
 const SelectValue = SelectPrimitive.Value;
 
-const SelectTrigger = forwardRef<
-  ElementRef<typeof SelectPrimitive.Trigger>,
-  ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
+function SelectTrigger({ className, children, ref, ...props }: ComponentProps<typeof SelectPrimitive.Trigger>) {
+  return (
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
@@ -40,15 +36,21 @@ const SelectTrigger = forwardRef<
       <ChevronDownIcon className="size-4 shrink-0 opacity-65 transition-opacity duration-80 ease-[var(--ease-ui)] group-disabled:opacity-40" strokeWidth={1.75} />
     </SelectPrimitive.Icon>
   </SelectPrimitive.Trigger>
-));
-SelectTrigger.displayName = "SelectTrigger";
+  );
+}
 
 const SelectPortal = SelectPrimitive.Portal;
 
-const SelectContent = forwardRef<
-  ElementRef<typeof SelectPrimitive.Content>,
-  ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, sideOffset = 6, collisionPadding = 10, align = "end", ...props }, ref) => (
+function SelectContent({
+  className,
+  children,
+  sideOffset = 6,
+  collisionPadding = 10,
+  align = "end",
+  ref,
+  ...props
+}: ComponentProps<typeof SelectPrimitive.Content>) {
+  return (
   <SelectPortal>
     <SelectPrimitive.Content
       ref={ref}
@@ -75,25 +77,11 @@ const SelectContent = forwardRef<
       </SelectPrimitive.ScrollDownButton>
     </SelectPrimitive.Content>
   </SelectPortal>
-));
-SelectContent.displayName = "SelectContent";
+  );
+}
 
-const SelectLabel = forwardRef<
-  ElementRef<typeof SelectPrimitive.Label>,
-  ComponentPropsWithoutRef<typeof SelectPrimitive.Label>
->(({ className, ...props }, ref) => (
-  <SelectPrimitive.Label
-    ref={ref}
-    className={cn("px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground", className)}
-    {...props}
-  />
-));
-SelectLabel.displayName = "SelectLabel";
-
-const SelectItem = forwardRef<
-  ElementRef<typeof SelectPrimitive.Item>,
-  ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => (
+function SelectItem({ className, children, ref, ...props }: ComponentProps<typeof SelectPrimitive.Item>) {
+  return (
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
@@ -113,15 +101,7 @@ const SelectItem = forwardRef<
       <CheckIcon strokeWidth={2} />
     </SelectPrimitive.ItemIndicator>
   </SelectPrimitive.Item>
-));
-SelectItem.displayName = "SelectItem";
+  );
+}
 
-const SelectSeparator = forwardRef<
-  ElementRef<typeof SelectPrimitive.Separator>,
-  ComponentPropsWithoutRef<typeof SelectPrimitive.Separator>
->(({ className, ...props }, ref) => (
-  <SelectPrimitive.Separator ref={ref} className={cn("-mx-1 my-1 h-px shrink-0 bg-border/80", className)} {...props} />
-));
-SelectSeparator.displayName = "SelectSeparator";
-
-export { Select, SelectGroup, SelectValue, SelectTrigger, SelectPortal, SelectContent, SelectLabel, SelectItem, SelectSeparator };
+export { Select, SelectValue, SelectTrigger, SelectContent, SelectItem };

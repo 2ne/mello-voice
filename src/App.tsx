@@ -86,11 +86,11 @@ function App() {
   }, [isOverlay])
 
   useEffect(() => {
-    document.documentElement.style.overflow = isOverlay ? 'hidden' : ''
-    document.body.style.overflow = isOverlay ? 'hidden' : ''
+    Object.assign(document.documentElement.style, { overflow: isOverlay ? 'hidden' : '' })
+    Object.assign(document.body.style, { overflow: isOverlay ? 'hidden' : '' })
     return () => {
-      document.documentElement.style.overflow = ''
-      document.body.style.overflow = ''
+      Object.assign(document.documentElement.style, { overflow: '' })
+      Object.assign(document.body.style, { overflow: '' })
     }
   }, [isOverlay])
 

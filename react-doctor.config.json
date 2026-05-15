@@ -1,0 +1,27 @@
+{
+  "ignore": {
+    "files": [
+      "_icons_v2/**",
+      "public/pcm-capture.worklet.js"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "src/components/MainWindow.tsx",
+          "src/components/OverlayRoot.tsx"
+        ],
+        "rules": [
+          "react-doctor/no-giant-component"
+        ]
+      },
+      {
+        "files": [
+          "src/components/OverlayRoot.tsx"
+        ],
+        "rules": [
+          "react-doctor/prefer-useReducer"
+        ]
+      }
+    ]
+  }
+}
