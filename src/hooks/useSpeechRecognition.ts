@@ -95,7 +95,15 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       const benign = new Set(["aborted", "no-speech", "captured"])
       if (benign.has(e.error)) return
       if (e.error === "audio-capture") return
-      setError(e.error === "not-allowed" ? "Microphone access denied" : `Error: ${e.error}`)
+      if (e.error === "not-allowed") {
+        setError("Microphone access denied")
+        return
+      }
+      if (e.error === "network") {
+        setError("Speech service unavailable. Check network and microphone permission.")
+        return
+      }
+      setError(`Error: ${e.error}`)
     }
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {

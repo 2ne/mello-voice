@@ -8,6 +8,15 @@ import {
 /** Retain at most ~8 minutes of raw PCM at 48 kHz (reasonable cap for long sessions). */
 const RAW_RETAIN_SECONDS = 480
 const PARTIAL_TAIL_SECONDS = 28
+const MIC_CAPTURE_CONSTRAINTS: MediaStreamConstraints = {
+  audio: {
+    channelCount: 1,
+    echoCancellation: false,
+    noiseSuppression: true,
+    autoGainControl: true,
+  },
+  video: false,
+}
 
 type CaptureBackend = 'worklet' | 'script'
 
@@ -27,6 +36,47 @@ type CaptureState =
     }
 
 let state: CaptureState = { kind: 'idle' }
+
+type MicPermissionState = 'granted' | 'prompt' | 'denied' | 'unknown'
+
+async function readMicPermissionState(): Promise<MicPermissionState> {
+  if (typeof navigator === 'undefined') return 'unknown'
+  if (!('permissions' in navigator) || typeof navigator.permissions.query !== 'function') {
+    return 'unknown'
+  }
+  try {
+    const status = await navigator.permissions.query({
+      name: 'microphone' as PermissionName,
+    })
+    if (status.state === 'granted' || status.state === 'prompt' || status.state === 'denied') {
+      return status.state
+    }
+  } catch {
+    /* ignore */
+  }
+  return 'unknown'
+}
+
+/**
+ * Requests microphone permission when needed and immediately closes the temporary stream.
+ * Returns true when microphone access is usable for capture.
+ */
+export async function ensureMicPermission(): Promise<boolean> {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    return false
+  }
+  const state = await readMicPermissionState()
+  if (state === 'denied') return false
+  if (state === 'granted') return true
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia(MIC_CAPTURE_CONSTRAINTS)
+    stream.getTracks().forEach((t) => t.stop())
+    return true
+  } catch {
+    return false
+  }
+}
 
 function totalChunkSamples(chunks: readonly Float32Array[]): number {
   let n = 0
@@ -134,15 +184,7 @@ export async function startWavMicCapture(): Promise<void> {
     await stopWavMicCapture().catch(() => {})
   }
 
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: {
-      channelCount: 1,
-      echoCancellation: false,
-      noiseSuppression: true,
-      autoGainControl: true,
-    },
-    video: false,
-  })
+  const stream = await navigator.mediaDevices.getUserMedia(MIC_CAPTURE_CONSTRAINTS)
 
   const context = new AudioContext({ latencyHint: "interactive", sampleRate: undefined })
   if (context.state === 'suspended') {

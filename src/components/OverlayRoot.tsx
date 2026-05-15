@@ -4,8 +4,10 @@ import { moveWindow, Position } from "@tauri-apps/plugin-positioner";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import FloatingOverlay from "./FloatingOverlay";
+import { shouldShowSessionChrome } from "./overlaySessionState";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import {
+  ensureMicPermission,
   peekTailWav,
   startWavMicCapture,
   stopWavMicCapture,
@@ -57,6 +59,7 @@ function OverlayRoot() {
   const shortcutHeldRef = useRef(false);
   const barEnabledRef = useRef(true);
   const errorRef = useRef<string | null>(null);
+  const micWarmupDoneRef = useRef(false);
   const liveWhisperBusyRef = useRef(false);
   const liveWhisperLastHintRef = useRef("");
   const lastResizeHeightRef = useRef(0);
@@ -67,6 +70,7 @@ function OverlayRoot() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [inlineHideOpen, setInlineHideOpen] = useState(false);
   const [barEnabled, setBarEnabled] = useState(true);
+  const [sessionError, setSessionError] = useState<string | null>(null);
 
   const {
     isListening,
@@ -82,9 +86,11 @@ function OverlayRoot() {
   const [liveWhisperHint, setLiveWhisperHint] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const activeError = error ?? sessionError;
+
   useEffect(() => {
-    errorRef.current = error;
-  }, [error]);
+    errorRef.current = activeError;
+  }, [activeError]);
 
   useEffect(() => {
     barEnabledRef.current = barEnabled;
@@ -98,9 +104,13 @@ function OverlayRoot() {
     isExpandedRef.current = isExpanded;
   }, [isExpanded]);
 
-  /** Preference on: always show the pill. Preference off: only while dictating / processing / error, or inline menu. */
-  const sessionChromeVisible =
-    barEnabled || isExpanded || isProcessing || !!error || inlineHideOpen;
+  const sessionChromeVisible = shouldShowSessionChrome({
+    barEnabled,
+    isExpanded,
+    isProcessing,
+    activeError,
+    inlineHideOpen,
+  });
 
   const combinedInterim = liveWhisperHint.trim() ? liveWhisperHint : interimTranscript;
 
@@ -283,6 +293,16 @@ function OverlayRoot() {
     return () => unlisten?.();
   }, []);
 
+  // Ask for microphone permission proactively so first hold-to-talk does not fail.
+  useEffect(() => {
+    if (micWarmupDoneRef.current) return;
+    micWarmupDoneRef.current = true;
+    const id = window.setTimeout(() => {
+      void ensureMicPermission().catch(() => false);
+    }, 900);
+    return () => clearTimeout(id);
+  }, []);
+
   // Rolling Whisper hints while capturing — only when whisper-server is warm (otherwise whisper-cli partials peg CPU).
   useEffect(() => {
     if (!isExpanded || !isListening) {
@@ -388,6 +408,7 @@ function OverlayRoot() {
 
         shortcutHeldRef.current = true;
         setInlineHideOpen(false);
+        setSessionError(null);
         setLiveWhisperHint("");
         liveWhisperLastHintRef.current = "";
 
@@ -397,8 +418,26 @@ function OverlayRoot() {
           console.warn("Could not show overlay:", e);
         }
 
+        const permissionGranted = await ensureMicPermission();
+        if (!permissionGranted) {
+          shortcutHeldRef.current = false;
+          setIsExpanded(false);
+          setSessionError("Microphone access is required. Allow it and try again.");
+          hideOverlayWhenBarPreferOff();
+          return;
+        }
+
         setIsExpanded(true);
-        void startWavMicCapture().catch((e) => console.warn("WAV mic capture:", e));
+        try {
+          await startWavMicCapture();
+        } catch (e) {
+          console.warn("WAV mic capture:", e);
+          shortcutHeldRef.current = false;
+          setIsExpanded(false);
+          setSessionError("Could not start microphone capture.");
+          hideOverlayWhenBarPreferOff();
+          return;
+        }
         startListening();
       } else {
         if (!shortcutHeldRef.current) return;
@@ -466,7 +505,7 @@ function OverlayRoot() {
     return () => window.removeEventListener("keydown", onKey);
   }, [inlineHideOpen]);
 
-  const displayState = error
+  const displayState = activeError
     ? "error"
     : isProcessing
       ? "processing"
@@ -521,7 +560,7 @@ function OverlayRoot() {
           state={displayState}
           interimTranscript={combinedInterim}
           finalTranscript={finalTranscript}
-          error={error}
+          error={activeError}
           inlineHideOpen={inlineHideOpen}
           onBarToggleHideMenu={onBarToggleHideMenu}
           onHideDictationBar={hideDictationBar}
