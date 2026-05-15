@@ -49,3 +49,16 @@ export function assembleTranscript(opts: {
   }
   return (whisper || web).trim()
 }
+
+/**
+ * Build final text for paste/history from both STT sources.
+ * Returns `''` when neither source produced usable text.
+ */
+export async function buildFinalDictationText(opts: {
+  whisperPreferred: string | null
+  webSpeechFallback: string
+}): Promise<string> {
+  const stitched = assembleTranscript(opts)
+  if (!stitched) return ''
+  return finalizeDictationPipeline(stitched)
+}

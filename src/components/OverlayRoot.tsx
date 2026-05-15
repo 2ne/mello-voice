@@ -11,8 +11,7 @@ import {
   stopWavMicCapture,
 } from "../transcription/wavCapture";
 import {
-  assembleTranscript,
-  finalizeDictationPipeline,
+  buildFinalDictationText,
   transcribeWithWhisperPreferLocal,
   transcribeWithWhisperPartialHint,
 } from "../transcription/transcriptionService";
@@ -422,11 +421,10 @@ function OverlayRoot() {
           ]);
           clearTranscript();
 
-          const stitched = assembleTranscript({
+          const text = await buildFinalDictationText({
             whisperPreferred: whisperText,
             webSpeechFallback: fallbackSpeech,
           });
-          const text = await finalizeDictationPipeline(stitched);
 
           if (text) {
             await addToHistory(text);

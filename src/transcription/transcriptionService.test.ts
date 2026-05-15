@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   assembleTranscript,
+  buildFinalDictationText,
   finalizeDictationPipeline,
   transcribeWithWhisperPreferLocal,
 } from './transcriptionService'
@@ -101,5 +102,28 @@ describe('finalizeDictationPipeline', () => {
   it('falls back to trimmed input when polish fails', async () => {
     vi.mocked(whisperLocalProvider.polishFinalTranscript).mockRejectedValue(new Error('offline'))
     expect(await finalizeDictationPipeline('keep me')).toBe('keep me')
+  })
+})
+
+describe('buildFinalDictationText', () => {
+  it('returns empty and skips polish when both transcript sources are empty', async () => {
+    expect(
+      await buildFinalDictationText({
+        whisperPreferred: '',
+        webSpeechFallback: '   ',
+      }),
+    ).toBe('')
+    expect(whisperLocalProvider.polishFinalTranscript).not.toHaveBeenCalled()
+  })
+
+  it('runs polish pipeline when a non-empty stitched transcript exists', async () => {
+    vi.mocked(whisperLocalProvider.polishFinalTranscript).mockResolvedValue('Polished merged text.')
+    expect(
+      await buildFinalDictationText({
+        whisperPreferred: ' merged source ',
+        webSpeechFallback: '',
+      }),
+    ).toBe('Polished merged text.')
+    expect(whisperLocalProvider.polishFinalTranscript).toHaveBeenCalledWith('merged source')
   })
 })
