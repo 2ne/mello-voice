@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  assembleTranscriptWithCloudFallback,
+  assembleTranscript,
   finalizeDictationPipeline,
   transcribeWithWhisperPreferLocal,
 } from './transcriptionService'
@@ -8,7 +8,6 @@ import * as whisperLocalProvider from './whisperLocalProvider'
 
 vi.mock('./whisperLocalProvider', () => ({
   whisperTranscribeWavBase64: vi.fn(),
-  groqCloudTranscribeWav: vi.fn(),
   polishFinalTranscript: vi.fn(),
 }))
 
@@ -22,7 +21,6 @@ function wavOk(): Uint8Array {
 
 beforeEach(() => {
   vi.mocked(whisperLocalProvider.whisperTranscribeWavBase64).mockReset()
-  vi.mocked(whisperLocalProvider.groqCloudTranscribeWav).mockReset()
   vi.mocked(whisperLocalProvider.polishFinalTranscript).mockReset()
 })
 
@@ -48,58 +46,43 @@ describe('transcribeWithWhisperPreferLocal', () => {
   })
 })
 
-describe('assembleTranscriptWithCloudFallback', () => {
-  it('uses whisper when web is empty', async () => {
+describe('assembleTranscript', () => {
+  it('uses whisper when web is empty', () => {
     expect(
-      await assembleTranscriptWithCloudFallback({
-        wav: wavTiny(),
+      assembleTranscript({
         whisperPreferred: '  whisper out  ',
         webSpeechFallback: '',
       }),
     ).toBe('whisper out')
-    expect(whisperLocalProvider.groqCloudTranscribeWav).not.toHaveBeenCalled()
   })
 
-  it('uses web when whisper is empty', async () => {
+  it('uses web when whisper is empty', () => {
     expect(
-      await assembleTranscriptWithCloudFallback({
-        wav: wavTiny(),
+      assembleTranscript({
         whisperPreferred: null,
         webSpeechFallback: ' browser text ',
       }),
     ).toBe('browser text')
   })
 
-  it('merges when both present', async () => {
+  it('merges when both present', () => {
     const w = 'the quick brown fox jumps over'
     const s = 'the quick brown fox'
-    const out = await assembleTranscriptWithCloudFallback({
-      wav: wavTiny(),
-      whisperPreferred: w,
-      webSpeechFallback: s,
-    })
-    expect(out).toBe(w)
+    expect(
+      assembleTranscript({
+        whisperPreferred: w,
+        webSpeechFallback: s,
+      }),
+    ).toBe(w)
   })
 
-  it('calls cloud when both empty and wav is large enough', async () => {
-    vi.mocked(whisperLocalProvider.groqCloudTranscribeWav).mockResolvedValue(' cloud ok ')
-    const out = await assembleTranscriptWithCloudFallback({
-      wav: wavOk(),
-      whisperPreferred: '',
-      webSpeechFallback: '',
-    })
-    expect(out).toBe('cloud ok')
-    expect(whisperLocalProvider.groqCloudTranscribeWav).toHaveBeenCalledOnce()
-  })
-
-  it('does not call cloud when wav is small', async () => {
-    const out = await assembleTranscriptWithCloudFallback({
-      wav: wavTiny(),
-      whisperPreferred: '',
-      webSpeechFallback: '',
-    })
-    expect(out).toBe('')
-    expect(whisperLocalProvider.groqCloudTranscribeWav).not.toHaveBeenCalled()
+  it('returns empty when both empty', () => {
+    expect(
+      assembleTranscript({
+        whisperPreferred: '',
+        webSpeechFallback: '',
+      }),
+    ).toBe('')
   })
 })
 

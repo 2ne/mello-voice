@@ -61,7 +61,6 @@ fn prepend_whisper_runtime_to_path(handle: &tauri::AppHandle) {
 
 mod transcribe;
 mod post_process;
-mod cloud_stt;
 
 const HISTORY_FILE: &str = "history.json";
 const PREFS_FILE: &str = "app-prefs.json";
@@ -411,7 +410,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             transcribe::transcribe_wav,
             post_process::polish_final_transcript,
-            cloud_stt::groq_cloud_transcribe_wav,
             paste_text,
             add_to_history,
             get_history,

@@ -29,16 +29,6 @@ export async function whisperTranscribeWavBase64(
   })
 }
 
-/** Opt-in Groq cloud STT (requires env `MELLOVOICE_GROQ_CLOUD=1` + API key on the Rust side). */
-export async function groqCloudTranscribeWav(wav: Uint8Array): Promise<string> {
-  if (wav.byteLength < 64) {
-    throw new Error('wav too short for cloud STT')
-  }
-  return invoke<string>('groq_cloud_transcribe_wav', {
-    audioWavBase64: uint8ToBase64(wav),
-  })
-}
-
 export async function polishFinalTranscript(text: string): Promise<string> {
   const trimmed = text.trim()
   if (!trimmed.length) return ''

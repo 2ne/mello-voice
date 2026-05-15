@@ -11,7 +11,7 @@ import {
   stopWavMicCapture,
 } from "../transcription/wavCapture";
 import {
-  assembleTranscriptWithCloudFallback,
+  assembleTranscript,
   finalizeDictationPipeline,
   transcribeWithWhisperPreferLocal,
   transcribeWithWhisperPartialHint,
@@ -422,8 +422,7 @@ function OverlayRoot() {
           ]);
           clearTranscript();
 
-          const stitched = await assembleTranscriptWithCloudFallback({
-            wav,
+          const stitched = assembleTranscript({
             whisperPreferred: whisperText,
             webSpeechFallback: fallbackSpeech,
           });

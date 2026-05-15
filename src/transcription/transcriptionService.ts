@@ -1,4 +1,4 @@
-import { groqCloudTranscribeWav, polishFinalTranscript, whisperTranscribeWavBase64 } from './whisperLocalProvider'
+import { polishFinalTranscript, whisperTranscribeWavBase64 } from './whisperLocalProvider'
 import { pickBestTranscriptPair } from './transcriptMerge'
 
 const FINAL_WHISPER_TIMEOUT_SECS = 165
@@ -25,17 +25,7 @@ export async function transcribeWithWhisperPartialHint(wav: Uint8Array): Promise
   return transcribeWithWhisperPreferLocal(wav, { timeoutSecs: PARTIAL_WHISPER_TIMEOUT_SECS })
 }
 
-async function groqSilentFallback(wav: Uint8Array): Promise<string | null> {
-  try {
-    const remote = await groqCloudTranscribeWav(wav)
-    const t = remote.trim()
-    return t.length ? t : null
-  } catch {
-    return null
-  }
-}
-
-/** Full pipeline selected text + heuristic/LLM polish (same UX as paste input). */
+/** Full pipeline: heuristic polish via Rust (same UX as paste input). */
 export async function finalizeDictationPipeline(text: string): Promise<string> {
   const trimmed = text.trim()
   if (!trimmed) return ''
@@ -46,28 +36,16 @@ export async function finalizeDictationPipeline(text: string): Promise<string> {
   }
 }
 
-/** Primary local paths + anonymous cloud fallback when locals are empty — no UI exposure. */
-export async function assembleTranscriptWithCloudFallback(opts: {
-  wav: Uint8Array
+/** Merge local Whisper output with Web Speech when both exist; otherwise take whichever is non-empty. */
+export function assembleTranscript(opts: {
   whisperPreferred: string | null
   webSpeechFallback: string
-}): Promise<string> {
+}): string {
   const whisper = opts.whisperPreferred?.trim() ?? ''
   const web = opts.webSpeechFallback.trim()
 
-  let pick: string
   if (whisper && web) {
-    pick = pickBestTranscriptPair(whisper, web)
-  } else {
-    pick = whisper || web
+    return pickBestTranscriptPair(whisper, web).trim()
   }
-
-  if (!pick && opts.wav.byteLength >= 64) {
-    const cloudPick = await groqSilentFallback(opts.wav)
-    if (cloudPick) {
-      pick = cloudPick.trim()
-    }
-  }
-
-  return pick.trim()
+  return (whisper || web).trim()
 }
