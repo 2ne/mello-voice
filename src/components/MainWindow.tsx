@@ -1,4 +1,13 @@
-import { useState, useEffect, useCallback, useRef, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useReducer,
+  useEffectEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { listen, emit } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
@@ -70,6 +79,22 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
 ];
+
+interface SettingsPrefs {
+  overlayBarEnabled: boolean;
+  afterDictationAction: AfterDictationActionOption;
+  themePreference: ThemePreference;
+}
+
+const INITIAL_SETTINGS_PREFS: SettingsPrefs = {
+  overlayBarEnabled: true,
+  afterDictationAction: DEFAULT_AFTER_DICTATION_ACTION,
+  themePreference: "system",
+};
+
+function settingsPrefsReducer(state: SettingsPrefs, patch: Partial<SettingsPrefs>): SettingsPrefs {
+  return { ...state, ...patch };
+}
 
 function dictationBarModeLabel(alwaysShowWhenIdle: boolean): string {
   return alwaysShowWhenIdle ? "Always visible" : "Hide when idle";
@@ -179,31 +204,28 @@ function HistoryItem({ entry, onCopy }: { entry: HistoryEntry; onCopy: (text: st
 }
 
 function MainWindow() {
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
   const [liveShortcut, setLiveShortcut] = useState(getDictationShortcut);
   const [settingsOpen, setSettingsOpen] = useState(false);
   /** Semver shown in Settings footer + used for native window title. */
   const [appVersionLabel, setAppVersionLabel] = useState<string | null>(null);
-  const [overlayBarEnabled, setOverlayBarEnabled] = useState(true);
-  const [afterDictationAction, setAfterDictationAction] = useState<AfterDictationActionOption>(
-    DEFAULT_AFTER_DICTATION_ACTION,
-  );
-  const [themePreference, setThemePreference] = useState<ThemePreference>("system");
+  const [settingsPrefs, updateSettingsPrefs] = useReducer(settingsPrefsReducer, INITIAL_SETTINGS_PREFS);
   const registeredShortcutRef = useRef<string | null>(null);
+  const { overlayBarEnabled, afterDictationAction, themePreference } = settingsPrefs;
 
   const refreshHistory = useCallback(async () => {
     const entries = await getHistory();
-    setHistory(entries);
+    setHistoryEntries(entries);
   }, []);
 
-  const syncOverlayFromPrefs = useCallback(async () => {
+  const syncOverlayFromPrefs = useEffectEvent(async () => {
     try {
       const show = await invoke<boolean>("get_overlay_bar_enabled");
-      setOverlayBarEnabled(show);
+      updateSettingsPrefs({ overlayBarEnabled: show });
     } catch {
       /* ignore */
     }
-  }, []);
+  });
 
   useEffect(() => {
     refreshHistory();
@@ -223,7 +245,9 @@ function MainWindow() {
     listen<string>("dictation-shortcut-changed", (e) => setLiveShortcut(e.payload)).then((fn) => {
       unlistenShortcutOk = fn;
     });
-    listen<boolean>("overlay-bar-enabled-changed", (e) => setOverlayBarEnabled(e.payload)).then((fn) => {
+    listen<boolean>("overlay-bar-enabled-changed", (e) =>
+      updateSettingsPrefs({ overlayBarEnabled: e.payload }),
+    ).then((fn) => {
       unlistenOverlayPref = fn;
     });
 
@@ -244,7 +268,7 @@ function MainWindow() {
       window.removeEventListener("storage", onStorage);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [refreshHistory, syncOverlayFromPrefs]);
+  }, [refreshHistory]);
 
   useEffect(() => {
     void (async () => {
@@ -268,18 +292,20 @@ function MainWindow() {
 
   useEffect(() => {
     void invoke<boolean>("get_overlay_bar_enabled")
-      .then(setOverlayBarEnabled)
+      .then((overlayBarEnabled) => updateSettingsPrefs({ overlayBarEnabled }))
       .catch(() => {});
     void invoke<string>("get_after_dictation_action")
-      .then((s) => setAfterDictationAction(parseAfterDictationAction(s)))
+      .then((s) => updateSettingsPrefs({ afterDictationAction: parseAfterDictationAction(s) }))
       .catch(() => {});
   }, []);
 
   useEffect(() => {
     void invoke<string>("get_theme")
-      .then((s) => setThemePreference(parseThemePreference(s)))
+      .then((s) => updateSettingsPrefs({ themePreference: parseThemePreference(s) }))
       .catch(() =>
-        setThemePreference(parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY))),
+        updateSettingsPrefs({
+          themePreference: parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY)),
+        }),
       );
   }, []);
 
@@ -344,19 +370,29 @@ function MainWindow() {
 
   useEffect(() => {
     if (!settingsOpen) return;
-    void invoke<boolean>("get_overlay_bar_enabled")
-      .then(setOverlayBarEnabled)
-      .catch(() => {});
-    void invoke<string>("get_theme")
-      .then((s) => setThemePreference(parseThemePreference(s)))
-      .catch(() =>
-        setThemePreference(parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY))),
-      );
-    void invoke<string>("get_after_dictation_action")
-      .then((s) => setAfterDictationAction(parseAfterDictationAction(s)))
-      .catch(() => {});
+    void (async () => {
+      const [overlayBarEnabledResult, themeResult, afterDictationActionResult] = await Promise.allSettled([
+        invoke<boolean>("get_overlay_bar_enabled"),
+        invoke<string>("get_theme"),
+        invoke<string>("get_after_dictation_action"),
+      ]);
+      updateSettingsPrefs({
+        overlayBarEnabled:
+          overlayBarEnabledResult.status === "fulfilled"
+            ? overlayBarEnabledResult.value
+            : overlayBarEnabled,
+        themePreference:
+          themeResult.status === "fulfilled"
+            ? parseThemePreference(themeResult.value)
+            : parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY)),
+        afterDictationAction:
+          afterDictationActionResult.status === "fulfilled"
+            ? parseAfterDictationAction(afterDictationActionResult.value)
+            : afterDictationAction,
+      });
+    })();
     setLiveShortcut(getDictationShortcut());
-  }, [settingsOpen]);
+  }, [afterDictationAction, overlayBarEnabled, settingsOpen]);
 
   const handleCopy = useCallback(async (text: string) => {
     try {
@@ -367,10 +403,10 @@ function MainWindow() {
   }, []);
 
   const handleClear = useCallback(async () => {
-    if (history.length === 0) return;
+    if (historyEntries.length === 0) return;
     await clearHistory();
     await refreshHistory();
-  }, [history.length, refreshHistory]);
+  }, [historyEntries.length, refreshHistory]);
 
   const selectPresetShortcut = useCallback((preset: string) => {
     const next = (DICTATION_SHORTCUT_OPTIONS as readonly string[]).includes(preset)
@@ -384,7 +420,7 @@ function MainWindow() {
   const setDictationBarPreference = useCallback(async (enabled: boolean) => {
     try {
       await invoke("set_overlay_bar_enabled", { enabled });
-      setOverlayBarEnabled(enabled);
+      updateSettingsPrefs({ overlayBarEnabled: enabled });
       await emit("overlay-bar-enabled-changed", enabled);
     } catch (e) {
       console.error(e);
@@ -394,14 +430,14 @@ function MainWindow() {
   const setAfterDictationPreference = useCallback(async (next: AfterDictationActionOption) => {
     try {
       await invoke("set_after_dictation_action", { action: next });
-      setAfterDictationAction(next);
+      updateSettingsPrefs({ afterDictationAction: next });
     } catch (e) {
       console.error(e);
     }
   }, []);
 
   const applyThemePreference = useCallback(async (next: ThemePreference) => {
-    setThemePreference(next);
+    updateSettingsPrefs({ themePreference: next });
     localStorage.setItem(THEME_STORAGE_KEY, next);
     syncDocumentTheme(next);
     try {
@@ -593,7 +629,7 @@ function MainWindow() {
           <h2 className="min-w-0 text-[13px] text-muted-foreground">
             <span className="inline-flex items-baseline gap-1.5">
               <span>History</span>
-              <span className="tabular-nums opacity-90">· {history.length}</span>
+              <span className="tabular-nums opacity-90">· {historyEntries.length}</span>
             </span>
           </h2>
           <div className="flex shrink-0 justify-end">
@@ -603,11 +639,11 @@ function MainWindow() {
               size="sm"
               className={cn(
                 "h-7 min-w-[4.5rem] justify-center text-[12px] text-muted-foreground hover:text-destructive",
-                history.length === 0 && "invisible pointer-events-none",
+                historyEntries.length === 0 && "invisible pointer-events-none",
               )}
               onClick={handleClear}
-              tabIndex={history.length === 0 ? -1 : 0}
-              aria-hidden={history.length === 0}
+              tabIndex={historyEntries.length === 0 ? -1 : 0}
+              aria-hidden={historyEntries.length === 0}
             >
               Clear all
             </Button>
@@ -615,7 +651,7 @@ function MainWindow() {
         </div>
         <ScrollArea className="min-h-0 flex-1">
           <ul className="flex flex-col gap-2.5 p-6 pt-2">
-            {history.length === 0 ? (
+            {historyEntries.length === 0 ? (
               <li className="min-w-0">
                 <Card size="sm" className={HISTORY_CARD_SHELL}>
                   <CardContent className={HISTORY_CARD_BODY}>
@@ -658,7 +694,7 @@ function MainWindow() {
                 </Card>
               </li>
             ) : (
-              history.map((entry) => (
+              historyEntries.map((entry) => (
                 <li key={entry.id} className="min-w-0">
                   <HistoryItem entry={entry} onCopy={handleCopy} />
                 </li>

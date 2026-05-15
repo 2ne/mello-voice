@@ -175,11 +175,6 @@ export async function startWavMicCapture(): Promise<void> {
   }
 }
 
-/** Current raw capture rate (≤ 48 kHz); `null` when not recording. */
-export function getWavCaptureSampleRate(): number | null {
-  return state.kind === 'capturing' ? Math.min(state.context.sampleRate, 48000) : null
-}
-
 /**
  * Encode the last `seconds` of live audio as WAV for partial Whisper passes.
  * Cheap enough for ~6 s cadence; Whisper does the heavy lifting.

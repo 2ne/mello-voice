@@ -1,9 +1,9 @@
 "use client";
 
 import {
-  forwardRef,
   type ButtonHTMLAttributes,
   type ComponentType,
+  type Ref,
 } from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { useShape } from "@/lib/shape-context";
 
 /** Leading/trailing slot shape for lightweight SVG icon components. */
-export type IconComponent = ComponentType<{
+type IconComponent = ComponentType<{
   size?: number;
   strokeWidth?: number;
   className?: string;
@@ -71,6 +71,7 @@ interface ButtonProps
   loading?: boolean;
   leadingIcon?: IconComponent;
   trailingIcon?: IconComponent;
+  ref?: Ref<HTMLButtonElement>;
 }
 
 const bgVariants: Record<string, string> = {
@@ -85,23 +86,20 @@ const bgVariants: Record<string, string> = {
   ghost: "bg-transparent group-hover:bg-hover group-active:bg-active",
 };
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      className,
-      variant,
-      size,
-      asChild = false,
-      loading = false,
-      leadingIcon: LeadingIcon,
-      trailingIcon: TrailingIcon,
-      disabled,
-      children,
-      style,
-      ...props
-    },
-    ref
-  ) => {
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  loading = false,
+  leadingIcon: LeadingIcon,
+  trailingIcon: TrailingIcon,
+  disabled,
+  children,
+  style,
+  ref,
+  ...props
+}: ButtonProps) {
     const Comp = asChild ? Slot : "button";
     const isIconOnly = size === "icon" || size === "icon-sm" || size === "icon-lg";
     const iconSize = size === "sm" ? 14 : size === "lg" ? 20 : 16;
@@ -146,7 +144,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               </span>
               <span className="absolute inset-0 flex items-center justify-center">
                 <svg
-                  className="h-8 w-8"
+                  className="size-8"
                   viewBox="0 0 24 24"
                   fill="none"
                 >
@@ -159,7 +157,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                     style={{
                       strokeDasharray: "15 85",
                       animation:
-                        "spinner-move 2s linear infinite, spinner-dash 4s var(--ease-spinner-dash) infinite",
+                        "spinner-move 900ms linear infinite, spinner-dash 900ms var(--ease-spinner-dash) infinite",
                     }}
                   />
                 </svg>
@@ -191,10 +189,6 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         </span>
       </Comp>
     );
-  }
-);
+}
 
-Button.displayName = "Button";
-
-export { Button, buttonVariants };
-export type { ButtonProps };
+export { Button };

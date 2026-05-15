@@ -1,23 +1,24 @@
 "use client";
 
-import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from "react";
+import { type ComponentProps } from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { cn } from "@/lib/utils";
 
-const Popover = ({ modal = false, ...props }: ComponentPropsWithoutRef<typeof PopoverPrimitive.Root>) => (
+const Popover = ({ modal = false, ...props }: ComponentProps<typeof PopoverPrimitive.Root>) => (
   <PopoverPrimitive.Root modal={modal} {...props} />
 );
 
 const PopoverTrigger = PopoverPrimitive.Trigger;
 
-const PopoverAnchor = PopoverPrimitive.Anchor;
-
-const PopoverClose = PopoverPrimitive.Close;
-
-const PopoverContent = forwardRef<
-  ElementRef<typeof PopoverPrimitive.Content>,
-  ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = "end", sideOffset = 6, collisionPadding = 10, ...props }, ref) => (
+function PopoverContent({
+  className,
+  align = "end",
+  sideOffset = 6,
+  collisionPadding = 10,
+  ref,
+  ...props
+}: ComponentProps<typeof PopoverPrimitive.Content>) {
+  return (
   <PopoverPrimitive.Portal>
     <PopoverPrimitive.Content
       ref={ref}
@@ -32,7 +33,7 @@ const PopoverContent = forwardRef<
       {...props}
     />
   </PopoverPrimitive.Portal>
-));
-PopoverContent.displayName = "PopoverContent";
+  );
+}
 
-export { Popover, PopoverTrigger, PopoverAnchor, PopoverClose, PopoverContent };
+export { Popover, PopoverTrigger, PopoverContent };

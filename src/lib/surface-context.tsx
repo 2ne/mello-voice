@@ -1,9 +1,9 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, use, type ReactNode } from "react";
 
 const SurfaceContext = createContext<number>(1);
 
 export function useSurface(): number {
-  return useContext(SurfaceContext);
+  return use(SurfaceContext);
 }
 
 export function SurfaceProvider({ value, children }: { value: number; children: ReactNode }) {

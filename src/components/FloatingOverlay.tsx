@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-export type OverlayState = "idle" | "listening" | "processing" | "error";
+type OverlayState = "idle" | "listening" | "processing" | "error";
 
 interface FloatingOverlayProps {
   state: OverlayState;
@@ -10,7 +10,7 @@ interface FloatingOverlayProps {
   error: string | null;
   inlineHideOpen: boolean;
   /** Opens/closes inline actions on left-click or right-click (context menu). */
-  onBarToggleHideMenu: (e: React.MouseEvent) => void;
+  onBarToggleHideMenu: (e: React.MouseEvent | React.KeyboardEvent) => void;
   onHideDictationBar: () => void;
 }
 
@@ -83,9 +83,15 @@ function FloatingOverlay({
 
   return (
     <div
-      role="presentation"
+      role="button"
+      tabIndex={0}
+      aria-label={inlineHideOpen ? "Close dictation bar actions" : "Open dictation bar actions"}
       onClick={onBarToggleHideMenu}
       onContextMenu={onBarToggleHideMenu}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        onBarToggleHideMenu(e);
+      }}
       data-chrome-variant={isMiniLayout ? "mini" : idleMenuOpen ? "idle-menu" : "expanded"}
       className={cn(
         "floating-overlay floating-overlay-chrome relative mx-auto flex w-full cursor-grab select-none overflow-hidden shadow-none ring-0 outline-none active:cursor-grabbing",
@@ -178,7 +184,6 @@ function FloatingOverlay({
           data-overlay-no-drag=""
           className="floating-overlay-hide-slot w-full"
           data-expanded={inlineHideOpen ? true : undefined}
-          onClick={(e) => e.stopPropagation()}
         >
           <div className="floating-overlay-hide-slot-inner">
             <div className="floating-overlay-hide-actions w-full">
