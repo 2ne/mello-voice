@@ -17,6 +17,11 @@ interface SwitchProps extends HTMLAttributes<HTMLDivElement> {
   checked: boolean;
   onToggle: () => void;
   disabled?: boolean;
+  /**
+   * Use on tinted / raised shells (menus, cards) where the default off-track `--accent`
+   * sits too close to the surrounding fill.
+   */
+  variant?: "default" | "onRaisedSurface";
 }
 
 const TRACK_WIDTH = 34;
@@ -34,7 +39,7 @@ const THUMB_TRANSITION =
   "transform 220ms var(--ease-switch-thumb), width 200ms var(--ease-switch-thumb), height 200ms var(--ease-switch-thumb)";
 
 const Switch = forwardRef<HTMLDivElement, SwitchProps>(
-  ({ label, checked, onToggle, disabled = false, className, ...props }, ref) => {
+  ({ label, checked, onToggle, disabled = false, variant = "default", className, ...props }, ref) => {
     const showLabel = Boolean(label?.trim());
     const hasMounted = useRef(false);
     const [hovered, setHovered] = useState(false);
@@ -183,24 +188,38 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
             "relative shrink-0 cursor-pointer rounded-full outline-none",
             "transition-colors duration-80 ease-[var(--ease-ui)]",
             "focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            variant === "onRaisedSurface" &&
+              "ring-1 ring-black/[0.06] dark:ring-white/[0.10] ring-inset shadow-none dark:shadow-none",
           )}
           style={{
             width: TRACK_WIDTH,
             height: TRACK_HEIGHT,
-            backgroundColor: checked
-              ? hovered
-                ? "var(--primary-hover)"
-                : "var(--primary)"
-              : hovered
-                ? "var(--switch-track-off-hover)"
-                : "var(--accent)",
+            backgroundColor:
+              variant === "onRaisedSurface"
+                ? checked
+                  ? hovered
+                    ? "var(--primary-hover)"
+                    : "var(--primary)"
+                  : hovered
+                    ? "color-mix(in oklab, var(--input), var(--foreground) 18%)"
+                    : "var(--input)"
+                : checked
+                  ? hovered
+                    ? "var(--primary-hover)"
+                    : "var(--primary)"
+                  : hovered
+                    ? "var(--switch-track-off-hover)"
+                    : "var(--accent)",
           }}
           onClick={(e) => e.stopPropagation()}
         >
           <SwitchPrimitive.Thumb asChild>
             <span
               ref={thumbRef}
-              className="absolute top-0 left-0 block rounded-full bg-[var(--switch-thumb)] shadow-sm dark:shadow-none will-change-transform"
+              className={cn(
+                "absolute top-0 left-0 block rounded-full bg-[var(--switch-thumb)] will-change-transform",
+                variant === "default" && "shadow-sm dark:shadow-none",
+              )}
             />
           </SwitchPrimitive.Thumb>
         </SwitchPrimitive.Root>

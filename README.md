@@ -1,6 +1,6 @@
 # Mello Voice
 
-**Release:** `0.3.0` (see `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`).
+**Release:** `0.4.0` (see `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`).
 
 A **Windows** tray app built with **Tauri** and **React**. **Hold your dictation shortcut** while you speak; on release, the transcript is **pasted into the focused window** (simulated **Ctrl+V**) and saved to **history**.
 
@@ -24,9 +24,7 @@ Default: **`Ctrl+Shift+Space`**.
 Presets in Settings:
 
 - `Ctrl+Shift+Space`
-- `Super+Shift+Space` (Windows: **Win+Shift+Space**)
-- `Ctrl+Alt+Comma`
-- `Ctrl+Alt+Period`
+- `Ctrl+Alt+Space`
 
 If another app owns a combo, Mello falls back when possible and updates the shortcut shown in Settings.
 
@@ -83,10 +81,10 @@ Production **installers** (after `npm install` and `npm run setup:whisper` on Wi
 npm run tauri build
 ```
 
-Artifacts appear under `src-tauri/target/release/bundle/` (version comes from Tauri config). For **0.3.0** the filenames look like:
+Artifacts appear under `src-tauri/target/release/bundle/` (version comes from Tauri config). For **0.4.0** the filenames look like:
 
-- `nsis/Mello Voice_0.3.0_x64-setup.exe` — typical “send to a friend” installer  
-- `msi/Mello Voice_0.3.0_x64_en-US.msi` — MSI / IT-style install  
+- `nsis/Mello Voice_0.4.0_x64-setup.exe` — typical “send to a friend” installer  
+- `msi/Mello Voice_0.4.0_x64_en-US.msi` — MSI / IT-style install  
 
 If the build fails with **cannot remove `target\release\app.exe` (Access denied)**, stop any running dev build or run `taskkill /IM app.exe /F`, then rebuild.
 

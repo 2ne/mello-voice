@@ -26,18 +26,19 @@ async function runtimeIconPath(pack: PackTheme, size: number): Promise<string> {
   )
 }
 
-async function resolvePackTheme(pref: ThemePreference): Promise<PackTheme> {
+/**
+ * System appearance for icons must match {@link syncDocumentTheme}: WebView2 on Windows often
+ * reports `window.theme() === "light"` while `prefers-color-scheme` already reflects dark mode,
+ * which left tray/taskbar on the light asset despite a dark UI.
+ */
+function resolvePackTheme(pref: ThemePreference): PackTheme {
   if (pref === 'light') return 'light'
   if (pref === 'dark') return 'dark'
-  const win = getCurrentWindow()
-  const t = await win.theme()
-  if (t === 'dark') return 'dark'
-  if (t === 'light') return 'light'
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
 async function applyThemeAwareIcons(): Promise<void> {
-  const pack = await resolvePackTheme(getAppliedThemePreference())
+  const pack = resolvePackTheme(getAppliedThemePreference())
   const path = await runtimeIconPath(pack, 32)
   const icon = await Image.fromPath(path)
   await getCurrentWindow().setIcon(icon)

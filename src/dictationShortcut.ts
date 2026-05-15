@@ -1,14 +1,11 @@
-/** Four preset shortcuts — only these are offered in settings. */
-export const DICTATION_SHORTCUT_OPTIONS = [
-  "Ctrl+Shift+Space",
-  "Ctrl+Alt+Space",
-  "Ctrl+Alt+Comma",
-  "Ctrl+Alt+Period",
-] as const;
+/** Preset shortcuts — only these are offered in settings. */
+export const DICTATION_SHORTCUT_OPTIONS = ["Ctrl+Shift+Space", "Ctrl+Alt+Space"] as const;
 
 /** Removed preset → closest replacement (migrates localStorage). */
 const LEGACY_SHORTCUT_MAP: Record<string, string> = {
   "Super+Shift+Space": "Ctrl+Alt+Space",
+  "Ctrl+Alt+Comma": "Ctrl+Alt+Space",
+  "Ctrl+Alt+Period": "Ctrl+Alt+Space",
 };
 
 export type DictationShortcutOption = (typeof DICTATION_SHORTCUT_OPTIONS)[number];

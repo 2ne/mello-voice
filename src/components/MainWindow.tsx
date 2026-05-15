@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
+import { useState, useEffect, useCallback, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { listen, emit } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
@@ -6,19 +6,28 @@ import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { SettingsGearIcon } from "@/components/icons/SettingsGearIcon";
 import { CloseIcon } from "@/components/icons/CloseIcon";
+import { ChevronDownIcon } from "@/components/icons/ChevronDownIcon";
 import { getHistory, clearHistory, type HistoryEntry } from "../history";
 import {
   DICTATION_SHORTCUT_OPTIONS,
   getDictationShortcut,
   setDictationShortcut,
   DEFAULT_DICTATION_SHORTCUT,
+  type DictationShortcutOption,
 } from "../dictationShortcut";
 import { cn } from "@/lib/utils";
 import { Elevated } from "@/lib/elevated";
-import { SURFACE_BG } from "@/lib/surface-classes";
-import { useSurface } from "@/lib/surface-context";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  settingsControlTriggerCn,
+} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Drawer } from "vaul";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
@@ -29,6 +38,13 @@ import {
   THEME_STORAGE_KEY,
   type ThemePreference,
 } from "@/themePreference";
+import {
+  AFTER_DICTATION_OPTIONS,
+  DEFAULT_AFTER_DICTATION_ACTION,
+  afterDictationActionLabel,
+  parseAfterDictationAction,
+  type AfterDictationActionOption,
+} from "../afterDictationAction";
 
 function isTauriRuntime(): boolean {
   return (
@@ -55,36 +71,33 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "dark", label: "Dark" },
 ];
 
-/** Preset / theme pills on an elevated substrate (+1 step idle fill). */
-function SettingsChoice({
-  selected,
+function dictationBarModeLabel(alwaysShowWhenIdle: boolean): string {
+  return alwaysShowWhenIdle ? "Always visible" : "Hide when idle";
+}
+
+/** ChatGPT-like row: stacked label/description left, trailing control aligned right. */
+function SettingsSettingRow({
+  title,
+  description,
   children,
-  className,
-  ...props
 }: {
-  selected: boolean;
+  title: string;
+  description: string;
   children: ReactNode;
-} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type">) {
-  const substrate = useSurface();
-  const insetBg = !selected ? SURFACE_BG[Math.min(substrate + 1, 8)] : undefined;
+}) {
   return (
-    <button
-      type="button"
-      className={cn(
-        "box-border inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-3.5 text-[12px] font-normal",
-        "touch-manipulation transition-[color,background-color,transform] duration-80 ease-[var(--ease-ui)]",
-        "border-border outline-none text-foreground active:scale-[0.975]",
-        insetBg,
-        "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
-        !selected && "hover:bg-foreground/[0.04] dark:hover:bg-foreground/[0.06]",
-        selected &&
-          "border-primary bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-foreground dark:text-background dark:hover:text-background dark:hover:bg-primary-hover",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </button>
+    <div className="flex items-center justify-between gap-4 py-5">
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-medium leading-snug text-foreground">{title}</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{description}</p>
+      </div>
+      <div
+        data-settings-control=""
+        className="relative z-[2] flex min-h-9 min-w-[10rem] shrink-0 items-center justify-end"
+      >
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -172,6 +185,9 @@ function MainWindow() {
   /** Semver shown in Settings footer + used for native window title. */
   const [appVersionLabel, setAppVersionLabel] = useState<string | null>(null);
   const [overlayBarEnabled, setOverlayBarEnabled] = useState(true);
+  const [afterDictationAction, setAfterDictationAction] = useState<AfterDictationActionOption>(
+    DEFAULT_AFTER_DICTATION_ACTION,
+  );
   const [themePreference, setThemePreference] = useState<ThemePreference>("system");
   const registeredShortcutRef = useRef<string | null>(null);
 
@@ -254,6 +270,9 @@ function MainWindow() {
     void invoke<boolean>("get_overlay_bar_enabled")
       .then(setOverlayBarEnabled)
       .catch(() => {});
+    void invoke<string>("get_after_dictation_action")
+      .then((s) => setAfterDictationAction(parseAfterDictationAction(s)))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -333,6 +352,9 @@ function MainWindow() {
       .catch(() =>
         setThemePreference(parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY))),
       );
+    void invoke<string>("get_after_dictation_action")
+      .then((s) => setAfterDictationAction(parseAfterDictationAction(s)))
+      .catch(() => {});
     setLiveShortcut(getDictationShortcut());
   }, [settingsOpen]);
 
@@ -350,10 +372,13 @@ function MainWindow() {
     await refreshHistory();
   }, [history.length, refreshHistory]);
 
-  const selectPresetShortcut = useCallback((preset: (typeof DICTATION_SHORTCUT_OPTIONS)[number]) => {
-    setDictationShortcut(preset);
-    setLiveShortcut(preset);
-    void emit("dictation-shortcut-changed", preset);
+  const selectPresetShortcut = useCallback((preset: string) => {
+    const next = (DICTATION_SHORTCUT_OPTIONS as readonly string[]).includes(preset)
+      ? (preset as DictationShortcutOption)
+      : DEFAULT_DICTATION_SHORTCUT;
+    setDictationShortcut(next);
+    setLiveShortcut(next);
+    void emit("dictation-shortcut-changed", next);
   }, []);
 
   const setDictationBarPreference = useCallback(async (enabled: boolean) => {
@@ -361,6 +386,15 @@ function MainWindow() {
       await invoke("set_overlay_bar_enabled", { enabled });
       setOverlayBarEnabled(enabled);
       await emit("overlay-bar-enabled-changed", enabled);
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
+  const setAfterDictationPreference = useCallback(async (next: AfterDictationActionOption) => {
+    try {
+      await invoke("set_after_dictation_action", { action: next });
+      setAfterDictationAction(next);
     } catch (e) {
       console.error(e);
     }
@@ -386,7 +420,7 @@ function MainWindow() {
       <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/80 p-6">
         <div className="min-w-0 space-y-1">
           <h1 className="text-[22px] font-medium tracking-[-0.025em] text-foreground">Mello Voice</h1>
-          <p className="text-[13px] text-muted-foreground">Close this window to minimize to tray</p>
+          <p className="text-[13px] text-muted-foreground">Closing minimises to the tray.</p>
         </div>
 
         <Drawer.Root
@@ -417,7 +451,7 @@ function MainWindow() {
                       Settings
                     </Drawer.Title>
                     <Drawer.Description className="sr-only">
-                      Dictation bar visibility, keyboard shortcut, and color theme for Mello Voice.
+                      Dictation shortcut, bar, after-dictation behaviour and appearance for Mello Voice.
                     </Drawer.Description>
                   </div>
                   <Drawer.Close asChild>
@@ -429,70 +463,118 @@ function MainWindow() {
               </div>
               <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain">
                 <div className="flex flex-col gap-0 pb-6 px-5 pt-1">
-                  <div className="py-5">
-                    <div className="flex items-start gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[13px] font-medium leading-snug text-foreground">Dictation bar</p>
-                        <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                          Show the floating recording indicator at the top of the screen.
-                        </p>
-                      </div>
-                      <div className="shrink-0 pt-px">
-                        <Switch
-                          aria-label="Dictation bar"
-                          checked={overlayBarEnabled}
-                          onToggle={() => void setDictationBarPreference(!overlayBarEnabled)}
-                          className="p-1 pr-0 pl-0"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <Separator className="bg-border/80" />
-                  <div className="py-5">
-                    <p className="text-[13px] font-medium text-foreground">Dictation shortcut</p>
-                    <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                      Hold this key combination while you speak to record dictation.
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Dictation shortcut">
-                      {DICTATION_SHORTCUT_OPTIONS.map((preset) => {
-                        const selected = liveShortcut === preset;
-                        return (
-                          <SettingsChoice
-                            key={preset}
-                            role="radio"
-                            aria-checked={selected}
-                            selected={selected}
-                            onClick={() => selectPresetShortcut(preset)}
-                          >
+                  <SettingsSettingRow
+                    title="Dictation shortcut"
+                    description="Hold the shortcut whilst speaking."
+                  >
+                    <Select
+                      value={
+                        (DICTATION_SHORTCUT_OPTIONS as readonly string[]).includes(liveShortcut)
+                          ? liveShortcut
+                          : DEFAULT_DICTATION_SHORTCUT
+                      }
+                      onValueChange={(v) => selectPresetShortcut(v)}
+                    >
+                      <SelectTrigger aria-label="Dictation shortcut" className="w-full max-w-none">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DICTATION_SHORTCUT_OPTIONS.map((preset) => (
+                          <SelectItem key={preset} value={preset}>
                             {preset}
-                          </SettingsChoice>
-                        );
-                      })}
-                    </div>
-                  </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </SettingsSettingRow>
                   <Separator className="bg-border/80" />
-                  <div className="py-5">
-                    <p className="text-[13px] font-medium text-foreground">Appearance</p>
-                    <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                      Match your system theme, or keep Mello light or dark.
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Appearance theme">
-                      {THEME_OPTIONS.map(({ value, label }) => {
-                        const selected = themePreference === value;
-                        return (
-                          <SettingsChoice
-                            key={value}
-                            role="radio"
-                            aria-checked={selected}
-                            selected={selected}
-                            onClick={() => void applyThemePreference(value)}
-                          >
+                  <SettingsSettingRow
+                    title="Dictation bar"
+                    description="Turn off to hide when not in use."
+                  >
+                    <Popover modal={false}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-haspopup="dialog"
+                          className={cn(settingsControlTriggerCn(), "w-full max-w-none")}
+                          aria-label={`Dictation bar visibility: ${dictationBarModeLabel(overlayBarEnabled)}`}
+                        >
+                          <span className="min-w-0 flex-1 truncate text-left">{dictationBarModeLabel(overlayBarEnabled)}</span>
+                          <ChevronDownIcon className="size-4 shrink-0 opacity-65" strokeWidth={1.75} />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="end"
+                        sideOffset={6}
+                        collisionPadding={16}
+                        className="min-w-[10rem] max-w-[min(18rem,calc(100vw-2rem))] p-1"
+                      >
+                        <div
+                          role="presentation"
+                          className="flex items-center justify-between gap-4 px-2.5 py-1"
+                          onPointerDown={(e) => e.stopPropagation()}
+                        >
+                          <span className="min-w-0 flex-1 truncate text-[13px] text-card-foreground">
+                            {dictationBarModeLabel(overlayBarEnabled)}
+                          </span>
+                          <Switch
+                            variant="onRaisedSurface"
+                            aria-label="Dictation bar"
+                            checked={overlayBarEnabled}
+                            onToggle={() => void setDictationBarPreference(!overlayBarEnabled)}
+                            className="shrink-0 p-1 pr-0 pl-0"
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </SettingsSettingRow>
+                  <Separator className="bg-border/80" />
+                  <SettingsSettingRow
+                    title="After dictation"
+                    description="Choose action after speaking."
+                  >
+                    <Select
+                      value={
+                        (AFTER_DICTATION_OPTIONS as readonly string[]).includes(afterDictationAction)
+                          ? afterDictationAction
+                          : DEFAULT_AFTER_DICTATION_ACTION
+                      }
+                      onValueChange={(v) =>
+                        void setAfterDictationPreference(parseAfterDictationAction(v))
+                      }
+                    >
+                      <SelectTrigger aria-label="After dictation" className="w-full max-w-none">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {AFTER_DICTATION_OPTIONS.map((opt) => (
+                          <SelectItem key={opt} value={opt}>
+                            {afterDictationActionLabel(opt)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </SettingsSettingRow>
+                  <Separator className="bg-border/80" />
+                  <SettingsSettingRow
+                    title="Appearance"
+                    description="System colours or light / dark"
+                  >
+                    <Select value={themePreference} onValueChange={(v) => void applyThemePreference(parseThemePreference(v))}>
+                      <SelectTrigger aria-label="Appearance theme" className="w-full max-w-none">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {THEME_OPTIONS.map(({ value, label }) => (
+                          <SelectItem key={value} value={value}>
                             {label}
-                          </SettingsChoice>
-                        );
-                      })}
-                    </div>
-                  </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </SettingsSettingRow>
+                  <Separator className="bg-border/80" />
                   {appVersionLabel ? (
                     <p className="mt-6 text-center text-[11px] text-muted-foreground tabular-nums">
                       Version {appVersionLabel}
@@ -546,7 +628,7 @@ function MainWindow() {
                             <div className="mt-0 w-px min-h-2.5 flex-1 bg-border" aria-hidden />
                           </div>
                           <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">
-                            Click where you want to type.
+                            Click where you want text to go.
                           </p>
                         </li>
                         <li className="flex gap-3">
@@ -559,7 +641,7 @@ function MainWindow() {
                             <kbd className="inline-flex items-center rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[12px] leading-none text-foreground">
                               {liveShortcut}
                             </kbd>{" "}
-                            and speak.
+                            whilst speaking.
                           </p>
                         </li>
                         <li className="flex gap-3">

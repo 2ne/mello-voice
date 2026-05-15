@@ -111,18 +111,28 @@ enum ThemeMode {
     Dark,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+enum AfterDictationAction {
+    #[default]
+    PasteText,
+    PasteAndSend,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct AppPrefs {
     #[serde(default = "default_show_overlay_bar")]
     show_overlay_bar: bool,
     #[serde(default)]
     theme: ThemeMode,
+    #[serde(default)]
+    after_dictation: AfterDictationAction,
     /// Bumped when prefs shape changes; used for one-time migrations.
     #[serde(default)]
     prefs_version: u32,
 }
 
-const PREFS_VERSION: u32 = 2;
+const PREFS_VERSION: u32 = 3;
 
 fn default_show_overlay_bar() -> bool {
     true
@@ -133,6 +143,7 @@ impl Default for AppPrefs {
         Self {
             show_overlay_bar: true,
             theme: ThemeMode::default(),
+            after_dictation: AfterDictationAction::default(),
             prefs_version: PREFS_VERSION,
         }
     }
@@ -165,6 +176,10 @@ fn load_prefs(app: &tauri::AppHandle) -> AppPrefs {
     }
     if prefs.prefs_version < 2 {
         prefs.prefs_version = 2;
+        dirty = true;
+    }
+    if prefs.prefs_version < 3 {
+        prefs.prefs_version = 3;
         dirty = true;
     }
     if dirty {
@@ -219,6 +234,27 @@ fn set_overlay_bar_enabled(app: tauri::AppHandle, enabled: bool) -> Result<(), S
             overlay.hide().map_err(|e| e.to_string())?;
         }
     }
+    Ok(())
+}
+
+#[tauri::command]
+fn get_after_dictation_action(app: tauri::AppHandle) -> Result<String, String> {
+    let out = match load_prefs(&app).after_dictation {
+        AfterDictationAction::PasteText => "paste_text",
+        AfterDictationAction::PasteAndSend => "paste_and_send",
+    };
+    Ok(out.to_string())
+}
+
+#[tauri::command]
+fn set_after_dictation_action(app: tauri::AppHandle, action: String) -> Result<(), String> {
+    let mode = match action.as_str() {
+        "paste_and_send" => AfterDictationAction::PasteAndSend,
+        _ => AfterDictationAction::PasteText,
+    };
+    let mut prefs = load_prefs(&app);
+    prefs.after_dictation = mode;
+    save_prefs(&app, &prefs)?;
     Ok(())
 }
 
@@ -340,10 +376,11 @@ fn is_whisper_daemon_ready(_app: tauri::AppHandle) -> bool {
 }
 
 #[tauri::command]
-fn paste_text(text: String) -> Result<(), String> {
+fn paste_text(app: tauri::AppHandle, text: String) -> Result<(), String> {
     if text.is_empty() {
         return Ok(());
     }
+    let after = load_prefs(&app).after_dictation;
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     clipboard.set_text(&text).map_err(|e| e.to_string())?;
     // Ensure clipboard is committed and user's modifier keys (from shortcut) are released
@@ -356,6 +393,10 @@ fn paste_text(text: String) -> Result<(), String> {
     let _ = enigo.key(Key::Control, Direction::Press);
     let _ = enigo.key(Key::Unicode('v'), Direction::Click);
     let _ = enigo.key(Key::Control, Direction::Release);
+    if after == AfterDictationAction::PasteAndSend {
+        std::thread::sleep(std::time::Duration::from_millis(90));
+        let _ = enigo.key(Key::Return, Direction::Click);
+    }
     Ok(())
 }
 
@@ -379,6 +420,8 @@ pub fn run() {
             show_overlay_window,
             get_overlay_bar_enabled,
             set_overlay_bar_enabled,
+            get_after_dictation_action,
+            set_after_dictation_action,
             get_theme,
             set_theme,
             relay_dictation_hotkey,
@@ -412,7 +455,7 @@ pub fn run() {
             let _tray = TrayIconBuilder::with_id("main")
                 .icon(universal_tray_icon_image(app.handle()))
                 .menu(&menu)
-                .tooltip("Mello Voice — hold your dictation shortcut to speak")
+                .tooltip("Mello Voice: hold the dictation shortcut whilst speaking.")
                 .on_menu_event(move |app, event| {
                     if event.id.as_ref() == "show" {
                         show_main_and_overlay(&app);
