@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useRef, useState } from "react";
-import { getCurrentWindow, primaryMonitor, LogicalPosition, LogicalSize } from "@tauri-apps/api/window";
+import { getCurrentWindow, primaryMonitor, LogicalPosition, LogicalSize, PhysicalPosition, cursorPosition } from "@tauri-apps/api/window";
 import { moveWindow, Position } from "@tauri-apps/plugin-positioner";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
@@ -24,6 +24,15 @@ const MIN_OVERLAY_HEIGHT = 52;
 const LIVE_WHISPER_INTERVAL_MS = 4200;
 const DUPLICATE_PRESS_DEBOUNCE_MS = 88;
 const RESIZE_HEIGHT_EPSILON = 2;
+const OVERLAY_DRAG_THRESHOLD_PX = 6;
+
+function isTauriRuntime(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    (((window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ != null) ||
+      (import.meta.env.TAURI_PLATFORM != null && String(import.meta.env.TAURI_PLATFORM) !== ""))
+  );
+}
 
 async function positionOverlayTopCenter() {
   const win = getCurrentWindow();
@@ -100,6 +109,117 @@ function OverlayRoot() {
       void getCurrentWindow().hide().catch(() => {});
     }, 50);
   }, []);
+
+  const overlayDragSessionRef = useRef<{
+    pointerId: number;
+    winOrigin: PhysicalPosition | null;
+    cursorOrigin: PhysicalPosition | null;
+    passedThreshold: boolean;
+  } | null>(null);
+
+  const releaseOverlayDrag = useCallback((el: HTMLDivElement, pointerId: number) => {
+    const s = overlayDragSessionRef.current;
+    if (s?.pointerId === pointerId) {
+      overlayDragSessionRef.current = null;
+    }
+    try {
+      el.releasePointerCapture(pointerId);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const onOverlayPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isTauriRuntime()) return;
+    if (getCurrentWindow().label !== "overlay") return;
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest("[data-overlay-no-drag]")) return;
+
+    const pid = e.pointerId;
+    const host = e.currentTarget;
+    overlayDragSessionRef.current = {
+      pointerId: pid,
+      winOrigin: null,
+      cursorOrigin: null,
+      passedThreshold: false,
+    };
+    try {
+      host.setPointerCapture(pid);
+    } catch {
+      overlayDragSessionRef.current = null;
+      return;
+    }
+
+    void (async () => {
+      const win = getCurrentWindow();
+      let winOrigin: PhysicalPosition;
+      let cursorOrigin: PhysicalPosition;
+      try {
+        [winOrigin, cursorOrigin] = await Promise.all([win.outerPosition(), cursorPosition()]);
+      } catch (err) {
+        console.warn("Overlay drag: could not read window/cursor position:", err);
+        const s = overlayDragSessionRef.current;
+        if (s?.pointerId === pid) {
+          overlayDragSessionRef.current = null;
+        }
+        try {
+          host.releasePointerCapture(pid);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      const s = overlayDragSessionRef.current;
+      if (!s || s.pointerId !== pid) return;
+      s.winOrigin = winOrigin;
+      s.cursorOrigin = cursorOrigin;
+    })();
+  }, []);
+
+  const onOverlayPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const session = overlayDragSessionRef.current;
+    if (
+      !session ||
+      e.pointerId !== session.pointerId ||
+      session.winOrigin == null ||
+      session.cursorOrigin == null
+    ) {
+      return;
+    }
+
+    const winOrigin = session.winOrigin;
+    const cursorOrigin = session.cursorOrigin;
+
+    void (async () => {
+      let cur: PhysicalPosition;
+      try {
+        cur = await cursorPosition();
+      } catch {
+        return;
+      }
+      const dx = cur.x - cursorOrigin.x;
+      const dy = cur.y - cursorOrigin.y;
+      if (!session.passedThreshold) {
+        const d2 = dx * dx + dy * dy;
+        if (d2 < OVERLAY_DRAG_THRESHOLD_PX * OVERLAY_DRAG_THRESHOLD_PX) {
+          return;
+        }
+        session.passedThreshold = true;
+      }
+      try {
+        await getCurrentWindow().setPosition(new PhysicalPosition(winOrigin.x + dx, winOrigin.y + dy));
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
+
+  const onOverlayPointerUpOrCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const session = overlayDragSessionRef.current;
+    if (!session || e.pointerId !== session.pointerId) return;
+    releaseOverlayDrag(e.currentTarget, e.pointerId);
+  }, [releaseOverlayDrag]);
 
   useEffect(() => {
     let cancelled = false;
@@ -292,7 +412,6 @@ function OverlayRoot() {
 
         try {
           await getCurrentWindow().show();
-          await positionOverlayTopCenter();
         } catch (e) {
           console.warn("Could not show overlay:", e);
         }
@@ -300,11 +419,6 @@ function OverlayRoot() {
         setIsExpanded(true);
         void startWavMicCapture().catch((e) => console.warn("WAV mic capture:", e));
         startListening();
-        try {
-          await positionOverlayTopCenter();
-        } catch (e) {
-          console.warn("Could not position overlay:", e);
-        }
       } else {
         if (!shortcutHeldRef.current) return;
         shortcutHeldRef.current = false;
@@ -400,13 +514,27 @@ function OverlayRoot() {
     }
   };
 
+  const onOverlayDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement | null)?.closest("[data-overlay-no-drag]")) return;
+    if (!isTauriRuntime()) return;
+    if (getCurrentWindow().label !== "overlay") return;
+    e.preventDefault();
+    setInlineHideOpen(false);
+    void positionOverlayTopCenter().catch(() => {});
+  }, []);
+
   return (
     <div
       ref={overlayRef}
-      className="pointer-events-auto flex min-h-full w-full cursor-default items-start justify-center px-2 pb-2 pt-2.5"
+      className="pointer-events-auto flex min-h-full w-full cursor-move items-start justify-center px-2 pb-2 pt-2.5 active:cursor-grabbing"
       data-expanded="true"
       data-inline-hide={inlineHideOpen}
       data-session-visible={sessionChromeVisible}
+      onPointerDown={onOverlayPointerDown}
+      onPointerMove={onOverlayPointerMove}
+      onPointerUp={onOverlayPointerUpOrCancel}
+      onPointerCancel={onOverlayPointerUpOrCancel}
+      onDoubleClick={onOverlayDoubleClick}
       onMouseLeave={() => setInlineHideOpen(false)}
     >
       {sessionChromeVisible ? (

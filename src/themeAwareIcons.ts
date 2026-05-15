@@ -17,7 +17,13 @@ function isTauriRuntime(): boolean {
 }
 
 async function runtimeIconPath(pack: PackTheme, size: number): Promise<string> {
-  return join(await resourceDir(), 'icons', 'runtime', `mello-voice-${pack}-${size}.png`)
+  return join(
+    await resourceDir(),
+    'icons',
+    'runtime',
+    pack,
+    `mello-voice-${size}.png`,
+  )
 }
 
 async function resolvePackTheme(pref: ThemePreference): Promise<PackTheme> {

@@ -29,9 +29,9 @@ const PRESS_EXTEND = 4;
 const PRESS_SHRINK = 4;
 const DRAG_DEAD_ZONE = 2;
 
-/** Slight overshoot, no Framer — matches prior “moderate spring” feel */
+/** Slight overshoot via linear() stops — no cubic-bezier */
 const THUMB_TRANSITION =
-  "transform 220ms cubic-bezier(0.34, 1.25, 0.64, 1), width 200ms cubic-bezier(0.34, 1.25, 0.64, 1), height 200ms cubic-bezier(0.34, 1.25, 0.64, 1)";
+  "transform 220ms var(--ease-switch-thumb), width 200ms var(--ease-switch-thumb), height 200ms var(--ease-switch-thumb)";
 
 const Switch = forwardRef<HTMLDivElement, SwitchProps>(
   ({ label, checked, onToggle, disabled = false, className, ...props }, ref) => {
@@ -181,7 +181,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
           tabIndex={0}
           className={cn(
             "relative shrink-0 cursor-pointer rounded-full outline-none",
-            "transition-colors duration-80",
+            "transition-colors duration-80 ease-[var(--ease-ui)]",
             "focus-visible:ring-1 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
           )}
           style={{
@@ -200,7 +200,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
           <SwitchPrimitive.Thumb asChild>
             <span
               ref={thumbRef}
-              className="absolute top-0 left-0 block rounded-full bg-[var(--switch-thumb)] shadow-sm will-change-transform"
+              className="absolute top-0 left-0 block rounded-full bg-[var(--switch-thumb)] shadow-sm dark:shadow-none will-change-transform"
             />
           </SwitchPrimitive.Thumb>
         </SwitchPrimitive.Root>
@@ -208,7 +208,7 @@ const Switch = forwardRef<HTMLDivElement, SwitchProps>(
         {showLabel ? (
           <span
             className={cn(
-              "text-[13px] transition-[color] duration-80",
+              "text-[13px] transition-[color] duration-80 ease-[var(--ease-ui)]",
               checked ? "text-foreground" : "text-muted-foreground",
             )}
           >

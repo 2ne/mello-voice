@@ -1,5 +1,7 @@
 # Mello Voice
 
+**Release:** `0.3.0` (see `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/Cargo.toml`).
+
 A **Windows** tray app built with **Tauri** and **React**. **Hold your dictation shortcut** while you speak; on release, the transcript is **pasted into the focused window** (simulated **Ctrl+V**) and saved to **history**.
 
 Transcription is **local-first**: bundled **whisper.cpp** (warm **whisper-server** + **whisper-cli** fallback) runs the main pass. The **Web Speech API** still runs in the overlay for live hints and redundancy. Optional **Groq** polish / cloud STT is available via environment variables only (no extra settings UI).
@@ -75,16 +77,16 @@ npm run dev
 npm run build
 ```
 
-Production **installers** (after `npm run setup:whisper` on Windows):
+Production **installers** (after `npm install` and `npm run setup:whisper` on Windows):
 
 ```bash
 npm run tauri build
 ```
 
-Artifacts appear under:
+Artifacts appear under `src-tauri/target/release/bundle/` (version comes from Tauri config). For **0.3.0** the filenames look like:
 
-- `src-tauri/target/release/bundle/nsis/Mello Voice_<version>_x64-setup.exe` — typical “send to a friend” installer  
-- `src-tauri/target/release/bundle/msi/Mello Voice_<version>_x64_en-US.msi` — MSI / IT-style install  
+- `nsis/Mello Voice_0.3.0_x64-setup.exe` — typical “send to a friend” installer  
+- `msi/Mello Voice_0.3.0_x64_en-US.msi` — MSI / IT-style install  
 
 If the build fails with **cannot remove `target\release\app.exe` (Access denied)**, stop any running dev build or run `taskkill /IM app.exe /F`, then rebuild.
 

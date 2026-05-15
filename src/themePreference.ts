@@ -1,3 +1,5 @@
+import { withoutCssTransition } from "@/lib/withoutCssTransition";
+
 export type ThemePreference = "system" | "light" | "dark";
 
 export const THEME_STORAGE_KEY = "mello-theme-preference";
@@ -16,8 +18,10 @@ export function parseThemePreference(raw: string | null): ThemePreference {
 
 /** Toggle `dark` on `<html>` from preference. Safe to call from any window after user picks a theme (same-window emit may not deliver). */
 export function syncDocumentTheme(mode: ThemePreference): void {
-  appliedPreference = mode;
-  const mq = window.matchMedia("(prefers-color-scheme: dark)");
-  const dark = mode === "dark" ? true : mode === "light" ? false : mq.matches;
-  document.documentElement.classList.toggle("dark", dark);
+  withoutCssTransition(() => {
+    appliedPreference = mode;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const dark = mode === "dark" ? true : mode === "light" ? false : mq.matches;
+    document.documentElement.classList.toggle("dark", dark);
+  });
 }

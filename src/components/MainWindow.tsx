@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type ButtonHTMLAttributes, type KeyboardEvent, type ReactNode } from "react";
 import { listen, emit } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { SettingsGearIcon } from "@/components/icons/SettingsGearIcon";
+import { CloseIcon } from "@/components/icons/CloseIcon";
 import { getHistory, clearHistory, type HistoryEntry } from "../history";
 import {
   DICTATION_SHORTCUT_OPTIONS,
@@ -12,14 +14,12 @@ import {
   DEFAULT_DICTATION_SHORTCUT,
 } from "../dictationShortcut";
 import { cn } from "@/lib/utils";
+import { Elevated } from "@/lib/elevated";
+import { SURFACE_BG } from "@/lib/surface-classes";
+import { useSurface } from "@/lib/surface-context";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Drawer } from "vaul";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -30,13 +30,24 @@ import {
   type ThemePreference,
 } from "@/themePreference";
 
-/** Same shell + body padding for empty state and every history row. */
-const HISTORY_CARD_SHELL =
-  "gap-0 rounded-2xl border border-border/70 bg-card/80 py-0 shadow-sm ring-1 ring-border/30 dark:bg-card/50 dark:ring-border/25";
+function isTauriRuntime(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    (((window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ != null) ||
+      (import.meta.env.TAURI_PLATFORM != null && import.meta.env.TAURI_PLATFORM !== ""))
+  );
+}
+
+/** Same shell + body padding for empty state + every history row. Light: Fluid shadow + ring via Elevated; dark: ring only (see `elevated.tsx`). */
+const HISTORY_CARD_SHELL = "gap-0 rounded-2xl py-0 outline-none";
+
 const HISTORY_CARD_BODY = "px-4 py-3.5";
+/** Empty-history how-to: numbered circles + vertical connector */
+const HISTORY_TIMELINE_BUBBLE =
+  "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[9.75px] font-medium tabular-nums text-muted-foreground";
 /** Hover/focus affordances layered on top of HISTORY_CARD_SHELL */
 const HISTORY_CARD_INTERACTIVE =
-  "group cursor-pointer transition-[background-color,box-shadow,transform] duration-100 hover:bg-accent/40 hover:ring-foreground/10 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-ring";
+  "group cursor-pointer transition-[background-color,box-shadow,transform] duration-100 ease-[var(--ease-ui-snappy)] hover:bg-accent/40 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "System" },
@@ -44,15 +55,36 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "dark", label: "Dark" },
 ];
 
-/** Preset pills: foreground labels when idle; selected = primary fill — primary-foreground on blue (light), background ink on blue (dark). */
-function settingsSegmentClass(selected: boolean): string {
-  return cn(
-    "box-border inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-3.5 text-[12px] font-normal transition-colors",
-    "border-border bg-background outline-none hover:bg-muted/70",
-    "text-foreground",
-    "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-    selected &&
-      "border-primary bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-foreground dark:text-background dark:hover:text-background dark:hover:bg-primary-hover",
+/** Preset / theme pills on an elevated substrate (+1 step idle fill). */
+function SettingsChoice({
+  selected,
+  children,
+  className,
+  ...props
+}: {
+  selected: boolean;
+  children: ReactNode;
+} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type">) {
+  const substrate = useSurface();
+  const insetBg = !selected ? SURFACE_BG[Math.min(substrate + 1, 8)] : undefined;
+  return (
+    <button
+      type="button"
+      className={cn(
+        "box-border inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-3.5 text-[12px] font-normal",
+        "touch-manipulation transition-[color,background-color,transform] duration-80 ease-[var(--ease-ui)]",
+        "border-border outline-none text-foreground active:scale-[0.975]",
+        insetBg,
+        "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
+        !selected && "hover:bg-foreground/[0.04] dark:hover:bg-foreground/[0.06]",
+        selected &&
+          "border-primary bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary-foreground dark:text-background dark:hover:text-background dark:hover:bg-primary-hover",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -101,7 +133,7 @@ function HistoryItem({ entry, onCopy }: { entry: HistoryEntry; onCopy: (text: st
   }, [entry.text, onCopy]);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: KeyboardEvent<HTMLDivElement>) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         handleCopy();
@@ -124,7 +156,7 @@ function HistoryItem({ entry, onCopy }: { entry: HistoryEntry; onCopy: (text: st
         <div className="text-[13px] leading-relaxed text-foreground">{entry.text}</div>
         <div className="mt-2 flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           <span>{formatTime(entry.timestamp)}</span>
-          <span className={cn("text-muted-foreground transition-colors", copied ? "text-success" : "group-hover:text-primary")}>
+          <span className={cn("text-muted-foreground transition-colors duration-80 ease-[var(--ease-ui)]", copied ? "text-success" : "group-hover:text-primary")}>
             {copied ? "Copied" : "Copy"}
           </span>
         </div>
@@ -136,8 +168,9 @@ function HistoryItem({ entry, onCopy }: { entry: HistoryEntry; onCopy: (text: st
 function MainWindow() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [liveShortcut, setLiveShortcut] = useState(getDictationShortcut);
-  const [appVersion, setAppVersion] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** Semver shown in Settings footer + used for native window title. */
+  const [appVersionLabel, setAppVersionLabel] = useState<string | null>(null);
   const [overlayBarEnabled, setOverlayBarEnabled] = useState(true);
   const [themePreference, setThemePreference] = useState<ThemePreference>("system");
   const registeredShortcutRef = useRef<string | null>(null);
@@ -198,9 +231,23 @@ function MainWindow() {
   }, [refreshHistory, syncOverlayFromPrefs]);
 
   useEffect(() => {
-    void getVersion()
-      .then((v) => setAppVersion(v || null))
-      .catch(() => setAppVersion(null));
+    void (async () => {
+      let v: string | null = null;
+      try {
+        v = await getVersion();
+      } catch {
+        /* vite dev without Tauri */
+      }
+      const trimmed = v?.trim() ?? "";
+      setAppVersionLabel(trimmed ? trimmed : null);
+      const title = trimmed ? `Mello Voice ${trimmed}` : "Mello Voice";
+      if (!isTauriRuntime()) return;
+      try {
+        await getCurrentWindow().setTitle(title);
+      } catch {
+        /* ignore */
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -332,100 +379,136 @@ function MainWindow() {
   }, []);
 
   return (
-    <div className="flex min-h-svh select-none flex-col bg-background px-5 pb-8 pt-6 text-foreground">
-      <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/80 pb-6">
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex flex-wrap items-baseline gap-2.5">
-            <h1 className="text-[22px] font-medium tracking-[-0.02em] text-foreground">Mello Voice</h1>
-            {appVersion ? (
-              <Badge variant="secondary" className="font-normal tabular-nums" title={`Mello Voice ${appVersion}`}>
-                v{appVersion}
-              </Badge>
-            ) : null}
-          </div>
-          <p className="text-[13px] text-muted-foreground">Close this window to minimize to tray.</p>
+    <div
+      data-vaul-drawer-wrapper=""
+      className="flex min-h-svh select-none flex-col bg-background text-foreground"
+    >
+      <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/80 p-6">
+        <div className="min-w-0 space-y-1">
+          <h1 className="text-[22px] font-medium tracking-[-0.025em] text-foreground">Mello Voice</h1>
+          <p className="text-[13px] text-muted-foreground">Close this window to minimize to tray</p>
         </div>
 
-        <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
-          <PopoverTrigger asChild>
+        <Drawer.Root
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          shouldScaleBackground
+          setBackgroundColorOnScale={false}
+        >
+          <Drawer.Trigger asChild>
             <Button type="button" variant="surface" size="icon" aria-label="Settings">
               <SettingsGearIcon strokeWidth={1.5} className="size-4" />
             </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-[min(100vw-2rem,22rem)] gap-0 rounded-3xl p-0">
-            <div className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-medium leading-snug text-foreground">Dictation bar</p>
-                  <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground pr-21">
-                    Show the floating recording indicator at the top of the screen.
-                  </p>
+          </Drawer.Trigger>
+          <Drawer.Portal>
+            <Drawer.Overlay className="fixed inset-0 z-[120] bg-black/35 backdrop-blur-[1px]" />
+            <Drawer.Content
+              className="fixed inset-x-0 bottom-0 z-[121] flex max-h-[min(95vh,36rem)] flex-col overflow-hidden rounded-t-[1.25rem]"
+            >
+              <Elevated
+                offset={1}
+                className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-t-[1.25rem]"
+              >
+              <div className="flex shrink-0 flex-col border-b border-border/80 px-5 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2">
+                <Drawer.Handle className="mb-1" />
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <Drawer.Title className="text-[17px] font-medium tracking-[-0.02em] leading-tight text-foreground">
+                      Settings
+                    </Drawer.Title>
+                    <Drawer.Description className="sr-only">
+                      Dictation bar visibility, keyboard shortcut, and color theme for Mello Voice.
+                    </Drawer.Description>
+                  </div>
+                  <Drawer.Close asChild>
+                    <Button type="button" variant="ghost" size="icon" aria-label="Close settings">
+                      <CloseIcon strokeWidth={1.5} className="size-4" />
+                    </Button>
+                  </Drawer.Close>
                 </div>
-                <div className="shrink-0 pt-px">
-                  <Switch
-                    aria-label="Dictation bar"
-                    checked={overlayBarEnabled}
-                    onToggle={() => void setDictationBarPreference(!overlayBarEnabled)}
-                    className="p-1 pr-0 pl-0"
-                  />
+              </div>
+              <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain">
+                <div className="flex flex-col gap-0 pb-6 px-5 pt-1">
+                  <div className="py-5">
+                    <div className="flex items-start gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-medium leading-snug text-foreground">Dictation bar</p>
+                        <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                          Show the floating recording indicator at the top of the screen.
+                        </p>
+                      </div>
+                      <div className="shrink-0 pt-px">
+                        <Switch
+                          aria-label="Dictation bar"
+                          checked={overlayBarEnabled}
+                          onToggle={() => void setDictationBarPreference(!overlayBarEnabled)}
+                          className="p-1 pr-0 pl-0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <Separator className="bg-border/80" />
+                  <div className="py-5">
+                    <p className="text-[13px] font-medium text-foreground">Dictation shortcut</p>
+                    <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                      Hold this key combination while you speak to record dictation.
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Dictation shortcut">
+                      {DICTATION_SHORTCUT_OPTIONS.map((preset) => {
+                        const selected = liveShortcut === preset;
+                        return (
+                          <SettingsChoice
+                            key={preset}
+                            role="radio"
+                            aria-checked={selected}
+                            selected={selected}
+                            onClick={() => selectPresetShortcut(preset)}
+                          >
+                            {preset}
+                          </SettingsChoice>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <Separator className="bg-border/80" />
+                  <div className="py-5">
+                    <p className="text-[13px] font-medium text-foreground">Appearance</p>
+                    <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                      Match your system theme, or keep Mello light or dark.
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Appearance theme">
+                      {THEME_OPTIONS.map(({ value, label }) => {
+                        const selected = themePreference === value;
+                        return (
+                          <SettingsChoice
+                            key={value}
+                            role="radio"
+                            aria-checked={selected}
+                            selected={selected}
+                            onClick={() => void applyThemePreference(value)}
+                          >
+                            {label}
+                          </SettingsChoice>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {appVersionLabel ? (
+                    <p className="mt-6 text-center text-[11px] text-muted-foreground tabular-nums">
+                      Version {appVersionLabel}
+                    </p>
+                  ) : null}
                 </div>
               </div>
-            </div>
-            <Separator className="bg-border/80" />
-            <div className="p-4">
-              <p className="text-[13px] font-medium text-foreground">Dictation shortcut</p>
-              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground pr-21">
-                Hold this key combination while you speak to record dictation.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Dictation shortcut">
-                {DICTATION_SHORTCUT_OPTIONS.map((preset) => {
-                  const selected = liveShortcut === preset;
-                  return (
-                    <button
-                      key={preset}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      className={settingsSegmentClass(selected)}
-                      onClick={() => selectPresetShortcut(preset)}
-                    >
-                      {preset}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <Separator className="bg-border/80" />
-            <div className="p-4">
-              <p className="text-[13px] font-medium text-foreground">Appearance</p>
-              <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground pr-21">
-                Match your system theme, or keep Mello light or dark.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Appearance theme">
-                {THEME_OPTIONS.map(({ value, label }) => {
-                  const selected = themePreference === value;
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      className={settingsSegmentClass(selected)}
-                      onClick={() => void applyThemePreference(value)}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+              </Elevated>
+            </Drawer.Content>
+          </Drawer.Portal>
+        </Drawer.Root>
       </header>
 
-      <section className="mt-6 flex min-h-0 flex-1 flex-col gap-4">
-        <div className="flex min-h-8 items-center justify-between gap-3">
-          <h2 className="min-w-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+      <section className="flex min-h-0 flex-1 flex-col pt-6">
+        <div className="flex min-h-8 items-center justify-between gap-3 px-6">
+          <h2 className="min-w-0 text-[13px] text-muted-foreground">
             <span className="inline-flex items-baseline gap-1.5">
               <span>History</span>
               <span className="tabular-nums opacity-90">· {history.length}</span>
@@ -448,26 +531,46 @@ function MainWindow() {
             </Button>
           </div>
         </div>
-
         <ScrollArea className="min-h-0 flex-1">
-          <ul className="flex flex-col gap-2.5 pb-1 pt-0">
+          <ul className="flex flex-col gap-2.5 p-6 pt-2">
             {history.length === 0 ? (
               <li className="min-w-0">
                 <Card size="sm" className={HISTORY_CARD_SHELL}>
                   <CardContent className={HISTORY_CARD_BODY}>
                     <div className="space-y-3 text-[13px] leading-relaxed">
-                      <p className="text-[15px] font-medium text-foreground">No transcriptions yet</p>
-                      <div className="space-y-2 text-muted-foreground">
-                        <p>1. Click where you want to type.</p>
-                        <p>
-                          2. Hold{" "}
-                          <kbd className="inline-flex items-center rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[12px] leading-none text-foreground">
-                            {liveShortcut}
-                          </kbd>{" "}
-                          and speak.
-                        </p>
-                        <p>3. Your words are pasted into the focused field.</p>
-                      </div>
+                      <p className="text-[13px] text-foreground font-medium">No transcriptions yet</p>
+                      <ol className="m-0 list-none space-y-0 p-0 text-muted-foreground">
+                        <li className="flex gap-3">
+                          <div className="flex w-6 shrink-0 flex-col items-center">
+                            <div className={HISTORY_TIMELINE_BUBBLE}>1</div>
+                            <div className="mt-0 w-px min-h-2.5 flex-1 bg-border" aria-hidden />
+                          </div>
+                          <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">
+                            Click where you want to type.
+                          </p>
+                        </li>
+                        <li className="flex gap-3">
+                          <div className="flex w-6 shrink-0 flex-col items-center">
+                            <div className={HISTORY_TIMELINE_BUBBLE}>2</div>
+                            <div className="mt-0 w-px min-h-2.5 flex-1 bg-border" aria-hidden />
+                          </div>
+                          <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">
+                            Hold{" "}
+                            <kbd className="inline-flex items-center rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[12px] leading-none text-foreground">
+                              {liveShortcut}
+                            </kbd>{" "}
+                            and speak.
+                          </p>
+                        </li>
+                        <li className="flex gap-3">
+                          <div className="flex w-6 shrink-0 flex-col items-center">
+                            <div className={HISTORY_TIMELINE_BUBBLE}>3</div>
+                          </div>
+                          <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">
+                            Your words are pasted into the focused field.
+                          </p>
+                        </li>
+                      </ol>
                     </div>
                   </CardContent>
                 </Card>

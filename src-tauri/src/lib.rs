@@ -77,18 +77,16 @@ fn show_main_and_overlay(app: &tauri::AppHandle) {
 }
 
 fn universal_tray_icon_image(app: &tauri::AppHandle) -> Image<'static> {
-    if let Ok(p) = app.path().resolve(
-        "icons/runtime/mello-voice-universal-32.png",
-        BaseDirectory::Resource,
-    ) {
+    // Light pack is the safe default before the webview applies theme-aware icons.
+    let primary = "icons/runtime/light/mello-voice-32.png";
+    if let Ok(p) = app.path().resolve(primary, BaseDirectory::Resource) {
         if p.exists() {
             if let Ok(img) = Image::from_path(p) {
                 return img.to_owned();
             }
         }
     }
-    let dev_png = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("icons/runtime/mello-voice-universal-32.png");
+    let dev_png = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(primary);
     if dev_png.exists() {
         if let Ok(img) = Image::from_path(&dev_png) {
             return img.to_owned();
@@ -101,7 +99,7 @@ fn universal_tray_icon_image(app: &tauri::AppHandle) -> Image<'static> {
         }
     }
 
-    panic!("tray icon: expected bundled icons/32x32.png or runtime universal PNG");
+    panic!("tray icon: expected bundled icons/32x32.png or runtime light tray PNG");
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]

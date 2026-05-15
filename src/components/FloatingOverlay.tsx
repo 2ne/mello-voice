@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -28,7 +27,7 @@ function getStateLabel(state: OverlayState): string {
   }
 }
 
-/** Fixed lane when showing Ready / Processing — keeps vertical alignment stable during chrome morphs. */
+/** Fixed lane when showing idle mark / status text / Processing — keeps vertical alignment stable during chrome morphs. */
 const STATUS_LANE_MINI_H = "h-5"; /* 20px — fits inside min-h-7 + py-1 mini pill */
 const STATUS_LANE_EXPANDED_H = "h-8"; /* 32px — spinner + one line */
 
@@ -41,7 +40,6 @@ function FloatingOverlay({
   onBarToggleHideMenu,
   onHideDictationBar,
 }: FloatingOverlayProps) {
-  const [hovered, setHovered] = useState(false);
   const trimmedFinal = finalTranscript.trim();
   const trimmedInterim = interimTranscript.trim();
 
@@ -88,32 +86,21 @@ function FloatingOverlay({
       role="presentation"
       onClick={onBarToggleHideMenu}
       onContextMenu={onBarToggleHideMenu}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       data-chrome-variant={isMiniLayout ? "mini" : idleMenuOpen ? "idle-menu" : "expanded"}
       className={cn(
-        "floating-overlay floating-overlay-chrome relative mx-auto flex w-full cursor-pointer select-none overflow-hidden shadow-none ring-0 outline-none",
-        "border border-solid bg-overlay-chrome-bg text-overlay-chrome-fg",
-        "border-[color:var(--overlay-chrome-border)]",
+        "floating-overlay floating-overlay-chrome relative mx-auto flex w-full cursor-grab select-none overflow-hidden shadow-none ring-0 outline-none active:cursor-grabbing",
+        "bg-overlay-chrome-bg text-overlay-chrome-fg",
         listeningPulse && "floating-overlay-chrome-pulse floating-overlay-chrome-listening-breathe",
         isMiniLayout &&
-          cn(
-            "min-h-7 w-[120px] flex-col justify-center rounded-full px-3 py-1",
-            hovered &&
-              "w-[240px] min-h-10 border-[color:var(--overlay-chrome-border-hover)] bg-[color:color-mix(in_oklab,var(--overlay-chrome-bg)_93%,var(--overlay-chrome-fg)_7%)] px-4 py-2",
-          ),
+          "min-h-7 w-[120px] flex-col justify-center rounded-full px-3 py-1",
         idleMenuOpen &&
-          cn(
-            "w-[min(260px,calc(100vw-16px))] flex-col items-stretch justify-start rounded-full px-4 py-2",
-            "border-[color:var(--overlay-chrome-border)]",
-          ),
+          "w-[min(260px,calc(100vw-16px))] flex-col items-stretch justify-start rounded-full px-4 py-2",
         !isMiniLayout &&
           !idleMenuOpen &&
           cn(
-            "min-h-[56px] w-full flex-col items-stretch rounded-[28px] border-[color:var(--overlay-chrome-border-expanded)] px-5 py-3",
+            "min-h-[56px] w-full flex-col items-stretch rounded-[28px] px-5 py-3",
             inlineHideOpen ? "justify-start" : "justify-center",
           ),
-        error && "border-destructive/40",
       )}
     >
       {transcriptPrimary ? (
@@ -147,30 +134,48 @@ function FloatingOverlay({
                 aria-hidden
               />
             )}
-            <p
-              aria-live={
-                state === "processing" || state === "listening"
-                  ? "polite"
-                  : "off"
-              }
-              className={cn(
-                "floating-overlay-status-label font-medium leading-snug tracking-[-0.01em] text-overlay-chrome-fg-muted transition-none",
-                isMiniLayout && "max-w-full shrink-0 text-center text-[12px]",
-                isMiniLayout && hovered && "text-[13px]",
-                idleMenuOpen && "max-w-full shrink-0 text-center text-[13px]",
-                !isMiniLayout && !idleMenuOpen && "text-[13px]",
-                !isMiniLayout && !idleMenuOpen && alignTranscript && state !== "processing" && "min-w-0 flex-1 text-left",
-                !isMiniLayout && !idleMenuOpen && expandedCenterRow && "min-w-0 max-w-full truncate text-center",
-              )}
-            >
-              {getStateLabel(state)}
-            </p>
+            {state === "idle" ? (
+              <div
+                className="overlay-idle-logo"
+                role="img"
+                aria-label={getStateLabel(state)}
+              >
+                <span
+                  className="overlay-idle-logo-bar overlay-idle-logo-bar--side overlay-idle-logo-bar--left"
+                />
+                <span
+                  className="overlay-idle-logo-bar overlay-idle-logo-bar--mid overlay-idle-logo-bar--center"
+                />
+                <span
+                  className="overlay-idle-logo-bar overlay-idle-logo-bar--side overlay-idle-logo-bar--right"
+                />
+              </div>
+            ) : (
+              <p
+                aria-live={
+                  state === "processing" || state === "listening"
+                    ? "polite"
+                    : "off"
+                }
+                className={cn(
+                  "floating-overlay-status-label font-medium leading-snug tracking-[-0.01em] text-overlay-chrome-fg-muted transition-none",
+                  isMiniLayout && "max-w-full shrink-0 text-center text-[12px]",
+                  idleMenuOpen && "max-w-full shrink-0 text-center text-[13px]",
+                  !isMiniLayout && !idleMenuOpen && "text-[13px]",
+                  !isMiniLayout && !idleMenuOpen && alignTranscript && state !== "processing" && "min-w-0 flex-1 text-left",
+                  !isMiniLayout && !idleMenuOpen && expandedCenterRow && "min-w-0 max-w-full truncate text-center",
+                )}
+              >
+                {getStateLabel(state)}
+              </p>
+            )}
           </div>
         </div>
       )}
 
       {showHideSlot ? (
         <div
+          data-overlay-no-drag=""
           className="floating-overlay-hide-slot w-full"
           data-expanded={inlineHideOpen ? true : undefined}
           onClick={(e) => e.stopPropagation()}

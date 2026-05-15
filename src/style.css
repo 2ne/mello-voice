@@ -7,6 +7,23 @@
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'Inter Variable', sans-serif;
+    /* Fluid Functionalism surfaces — https://www.fluidfunctionalism.com/docs/surfaces */
+    --color-surface-1: var(--surface-1);
+    --color-surface-2: var(--surface-2);
+    --color-surface-3: var(--surface-3);
+    --color-surface-4: var(--surface-4);
+    --color-surface-5: var(--surface-5);
+    --color-surface-6: var(--surface-6);
+    --color-surface-7: var(--surface-7);
+    --color-surface-8: var(--surface-8);
+    --shadow-surface-1: var(--shadow-1);
+    --shadow-surface-2: var(--shadow-2);
+    --shadow-surface-3: var(--shadow-3);
+    --shadow-surface-4: var(--shadow-4);
+    --shadow-surface-5: var(--shadow-5);
+    --shadow-surface-6: var(--shadow-6);
+    --shadow-surface-7: var(--shadow-7);
+    --shadow-surface-8: var(--shadow-8);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -67,11 +84,48 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
+    /* Surface ladder (light) */
+    --surface-1: #fafafa;
+    --surface-2: #fcfcfc;
+    --surface-3: #ffffff;
+    --surface-4: #ffffff;
+    --surface-5: #ffffff;
+    --surface-6: #ffffff;
+    --surface-7: #ffffff;
+    --surface-8: #ffffff;
+    --shadow-color: rgb(0 0 0 / 6%);
+    --shadow-1: 0 0 0 1px var(--shadow-color);
+    --shadow-2: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color);
+    --shadow-3:
+      0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color),
+      0 3px 3px -1.5px var(--shadow-color);
+    --shadow-4:
+      0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color),
+      0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color);
+    --shadow-5:
+      0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color),
+      0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color),
+      0 12px 12px -6px var(--shadow-color);
+    --shadow-6:
+      0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color),
+      0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color),
+      0 12px 12px -6px var(--shadow-color), 0 24px 24px -12px var(--shadow-color);
+    --shadow-7:
+      0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color),
+      0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color),
+      0 12px 12px -6px var(--shadow-color), 0 24px 24px -12px var(--shadow-color),
+      0 48px 48px -24px var(--shadow-color);
+    --shadow-8:
+      0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color),
+      0 3px 3px -1.5px var(--shadow-color), 0 6px 6px -3px var(--shadow-color),
+      0 12px 12px -6px var(--shadow-color), 0 24px 24px -12px var(--shadow-color),
+      0 48px 48px -24px var(--shadow-color), 0 96px 96px -48px var(--shadow-color);
+
+    --background: var(--surface-1);
     --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
+    --card: var(--surface-2);
     --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
+    --popover: var(--surface-3);
     --popover-foreground: oklch(0.145 0 0);
     /* Brand accent blue + hover (see --primary / --primary-hover) */
     --primary: oklch(0.663 0.175 264.2);
@@ -96,9 +150,6 @@
     --overlay-chrome-fg: oklch(0.985 0 0);
     --overlay-chrome-fg-muted: color-mix(in oklab, var(--overlay-chrome-fg) 90%, transparent);
     /* Overlay chrome: dark neutrals only — no drop shadows or silver rims */
-    --overlay-chrome-border: oklch(0.34 0 0);
-    --overlay-chrome-border-expanded: oklch(0.39 0 0);
-    --overlay-chrome-border-hover: oklch(0.44 0 0);
     --overlay-inline-border: color-mix(in oklab, var(--overlay-chrome-fg) 15%, transparent);
     --overlay-inline-bg: color-mix(in oklab, var(--overlay-chrome-fg) 6%, transparent);
     --overlay-inline-bg-hover: color-mix(in oklab, var(--overlay-chrome-fg) 10%, transparent);
@@ -118,14 +169,66 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: var(--ring);
+    /* Timing: linear() stacks (Josh Comeau) — reuse on transitions/animations instead of cubic-bezier/default ease. */
+    --ease-ui: linear(0, 0.52 42%, 0.82 72%, 1);
+    --ease-ui-snappy: linear(0, 0.4 41%, 0.78 71%, 1);
+    --ease-opacity-breathe: linear(0, 0.09 21%, 0.47 50%, 0.91 79%, 1);
+    --ease-switch-thumb: linear(0, 0.36 53%, 0.73 71%, 0.9 82%, 0.97 92%, 1);
+    --ease-spinner-dash: linear(0, 0.46 50%, 1);
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
+    --surface-1: #171717;
+    --surface-2: #1e1e1e;
+    --surface-3: #252525;
+    --surface-4: #2c2c2c;
+    --surface-5: #333333;
+    --surface-6: #3a3a3a;
+    --surface-7: #414141;
+    --surface-8: #484848;
+    --dm-hi-base: rgb(255 255 255 / 1%);
+    --dm-hi-mid: rgb(255 255 255 / 2%);
+    --dm-hi-high: rgb(255 255 255 / 4%);
+    --dm-hi-peak: rgb(255 255 255 / 6%);
+    --dm-ring-base: rgb(255 255 255 / 2%);
+    --dm-ring-mid: rgb(255 255 255 / 4%);
+    --dm-ring-high: rgb(255 255 255 / 6%);
+    --dm-drop: rgb(0 0 0 / 18%);
+    --shadow-1: inset 0 0 0 1px var(--dm-ring-base);
+    --shadow-2:
+      inset 0 1px 0 0 var(--dm-hi-base), inset 0 0 0 1px var(--dm-ring-base),
+      0 1px 1px -0.5px var(--dm-drop);
+    --shadow-3:
+      inset 0 1px 0 0 var(--dm-hi-mid), inset 0 0 0 1px var(--dm-ring-base),
+      0 0 0 1px rgb(0 0 0 / 12%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop);
+    --shadow-4:
+      inset 0 1px 0 0 var(--dm-hi-mid), inset 0 0 0 1px var(--dm-ring-mid),
+      0 0 0 1px rgb(0 0 0 / 14%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop),
+      0 6px 6px -3px var(--dm-drop);
+    --shadow-5:
+      inset 0 1px 0 0 var(--dm-hi-high), inset 0 0 0 1px var(--dm-ring-mid),
+      0 0 0 1px rgb(0 0 0 / 16%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop),
+      0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop);
+    --shadow-6:
+      inset 0 1px 0 0 var(--dm-hi-high), inset 0 0 0 1px var(--dm-ring-high),
+      0 0 0 1px rgb(0 0 0 / 18%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop),
+      0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop);
+    --shadow-7:
+      inset 0 1px 0 0 var(--dm-hi-peak), inset 0 0 0 1px var(--dm-ring-high),
+      0 0 0 1px rgb(0 0 0 / 20%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop),
+      0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop),
+      0 48px 48px -24px var(--dm-drop);
+    --shadow-8:
+      inset 0 1px 0 0 var(--dm-hi-peak), inset 0 0 0 1px var(--dm-ring-high),
+      0 0 0 1px rgb(0 0 0 / 22%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop),
+      0 6px 6px -3px var(--dm-drop), 0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop),
+      0 48px 48px -24px var(--dm-drop), 0 96px 96px -48px var(--dm-drop);
+
+    --background: var(--surface-1);
     --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
+    --card: var(--surface-2);
     --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
+    --popover: var(--surface-3);
     --popover-foreground: oklch(0.985 0 0);
     --primary: oklch(0.663 0.175 264.2);
     --primary-hover: oklch(0.598 0.168 264.2);
@@ -170,6 +273,64 @@
     }
 }
 
+/*
+ * Settings drawer ([vaul](https://github.com/emilkowalski/vaul)): the library injects motion CSS at runtime.
+ * Drawer + overlay: `html …` beats injected rules. Background scale uses inline transition (500ms in Vaul) —
+ * sync it with `--settings-drawer-duration` via `[data-vaul-drawer-wrapper]` + `!important`.
+ */
+:root {
+  --settings-drawer-duration: 200ms;
+  --settings-drawer-ease: linear(0, 0.52 42%, 0.82 72%, 1);
+}
+
+html [data-vaul-drawer-wrapper] {
+  transition-duration: var(--settings-drawer-duration) !important;
+  transition-timing-function: var(--settings-drawer-ease) !important;
+}
+
+html [data-vaul-drawer] {
+  transition:
+    transform var(--settings-drawer-duration) var(--settings-drawer-ease);
+  animation-duration: var(--settings-drawer-duration);
+  animation-timing-function: var(--settings-drawer-ease);
+}
+
+/*
+ * Vaul sets `touch-action: none` on the sheet for drag-to-dismiss; without a narrower value on real
+ * controls, press / :active feedback (and our scale) can feel dead on WebView2 + mouse.
+ */
+html [data-vaul-drawer] :where(button, [role="button"]) {
+  touch-action: manipulation;
+}
+
+html [data-vaul-overlay][data-vaul-snap-points="false"] {
+  animation-duration: var(--settings-drawer-duration);
+  animation-timing-function: var(--settings-drawer-ease);
+}
+
+html [data-vaul-handle] {
+  opacity: 0.85;
+  background: color-mix(in oklab, var(--foreground), transparent 88%);
+}
+
+html [data-vaul-handle]:hover,
+html [data-vaul-handle]:active {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html [data-vaul-drawer],
+  html [data-vaul-overlay][data-vaul-snap-points="false"] {
+    --settings-drawer-duration: 1ms;
+    --settings-drawer-ease: linear;
+  }
+
+  html [data-vaul-drawer-wrapper] {
+    transition-duration: 1ms !important;
+    transition-timing-function: linear !important;
+  }
+}
+
 /* Tauri overlay window: transparent root so only the pill is visible */
 html.overlay-window body,
 html.overlay-window #root {
@@ -200,12 +361,12 @@ html.overlay-window .floating-overlay.floating-overlay-chrome {
     0.92 78%,
     1
   );
-  transition-property: width, min-height, padding-block, padding-inline, border-color, background-color;
+  transition-property: width, min-height, padding-block, padding-inline, background-color;
   transition-duration: var(--overlay-chrome-duration);
   transition-timing-function: var(--overlay-chrome-ease);
 }
 
-/* Idle “Ready” pill: quicker feedback on hover width/min-height morph */
+/* Idle “Ready” pill: tighter motion when resizing between compact / idle menu */
 html.overlay-window .floating-overlay.floating-overlay-chrome[data-chrome-variant="mini"] {
   --overlay-chrome-duration: 155ms;
   --overlay-chrome-ease: linear(0, 0.52 42%, 0.82 72%, 1);
@@ -217,7 +378,7 @@ html.overlay-window .floating-overlay.floating-overlay-chrome[data-chrome-varian
  * Width morphs; border-radius snaps (no tween — avoids awkward capsule interpolation).
  */
 html.overlay-window .floating-overlay.floating-overlay-chrome[data-chrome-variant="expanded"] {
-  transition-property: width, border-color, background-color;
+  transition-property: width, background-color;
 }
 
 /*
@@ -225,7 +386,7 @@ html.overlay-window .floating-overlay.floating-overlay-chrome[data-chrome-varian
  */
 html.overlay-window .floating-overlay-chrome[data-chrome-variant="idle-menu"] {
   --overlay-chrome-duration: 175ms;
-  transition-property: padding-block, padding-inline, border-color, background-color;
+  transition-property: padding-block, padding-inline, background-color;
   transition-duration: var(--overlay-chrome-duration);
   transition-timing-function: var(--overlay-chrome-ease);
 }
@@ -304,7 +465,65 @@ html.overlay-window .floating-overlay-chrome-pulse > * {
 }
 
 html.overlay-window .floating-overlay-chrome-listening-breathe {
-  animation: overlay-chrome-listening-opacity-breathe 1s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation: overlay-chrome-listening-opacity-breathe 1s var(--ease-opacity-breathe) infinite;
+}
+
+/* Idle state — three-bar Mello mark (short / tall / short), middle reads lighter.
+   Opacity-only motion (no transform) — lighter compositing than scaleY in embedded WebViews. */
+@keyframes overlay-idle-logo-bar-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+html.overlay-window .overlay-idle-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1875rem;
+  flex-shrink: 0;
+}
+
+html.overlay-window .overlay-idle-logo-bar {
+  width: 0.1875rem;
+  border-radius: 9999px;
+  animation-name: overlay-idle-logo-bar-breathe;
+  animation-duration: 1.28s;
+  animation-timing-function: var(--ease-opacity-breathe);
+  animation-iteration-count: infinite;
+}
+
+html.overlay-window .overlay-idle-logo-bar--side {
+  height: 0.4375rem;
+  background-color: color-mix(in oklab, var(--overlay-chrome-fg) 52%, transparent);
+}
+
+html.overlay-window .overlay-idle-logo-bar--mid {
+  height: 0.875rem;
+  background-color: color-mix(in oklab, var(--overlay-chrome-fg) 94%, transparent);
+}
+
+html.overlay-window .overlay-idle-logo-bar--left {
+  animation-delay: 0ms;
+}
+
+html.overlay-window .overlay-idle-logo-bar--center {
+  animation-delay: 130ms;
+}
+
+html.overlay-window .overlay-idle-logo-bar--right {
+  animation-delay: 260ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.overlay-window .overlay-idle-logo-bar {
+    animation: none;
+    opacity: 1;
+  }
 }
 
 * {

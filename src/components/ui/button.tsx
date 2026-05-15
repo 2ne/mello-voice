@@ -21,7 +21,8 @@ const buttonVariants = cva(
   [
     "group relative isolate inline-flex items-center justify-center outline-none cursor-pointer",
     "text-box-trim-both text-box-edge-cap-alphabetic",
-    "transition-colors duration-80",
+    "touch-manipulation transition-transform duration-80 ease-[var(--ease-ui)]",
+    "active:scale-[0.975]",
     "disabled:opacity-50 disabled:pointer-events-none",
     "focus-visible:ring-1 focus-visible:ring-primary",
   ],
@@ -31,7 +32,8 @@ const buttonVariants = cva(
         primary: "text-background",
         secondary: "text-foreground",
         tertiary: "border border-border text-foreground",
-        surface: "border border-border text-foreground shadow-sm",
+        surface:
+          "border-0 text-foreground shadow-surface-2 ring-1 ring-black/[0.045] dark:shadow-none dark:ring-white/[0.065]",
         overlay:
           "border border-[color:var(--overlay-inline-border)] text-overlay-chrome-fg",
         ghost: "text-muted-foreground hover:text-foreground",
@@ -75,8 +77,9 @@ const bgVariants: Record<string, string> = {
   primary: "bg-foreground group-hover:bg-foreground/90 group-active:bg-foreground/80",
   secondary: "bg-accent group-hover:bg-accent/80 group-active:bg-accent",
   tertiary: "bg-transparent group-hover:bg-hover group-active:bg-active",
+  /** Matches Card (+1): `bg-card`, same soft ring + Fluid shadow as every `Elevated` surface. */
   surface:
-    "bg-muted/65 group-hover:bg-muted/85 group-active:bg-muted dark:bg-muted/40 dark:group-hover:bg-muted/55 dark:group-active:bg-muted/65",
+    "bg-card group-hover:bg-surface-3 group-active:bg-surface-3 dark:group-hover:bg-surface-3 dark:group-active:bg-surface-3",
   overlay:
     "bg-[color:var(--overlay-inline-bg)] group-hover:bg-[color:var(--overlay-inline-bg-hover)] group-active:bg-[color:var(--overlay-inline-bg)]",
   ghost: "bg-transparent group-hover:bg-hover group-active:bg-active",
@@ -125,7 +128,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         <span
           aria-hidden
           className={cn(
-            "absolute inset-0 rounded-[inherit] transition-[background-color,transform] duration-80 group-active:scale-[0.98]",
+            "absolute inset-0 rounded-[inherit] transition-[background-color] duration-80 ease-[var(--ease-ui)]",
             bgClass
           )}
         />
@@ -155,14 +158,15 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                     pathLength="100"
                     style={{
                       strokeDasharray: "15 85",
-                      animation: "spinner-move 2s linear infinite, spinner-dash 4s ease-in-out infinite",
+                      animation:
+                        "spinner-move 2s linear infinite, spinner-dash 4s var(--ease-spinner-dash) infinite",
                     }}
                   />
                 </svg>
               </span>
             </>
           ) : isIconOnly ? (
-            <span className="[&_svg]:stroke-[1.5] [&_svg]:transition-[stroke-width] [&_svg]:duration-80 group-hover:[&_svg]:stroke-[2]">
+            <span className="[&_svg]:stroke-[1.5] [&_svg]:transition-[stroke-width] [&_svg]:duration-80 [&_svg]:ease-[var(--ease-ui)] group-hover:[&_svg]:stroke-[2]">
               {children}
             </span>
           ) : (
@@ -171,7 +175,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 <LeadingIcon
                   size={iconSize}
                   strokeWidth={1.5}
-                  className="transition-[stroke-width] duration-80 group-hover:stroke-[2]"
+                  className="transition-[stroke-width] duration-80 ease-[var(--ease-ui)] group-hover:stroke-[2]"
                 />
               )}
               <span>{children}</span>
@@ -179,7 +183,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 <TrailingIcon
                   size={iconSize}
                   strokeWidth={1.5}
-                  className="transition-[stroke-width] duration-80 group-hover:stroke-[2]"
+                  className="transition-[stroke-width] duration-80 ease-[var(--ease-ui)] group-hover:stroke-[2]"
                 />
               )}
             </>
