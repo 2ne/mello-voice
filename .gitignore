@@ -24,6 +24,11 @@ lerna-debug.log*
 
 # Whisper / Tauri large local assets (use `npm run setup:whisper`)
 src-tauri/binaries/whisper-cli-*.*
+src-tauri/binaries/whisper-server-*.*
+src-tauri/binaries/_whisper_cpp_unpack/
+src-tauri/binaries/_whisper_cpp_build/
+src-tauri/binaries/whisper-cpp-v*.tar.gz
+src-tauri/binaries/.whisper_darwin_setup_tag
 src-tauri/resources/models/*.bin
 
 # Rust / Tauri — release & debug artifacts, deps cache

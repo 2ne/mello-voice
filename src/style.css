@@ -460,7 +460,7 @@ html.overlay-window .floating-overlay-chrome-pulse > * {
     opacity: 1;
   }
   50% {
-    opacity: 0.82;
+    opacity: 0.9;
   }
 }
 
@@ -473,7 +473,7 @@ html.overlay-window .floating-overlay-chrome-listening-breathe {
 @keyframes overlay-idle-logo-bar-breathe {
   0%,
   100% {
-    opacity: 0.55;
+    opacity: 0.75;
   }
   50% {
     opacity: 1;

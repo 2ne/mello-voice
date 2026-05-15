@@ -22,6 +22,7 @@ import {
   getDictationShortcut,
   setDictationShortcut,
   DEFAULT_DICTATION_SHORTCUT,
+  formatDictationShortcutForUi,
   type DictationShortcutOption,
 } from "../dictationShortcut";
 import { cn } from "@/lib/utils";
@@ -517,7 +518,7 @@ function MainWindow() {
                       <SelectContent>
                         {DICTATION_SHORTCUT_OPTIONS.map((preset) => (
                           <SelectItem key={preset} value={preset}>
-                            {preset}
+                            {formatDictationShortcutForUi(preset)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -675,7 +676,7 @@ function MainWindow() {
                           <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">
                             Hold{" "}
                             <kbd className="inline-flex items-center rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-[12px] leading-none text-foreground">
-                              {liveShortcut}
+                              {formatDictationShortcutForUi(liveShortcut)}
                             </kbd>{" "}
                             whilst speaking.
                           </p>

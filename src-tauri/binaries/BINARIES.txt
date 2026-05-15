@@ -1,4 +1,5 @@
 
+
 Tauri Whisper sidecar bundle
 ===========================
 
@@ -18,9 +19,21 @@ Windows also requires the **DLL bundle** from that zip (copied by the script int
   directory to `PATH` at startup so whisper-cli / whisper-server load correctly in dev and in the
   installed bundle.
 
-Bundled assets are git‑ignored (*.exe, *.bin) — run setup after clone.
+Setup (macOS host)
+------------------
+  `npm run setup:whisper` downloads whisper.cpp **v1.8.4** sources and CMake-builds
+  **`whisper-cli-<triple>`** and **`whisper-server-<triple>`** (`BUILD_SHARED_LIBS=OFF`).
+  Requires **Apple Command Line Tools** (`xcode-select --install`; full Xcode optional), CMake, `tar`, and `rustc`.
 
-Non‑Windows desktops: build whisper.cpp CLI from source and drop it into `binaries/` with the
-correct Rust triple suffix. Keep `resources/models/ggml-base.en-q8_0.bin` alongside (or run the
-setup script until the download finishes on any Node-capable CI host).
+  Typical triples: `aarch64-apple-darwin`, `x86_64-apple-darwin`.
+
+  Optional **`resources/whisper_runtime/*.dylib`**: Rust prepends that directory to **`DYLD_LIBRARY_PATH`**
+  on startup when `.dylibs` are present (shared whisper builds).
+
+Linux / other hosts
+--------------------
+  npm run setup:whisper downloads the quantized model only. Build whisper.cpp and copy sidecars into
+  **`binaries/`** matching **`rustc --print host-tuple`**.
+
+Bundled assets are git-ignored (*.exe, *.bin, CMake build dirs under `binaries/` on macOS) — run setup after clone.
 

@@ -1,9 +1,12 @@
 /**
- * Fetches quantized ggml-base.en-q8_0 + OpenBLAS whisper-cli (optional cuBLAS --gpu) for Windows.
+ * Windows: OpenBLAS whisper-cpp release zip + DLL runtime (optional cuBLAS `--gpu`).
+ * macOS: CMake build of whisper.cpp tag (whisper-cli + whisper-server, static libs).
+ * Linux / others: model download only — place sidecars yourself (see `src-tauri/binaries/BINARIES.txt`).
  *
  * Usage: node scripts/setup-whisper-assets.mjs [--gpu]
  */
 import { spawnSync, execSync } from 'node:child_process'
+import os from 'node:os'
 import { createWriteStream, existsSync } from 'node:fs'
 import fs from 'node:fs/promises'
 import https from 'node:https'
@@ -17,10 +20,13 @@ const SRC_TAURI = path.join(ROOT, 'src-tauri')
 const BIN_DIR = path.join(SRC_TAURI, 'binaries')
 const MODEL_DIR = path.join(SRC_TAURI, 'resources', 'models')
 const MODEL_PATH = path.join(MODEL_DIR, 'ggml-base.en-q8_0.bin')
-/** OpenBLAS / cuBLAS zips ship DLLs beside whisper-cli.exe; Tauri bundles them here and Rust prepends PATH. */
+/** Windows: OpenBLAS / cuBLAS zips ship DLLs beside whisper-cli.exe; bundled here and prepended to PATH at runtime. */
 const RUNTIME_DIR = path.join(SRC_TAURI, 'resources', 'whisper_runtime')
 
 const WHISPER_TAG = 'v1.8.4'
+/** Written after a successful macOS CMake install; forces rebuild when the repo bumps `WHISPER_TAG`. */
+const DARWIN_SETUP_TAG_FILE = path.join(BIN_DIR, '.whisper_darwin_setup_tag')
+
 const useGpuCli = process.argv.includes('--gpu')
 
 function rustTriple() {
@@ -51,16 +57,30 @@ function downloadHttps(url, destPath) {
   })
 }
 
+function runChecked(command, args, options = {}) {
+  const r = spawnSync(command, args, { encoding: 'utf8', stdio: 'inherit', ...options })
+  if (r.status !== 0) {
+    throw new Error(`\`${command} ${args.join(' ')}\` exited with code ${r.status ?? '?'}`)
+  }
+}
+
 async function unzipZip(zipPath, outDir) {
   await fs.mkdir(outDir, { recursive: true })
-  const z = zipPath.replace(/'/g, "''")
-  const o = outDir.replace(/'/g, "''")
-  const r = spawnSync(
-    'powershell.exe',
-    ['-NoProfile', '-NonInteractive', '-Command', `Expand-Archive -LiteralPath '${z}' -DestinationPath '${o}' -Force`],
-    { stdio: 'inherit' },
-  )
-  if (r.status !== 0) throw new Error(`Expand-Archive failed for ${zipPath}`)
+  if (process.platform === 'win32') {
+    const z = zipPath.replace(/'/g, "''")
+    const o = outDir.replace(/'/g, "''")
+    const r = spawnSync(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', `Expand-Archive -LiteralPath '${z}' -DestinationPath '${o}' -Force`],
+      { stdio: 'inherit' },
+    )
+    if (r.status !== 0) throw new Error(`Expand-Archive failed for ${zipPath}`)
+    return
+  }
+  const r = spawnSync('unzip', ['-q', '-o', zipPath, '-d', outDir], { stdio: 'inherit' })
+  if (r.status !== 0) {
+    throw new Error(`unzip failed for ${zipPath}. Install unzip (e.g. apt install unzip).`)
+  }
 }
 
 async function walkFindExe(dir, nameRe) {
@@ -80,7 +100,7 @@ async function walkFindExe(dir, nameRe) {
 function windowsZipNameForTriple(triple) {
   const is32 = triple.startsWith('i686-') || triple.startsWith('i586-')
   if (!triple.includes('windows')) {
-    throw new Error(`No published whisper.cpp zip for Rust triple ${triple} (Windows only for auto-setup).`)
+    throw new Error(`No published whisper.cpp zip for Rust triple ${triple} (Windows only for this path).`)
   }
 
   if (useGpuCli) {
@@ -171,6 +191,103 @@ async function ensureWindowsSidecar(triple) {
   console.log('Installed sidecars ->', cliDest, serverDest)
 }
 
+async function readDarwinSetupTag() {
+  try {
+    return (await fs.readFile(DARWIN_SETUP_TAG_FILE, 'utf8')).trim()
+  } catch {
+    return ''
+  }
+}
+
+async function ensureDarwinSidecars(triple) {
+  const cliDest = path.join(BIN_DIR, `whisper-cli-${triple}`)
+  const srvDest = path.join(BIN_DIR, `whisper-server-${triple}`)
+
+  if (existsSync(cliDest) && existsSync(srvDest) && (await readDarwinSetupTag()) === WHISPER_TAG) {
+    console.log('[setup:whisper] macOS sidecars match', WHISPER_TAG)
+    console.log(cliDest)
+    console.log(srvDest)
+    return
+  }
+
+  const tarballUrl = `https://github.com/ggml-org/whisper.cpp/archive/refs/tags/${WHISPER_TAG}.tar.gz`
+  const tarball = path.join(BIN_DIR, `whisper-cpp-${WHISPER_TAG}.tar.gz`)
+  const unpackRoot = path.join(BIN_DIR, '_whisper_cpp_unpack')
+  const buildDir = path.join(BIN_DIR, '_whisper_cpp_build')
+
+  console.log(
+    '[setup:whisper] CMake build whisper.cpp',
+    WHISPER_TAG,
+    '(Apple Command Line Tools + CMake required; full Xcode optional; first run may take several minutes)',
+  )
+
+  await fs.mkdir(BIN_DIR, { recursive: true })
+  const previousTag = await readDarwinSetupTag()
+  if (previousTag !== WHISPER_TAG) {
+    await fs.rm(tarball, { force: true }).catch(() => {})
+  }
+
+  if (!existsSync(tarball)) {
+    console.log('[setup:whisper] Downloading', tarballUrl)
+    await downloadHttps(tarballUrl, tarball)
+  }
+
+  await fs.rm(unpackRoot, { recursive: true, force: true })
+  await fs.mkdir(unpackRoot, { recursive: true })
+  runChecked('tar', ['-xzf', tarball, '-C', unpackRoot])
+
+  const folderName = `whisper.cpp-${WHISPER_TAG.replace(/^v/, '')}`
+  const srcRoot = path.join(unpackRoot, folderName)
+  if (!existsSync(srcRoot)) {
+    throw new Error(`Expected unpacked source at ${srcRoot}`)
+  }
+
+  await fs.rm(buildDir, { recursive: true, force: true })
+
+  runChecked('cmake', [
+    '-S',
+    srcRoot,
+    '-B',
+    buildDir,
+    '-DCMAKE_BUILD_TYPE=Release',
+    '-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0',
+    '-DBUILD_SHARED_LIBS=OFF',
+    '-DWHISPER_BUILD_TESTS=OFF',
+    '-DWHISPER_BUILD_EXAMPLES=ON',
+    '-DWHISPER_BUILD_SERVER=ON',
+  ])
+
+  const jobs = typeof os.availableParallelism === 'function' ? os.availableParallelism() : 4
+  runChecked('cmake', [
+    '--build',
+    buildDir,
+    '--config',
+    'Release',
+    '--parallel',
+    String(jobs),
+    '--target',
+    'whisper-cli',
+    'whisper-server',
+  ])
+
+  const builtBin = path.join(buildDir, 'bin')
+  const cliBuilt = path.join(builtBin, 'whisper-cli')
+  const srvBuilt = path.join(builtBin, 'whisper-server')
+  if (!existsSync(cliBuilt) || !existsSync(srvBuilt)) {
+    throw new Error(`Expected ${cliBuilt} and ${srvBuilt} after CMake build`)
+  }
+
+  await fs.copyFile(cliBuilt, cliDest)
+  await fs.copyFile(srvBuilt, srvDest)
+  await fs.chmod(cliDest, 0o755)
+  await fs.chmod(srvDest, 0o755)
+  await fs.writeFile(DARWIN_SETUP_TAG_FILE, `${WHISPER_TAG}\n`, 'utf8')
+
+  console.log('[setup:whisper] Installed macOS sidecars ->')
+  console.log(cliDest)
+  console.log(srvDest)
+}
+
 async function ensureModel() {
   if (existsSync(MODEL_PATH)) {
     console.log('Model already present:', MODEL_PATH)
@@ -187,16 +304,25 @@ async function ensureModel() {
 async function main() {
   const triple = rustTriple()
   console.log('Host triple:', triple)
-  console.log(useGpuCli ? 'CLI bundle: NVIDIA cuBLAS (optional --gpu)' : 'CLI bundle: CPU OpenBLAS')
+  if (process.platform === 'win32') {
+    console.log(useGpuCli ? 'CLI bundle: NVIDIA cuBLAS (optional --gpu)' : 'CLI bundle: CPU OpenBLAS')
+  }
 
-  if (!(process.platform === 'win32' && triple.includes('windows'))) {
+  const isWindows = process.platform === 'win32' && triple.includes('windows')
+  const isDarwin = process.platform === 'darwin' && triple.includes('apple-darwin')
+
+  if (!isWindows && !isDarwin) {
     console.warn(
-      `\nAutomatic sidecar download supports Windows hosts only.\n` +
-        `Build whisper.cpp locally, install to:\n` +
-        `  <repo>/src-tauri/binaries/whisper-cli-${triple}${process.platform === 'win32' ? '.exe' : ''}\n` +
-        `  <repo>/src-tauri/binaries/whisper-server-${triple}${process.platform === 'win32' ? '.exe' : ''}\n` +
-        `  <repo>/src-tauri/resources/whisper_runtime/*.dll (same folder layout as whisper.cpp Release/, including ggml.dll)\n`,
+      [
+        '[setup:whisper] Automatic sidecars: Windows zip or macOS CMake only.',
+        'On this host, downloading the quantized model only. Build or copy:',
+        `  ${path.join('<repo>', 'src-tauri', 'binaries', `whisper-cli-${triple}${process.platform === 'win32' ? '.exe' : ''}`)}`,
+        `  ${path.join('<repo>', 'src-tauri', 'binaries', `whisper-server-${triple}${process.platform === 'win32' ? '.exe' : ''}`)}`,
+        'Windows: also copy whisper.cpp DLLs into src-tauri/resources/whisper_runtime/',
+        '',
+      ].join('\n'),
     )
+
     await ensureModel().catch((e) => {
       console.warn('Model download failed:', e)
       process.exitCode = 1
@@ -204,7 +330,12 @@ async function main() {
     return
   }
 
-  await ensureWindowsSidecar(triple)
+  if (isDarwin) {
+    await ensureDarwinSidecars(triple)
+  } else {
+    await ensureWindowsSidecar(triple)
+  }
+
   await ensureModel()
 }
 

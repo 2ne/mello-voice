@@ -12,6 +12,22 @@ export type DictationShortcutOption = (typeof DICTATION_SHORTCUT_OPTIONS)[number
 
 export const DEFAULT_DICTATION_SHORTCUT: DictationShortcutOption = DICTATION_SHORTCUT_OPTIONS[0];
 
+function isAppleLikeUserAgent(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = typeof navigator.userAgent === "string" ? navigator.userAgent : "";
+  const p = typeof navigator.platform === "string" ? navigator.platform : "";
+  return /Mac|iPhone|iPad|iPod/i.test(p) || /Mac OS/i.test(ua);
+}
+
+/** UI label only — Tauri shortcut registration expects `Ctrl+…` literals on macOS too. */
+export function formatDictationShortcutForUi(shortcut: string): string {
+  if (!isAppleLikeUserAgent()) return shortcut;
+  return shortcut
+    .replace(/Ctrl\+/gi, "⌃")
+    .replace(/Alt\+/gi, "⌥")
+    .replace(/Shift\+/gi, "⇧");
+}
+
 const STORAGE_KEY = "mello-voice-dictation-shortcut";
 
 export function getDictationShortcut(): string {

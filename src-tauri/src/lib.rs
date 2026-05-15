@@ -1,5 +1,7 @@
 use enigo::{Direction, Enigo, Key, Keyboard};
 use serde::{Deserialize, Serialize};
+use std::env;
+use std::ffi::OsString;
 use std::fs;
 use std::path::PathBuf;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -36,27 +38,61 @@ fn prepend_whisper_runtime_to_path(handle: &tauri::AppHandle) {
     let Some(dir) = mark.parent().map(std::path::Path::to_path_buf) else {
         return;
     };
-    match std::env::var_os("PATH") {
+    match env::var_os("PATH") {
         Some(prev) => {
-            let mut merged =
-                std::ffi::OsString::with_capacity(dir.as_os_str().len() + prev.len() + 1);
+            let mut merged = OsString::with_capacity(dir.as_os_str().len() + prev.len() + 1);
             merged.push(&dir);
             merged.push(";");
             merged.push(prev);
-            std::env::set_var("PATH", merged);
+            env::set_var("PATH", merged);
             log::info!(
                 "Prepended Whisper DLL directory to PATH ({})",
                 dir.display()
             );
         }
         None => {
-            std::env::set_var("PATH", &dir);
+            env::set_var("PATH", &dir);
             log::info!(
                 "PATH set to Whisper DLL directory ({})",
                 dir.display()
             );
         }
     }
+}
+
+/// Optional bundled `.dylib` dependencies beside whisper sidecars (`bundle.resources` → `Resources/whisper_runtime/`).
+#[cfg(all(not(any(target_os = "android", target_os = "ios")), target_os = "macos"))]
+fn prepend_whisper_dylibs_to_dyld(handle: &tauri::AppHandle) {
+    let Ok(dir) =
+        handle.path().resolve("whisper_runtime/", tauri::path::BaseDirectory::Resource)
+    else {
+        log::warn!("whisper_runtime path could not be resolved for DYLD_LIBRARY_PATH");
+        return;
+    };
+    if !dir.is_dir() {
+        return;
+    }
+    let has_dylib = fs::read_dir(&dir).map_or(false, |rd| {
+        rd.flatten().any(|e| {
+            e.path()
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("dylib"))
+        })
+    });
+    if !has_dylib {
+        return;
+    }
+    let insert = dir.display().to_string();
+    match env::var("DYLD_LIBRARY_PATH") {
+        Ok(prev) if !prev.is_empty() => {
+            env::set_var("DYLD_LIBRARY_PATH", format!("{insert}:{prev}"));
+        }
+        _ => env::set_var("DYLD_LIBRARY_PATH", insert),
+    }
+    log::info!(
+        "Prepended whisper_runtime to DYLD_LIBRARY_PATH (contains dylibs under {})",
+        dir.display()
+    );
 }
 
 mod transcribe;
@@ -374,6 +410,30 @@ fn is_whisper_daemon_ready(_app: tauri::AppHandle) -> bool {
     false
 }
 
+fn release_post_dictation_modifiers(enigo: &mut Enigo) {
+    let _ = enigo.key(Key::Shift, Direction::Release);
+    let _ = enigo.key(Key::Control, Direction::Release);
+    let _ = enigo.key(Key::Alt, Direction::Release);
+    #[cfg(target_os = "macos")]
+    let _ = enigo.key(Key::Meta, Direction::Release);
+}
+
+fn synthesize_clipboard_paste(enigo: &mut Enigo) {
+    #[cfg(target_os = "macos")]
+    {
+        let _ = enigo.key(Key::Meta, Direction::Press);
+        let _ = enigo.key(Key::Unicode('v'), Direction::Click);
+        let _ = enigo.key(Key::Meta, Direction::Release);
+        return;
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = enigo.key(Key::Control, Direction::Press);
+        let _ = enigo.key(Key::Unicode('v'), Direction::Click);
+        let _ = enigo.key(Key::Control, Direction::Release);
+    }
+}
+
 #[tauri::command]
 fn paste_text(app: tauri::AppHandle, text: String) -> Result<(), String> {
     if text.is_empty() {
@@ -382,16 +442,12 @@ fn paste_text(app: tauri::AppHandle, text: String) -> Result<(), String> {
     let after = load_prefs(&app).after_dictation;
     let mut clipboard = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     clipboard.set_text(&text).map_err(|e| e.to_string())?;
-    // Ensure clipboard is committed and user's modifier keys (from shortcut) are released
+    // Ensure clipboard is committed and modifier keys held for the shortcut are released
     std::thread::sleep(std::time::Duration::from_millis(80));
     let mut enigo = Enigo::new(&enigo::Settings::default()).map_err(|e| e.to_string())?;
-    // Release any stuck modifiers before simulating Ctrl+V (user held Ctrl+Alt+Space)
-    let _ = enigo.key(Key::Control, Direction::Release);
-    let _ = enigo.key(Key::Alt, Direction::Release);
+    release_post_dictation_modifiers(&mut enigo);
     std::thread::sleep(std::time::Duration::from_millis(30));
-    let _ = enigo.key(Key::Control, Direction::Press);
-    let _ = enigo.key(Key::Unicode('v'), Direction::Click);
-    let _ = enigo.key(Key::Control, Direction::Release);
+    synthesize_clipboard_paste(&mut enigo);
     if after == AfterDictationAction::PasteAndSend {
         std::thread::sleep(std::time::Duration::from_millis(90));
         let _ = enigo.key(Key::Return, Direction::Click);
@@ -440,6 +496,8 @@ pub fn run() {
             {
                 #[cfg(target_os = "windows")]
                 prepend_whisper_runtime_to_path(&app_handle);
+                #[cfg(target_os = "macos")]
+                prepend_whisper_dylibs_to_dyld(&app_handle);
 
                 app.manage(whisper_daemon::WhisperDaemonSlot(Mutex::new(None)));
                 whisper_daemon::start_daemon_background(app.handle().clone());
