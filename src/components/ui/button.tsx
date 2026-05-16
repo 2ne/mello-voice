@@ -19,7 +19,7 @@ type IconComponent = ComponentType<{
 
 const buttonVariants = cva(
   [
-    "group relative isolate inline-flex items-center justify-center outline-none cursor-pointer",
+    "group relative isolate inline-flex items-center justify-center outline-none",
     "text-box-trim-both text-box-edge-cap-alphabetic",
     "touch-manipulation transition-transform duration-80 ease-[var(--ease-ui)]",
     "active:scale-[0.975]",

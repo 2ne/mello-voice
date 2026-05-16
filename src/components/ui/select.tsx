@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 /** Shared shell for trailing settings controls (currently consumed only by `SelectTrigger` below). */
 function settingsControlTriggerCn(className?: string) {
   return cn(
-    "group inline-flex h-9 min-w-[9.5rem] max-w-[12rem] flex-1 shrink-0 items-center justify-between gap-2 rounded-xl border border-border bg-transparent px-3 text-left text-[13px] outline-none cursor-pointer transition-[background-color,color,box-shadow] duration-80 ease-[var(--ease-ui)] touch-manipulation",
+    "group inline-flex h-9 min-w-[9.5rem] max-w-[12rem] flex-1 shrink-0 items-center justify-between gap-2 rounded-xl border border-border bg-transparent px-3 text-left text-[13px] outline-none transition-[background-color,color,box-shadow] duration-80 ease-[var(--ease-ui)] touch-manipulation",
     "disabled:pointer-events-none disabled:opacity-50",
     "hover:bg-foreground/[0.04] dark:hover:bg-foreground/[0.06]",
     "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-transparent dark:focus-visible:ring-offset-transparent",
@@ -85,7 +85,7 @@ function SelectItem({ className, children, ref, ...props }: ComponentProps<typeo
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex w-full cursor-pointer select-none items-center gap-2 rounded-lg py-2 pl-2 pr-8 text-[13px] outline-none transition-[background-color,color] duration-80 ease-[var(--ease-ui)] touch-manipulation",
+      "relative flex w-full select-none items-center gap-2 rounded-lg py-2 pl-2 pr-8 text-[13px] outline-none transition-[background-color,color] duration-80 ease-[var(--ease-ui)] touch-manipulation",
       "text-muted-foreground data-[state=checked]:text-foreground",
       "data-[highlighted]:bg-muted data-[highlighted]:text-foreground",
       "data-[state=checked]:bg-muted/70 data-[state=checked]:data-[highlighted]:bg-muted",

@@ -9,7 +9,6 @@ describe('shouldShowSessionChrome', () => {
         isExpanded: false,
         isProcessing: true,
         activeError: null,
-        inlineHideOpen: false,
       }),
     ).toBe(true)
   })
@@ -21,7 +20,6 @@ describe('shouldShowSessionChrome', () => {
         isExpanded: false,
         isProcessing: false,
         activeError: 'Microphone access is required. Allow it and try again.',
-        inlineHideOpen: false,
       }),
     ).toBe(true)
   })
@@ -33,7 +31,6 @@ describe('shouldShowSessionChrome', () => {
         isExpanded: false,
         isProcessing: false,
         activeError: null,
-        inlineHideOpen: false,
       }),
     ).toBe(false)
   })

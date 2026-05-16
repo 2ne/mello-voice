@@ -3,6 +3,7 @@ import { getCurrentWindow, primaryMonitor, LogicalPosition, LogicalSize, Physica
 import { moveWindow, Position } from "@tauri-apps/plugin-positioner";
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
+import { cn } from "@/lib/utils";
 import FloatingOverlay from "./FloatingOverlay";
 import { shouldShowSessionChrome } from "./overlaySessionState";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
@@ -25,9 +26,10 @@ import {
 
 const TOP_OFFSET = 10;
 const OVERLAY_WIDTH = 340;
+const IDLE_CIRCLE_SIZE = 28;
 const MIN_OVERLAY_HEIGHT = 52;
 const DUPLICATE_PRESS_DEBOUNCE_MS = 88;
-const RESIZE_HEIGHT_EPSILON = 2;
+const RESIZE_EPSILON = 2;
 const OVERLAY_DRAG_THRESHOLD_PX = 6;
 
 function isTauriRuntime(): boolean {
@@ -62,7 +64,7 @@ function OverlayRoot() {
   const shortcutHeldRef = useRef(false);
   const barEnabledRef = useRef(true);
   const errorRef = useRef<string | null>(null);
-  const lastResizeHeightRef = useRef(0);
+  const lastResizeFrameRef = useRef({ width: 0, height: 0 });
   const lastPressAtRef = useRef(-Infinity);
   const isListeningRef = useRef(false);
   const isExpandedRef = useRef(false);
@@ -72,7 +74,6 @@ function OverlayRoot() {
   const overlayMicWarmupDoneRef = useRef(false);
 
   const [isExpanded, setIsExpanded] = useState(false);
-  const [inlineHideOpen, setInlineHideOpen] = useState(false);
   const [barEnabled, setBarEnabled] = useState(true);
   /** After first `get_overlay_bar_enabled` read — avoids mic warm-up while `barEnabled` still reflects only the optimistic default. */
   const [barPrefsResolved, setBarPrefsResolved] = useState(false);
@@ -113,7 +114,6 @@ function OverlayRoot() {
     isExpanded,
     isProcessing,
     activeError,
-    inlineHideOpen,
   });
 
   const hideOverlayWhenBarPreferOff = useCallback(() => {
@@ -147,8 +147,6 @@ function OverlayRoot() {
     if (!isTauriRuntime()) return;
     if (getCurrentWindow().label !== "overlay") return;
     if (e.button !== 0) return;
-    const target = e.target as HTMLElement | null;
-    if (target?.closest("[data-overlay-no-drag]")) return;
 
     const pid = e.pointerId;
     const host = e.currentTarget;
@@ -283,7 +281,6 @@ function OverlayRoot() {
       setBarEnabled(v);
       barEnabledRef.current = v;
       if (!v) {
-        setInlineHideOpen(false);
         void getCurrentWindow().hide().catch(() => {});
       } else {
         void (async () => {
@@ -315,34 +312,82 @@ function OverlayRoot() {
     return () => clearTimeout(id);
   }, [barEnabled, barPrefsResolved]);
 
-  // Resize window to fit pill + inline actions
+  const displayState = activeError
+    ? "error"
+    : isProcessing
+      ? "processing"
+      : isExpanded
+        ? "listening"
+        : "idle";
+
+  const idleCircleVisible = sessionChromeVisible && displayState === "idle";
+
+  // Resize the native overlay window itself so transparent space does not steal clicks from apps underneath.
   useEffect(() => {
     if (!sessionChromeVisible) {
-      lastResizeHeightRef.current = 0;
+      lastResizeFrameRef.current = { width: 0, height: 0 };
       return;
     }
-    const el = overlayRef.current;
-    if (!el) return;
+    const host = overlayRef.current;
+    const chrome = host?.firstElementChild instanceof HTMLElement ? host.firstElementChild : null;
+    if (!chrome) return;
     const win = getCurrentWindow();
     let raf = 0;
     const resizeToContent = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
+        const width = idleCircleVisible
+          ? IDLE_CIRCLE_SIZE
+          : OVERLAY_WIDTH;
         /* +1 avoids subpixel clipping when the pill animates chrome height */
-        const height = Math.max(MIN_OVERLAY_HEIGHT, Math.ceil(el.scrollHeight) + 1);
-        if (Math.abs(height - lastResizeHeightRef.current) <= RESIZE_HEIGHT_EPSILON) return;
-        lastResizeHeightRef.current = height;
-        void win.setSize(new LogicalSize(OVERLAY_WIDTH, height));
+        const height = idleCircleVisible
+          ? IDLE_CIRCLE_SIZE
+          : Math.max(MIN_OVERLAY_HEIGHT, Math.ceil(chrome.scrollHeight) + 1);
+        const previous = lastResizeFrameRef.current;
+        if (
+          Math.abs(width - previous.width) <= RESIZE_EPSILON &&
+          Math.abs(height - previous.height) <= RESIZE_EPSILON
+        ) {
+          return;
+        }
+        lastResizeFrameRef.current = { width, height };
+
+        void (async () => {
+          let previousPosition: PhysicalPosition | null = null;
+          let previousWidth = 0;
+          let scale = 1;
+          try {
+            const [position, size, windowScale] = await Promise.all([
+              win.outerPosition(),
+              win.outerSize(),
+              win.scaleFactor(),
+            ]);
+            previousPosition = position;
+            previousWidth = size.width;
+            scale = windowScale;
+          } catch {
+            /* Keep resizing even if the anchor readback is unavailable. */
+          }
+
+          await win.setSize(new LogicalSize(width, height));
+
+          if (!previousPosition) return;
+          const nextPhysicalWidth = Math.round(width * scale);
+          const nextX = Math.round(previousPosition.x + (previousWidth - nextPhysicalWidth) / 2);
+          await win.setPosition(new PhysicalPosition(nextX, previousPosition.y));
+        })().catch((err) => {
+          console.warn("Could not resize overlay:", err);
+        });
       });
     };
     resizeToContent();
     const observer = new ResizeObserver(resizeToContent);
-    observer.observe(el);
+    observer.observe(chrome);
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
     };
-  }, [sessionChromeVisible, inlineHideOpen]);
+  }, [sessionChromeVisible, displayState, idleCircleVisible]);
 
   const handleShortcut = useCallback(
     async (event: { state: HotkeyState }) => {
@@ -384,7 +429,6 @@ function OverlayRoot() {
         barEnabledRef.current = pref;
 
         shortcutHeldRef.current = true;
-        setInlineHideOpen(false);
         setSessionError(null);
 
         try {
@@ -470,62 +514,29 @@ function OverlayRoot() {
     return () => unlisten?.();
   }, [handleShortcut]);
 
-  useEffect(() => {
-    if (!inlineHideOpen) return;
-    const close = () => setInlineHideOpen(false);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [inlineHideOpen]);
-
-  const displayState = activeError
-    ? "error"
-    : isProcessing
-      ? "processing"
-      : isExpanded
-        ? "listening"
-        : "idle";
-
-  const onBarToggleHideMenu = (e: React.MouseEvent | React.KeyboardEvent) => {
-    e.preventDefault();
-    if (!sessionChromeVisible) return;
-    setInlineHideOpen((v) => !v);
-  };
-
-  const hideDictationBar = async () => {
-    try {
-      setInlineHideOpen(false);
-      /** Rust emits `overlay-bar-enabled-changed` and hides this window — the listener above flips state + chrome. Avoid double-emitting. */
-      await invoke("set_overlay_bar_enabled", { enabled: false });
-    } catch {
-      /* ignore */
-    }
-  };
-
   const onOverlayDoubleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement | null)?.closest("[data-overlay-no-drag]")) return;
     if (!isTauriRuntime()) return;
     if (getCurrentWindow().label !== "overlay") return;
     e.preventDefault();
-    setInlineHideOpen(false);
     void positionOverlayTopCenter().catch(() => {});
   }, []);
 
   return (
     <div
       ref={overlayRef}
-      className="pointer-events-auto flex min-h-full w-full cursor-move items-start justify-center px-2 pb-2 pt-2.5 active:cursor-grabbing"
+      className={cn(
+        "flex min-h-full w-full items-start justify-center",
+        idleCircleVisible
+          ? "pointer-events-none cursor-default p-0"
+          : "pointer-events-auto cursor-move p-0 active:cursor-grabbing",
+      )}
       data-expanded="true"
-      data-inline-hide={inlineHideOpen}
       data-session-visible={sessionChromeVisible}
       onPointerDown={onOverlayPointerDown}
       onPointerMove={onOverlayPointerMove}
       onPointerUp={onOverlayPointerUpOrCancel}
       onPointerCancel={onOverlayPointerUpOrCancel}
       onDoubleClick={onOverlayDoubleClick}
-      onMouseLeave={() => setInlineHideOpen(false)}
     >
       {sessionChromeVisible ? (
         <FloatingOverlay
@@ -533,9 +544,6 @@ function OverlayRoot() {
           interimTranscript={interimTranscript}
           finalTranscript={finalTranscript}
           error={activeError}
-          inlineHideOpen={inlineHideOpen}
-          onBarToggleHideMenu={onBarToggleHideMenu}
-          onHideDictationBar={hideDictationBar}
         />
       ) : null}
     </div>

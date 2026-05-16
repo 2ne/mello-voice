@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 
 type OverlayState = "idle" | "listening" | "processing" | "error";
 
@@ -8,10 +7,6 @@ interface FloatingOverlayProps {
   interimTranscript: string;
   finalTranscript: string;
   error: string | null;
-  inlineHideOpen: boolean;
-  /** Opens/closes inline actions on left-click or right-click (context menu). */
-  onBarToggleHideMenu: (e: React.MouseEvent | React.KeyboardEvent) => void;
-  onHideDictationBar: () => void;
 }
 
 function getStateLabel(state: OverlayState): string {
@@ -36,9 +31,6 @@ function FloatingOverlay({
   interimTranscript,
   finalTranscript,
   error,
-  inlineHideOpen,
-  onBarToggleHideMenu,
-  onHideDictationBar,
 }: FloatingOverlayProps) {
   const trimmedFinal = finalTranscript.trim();
   const trimmedInterim = interimTranscript.trim();
@@ -66,15 +58,13 @@ function FloatingOverlay({
   /** Dictated text replaces status labels; hidden during post-release processing so only spinner + label show. */
   const transcriptPrimary = hasTranscript && state !== "processing";
 
-  const idleMenuOpen = state === "idle" && inlineHideOpen;
-  const isMiniLayout = state === "idle" && !inlineHideOpen;
-  const showHideSlot = idleMenuOpen || state !== "idle";
+  const isMiniLayout = state === "idle";
   /** Match main: centre idle/processing/status rows; left-align only while transcript drives the row (handled above). */
   const alignTranscript = !hasError && (trimmedInterim.length > 0 || trimmedFinal.length > 0);
   const expandedCenterRow = !isMiniLayout && (!alignTranscript || state === "processing");
 
   /** Pulse for whole listening capture — quiet “Listening…” and live transcript */
-  const listeningPulse = state === "listening" && !inlineHideOpen;
+  const listeningPulse = state === "listening";
 
   const flowingBodyClasses = cn(
     "relative z-[1] w-full min-w-0 shrink px-0.5 text-left text-[13px] font-medium leading-snug tracking-[-0.01em]",
@@ -83,30 +73,14 @@ function FloatingOverlay({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-label={inlineHideOpen ? "Close dictation bar actions" : "Open dictation bar actions"}
-      onClick={onBarToggleHideMenu}
-      onContextMenu={onBarToggleHideMenu}
-      onKeyDown={(e) => {
-        if (e.key !== "Enter" && e.key !== " ") return;
-        onBarToggleHideMenu(e);
-      }}
-      data-chrome-variant={isMiniLayout ? "mini" : idleMenuOpen ? "idle-menu" : "expanded"}
+      data-chrome-variant={isMiniLayout ? "mini" : "expanded"}
       className={cn(
-        "floating-overlay floating-overlay-chrome relative mx-auto flex w-full cursor-grab select-none overflow-hidden shadow-none ring-0 outline-none active:cursor-grabbing",
+        "floating-overlay floating-overlay-chrome pointer-events-auto relative mx-auto flex w-full cursor-grab select-none overflow-hidden shadow-none ring-0 outline-none active:cursor-grabbing",
         "bg-overlay-chrome-bg text-overlay-chrome-fg",
         listeningPulse && "floating-overlay-chrome-pulse floating-overlay-chrome-listening-breathe",
         isMiniLayout &&
-          "min-h-7 w-[120px] flex-col justify-center rounded-full px-3 py-1",
-        idleMenuOpen &&
-          "w-[min(260px,calc(100vw-16px))] flex-col items-stretch justify-start rounded-full px-4 py-2",
-        !isMiniLayout &&
-          !idleMenuOpen &&
-          cn(
-            "min-h-[56px] w-full flex-col items-stretch rounded-[28px] px-5 py-3",
-            inlineHideOpen ? "justify-start" : "justify-center",
-          ),
+          "size-7 min-h-7 flex-col items-center justify-center rounded-full p-0",
+        !isMiniLayout && "min-h-[56px] w-full flex-col items-stretch justify-center rounded-[28px] px-5 py-3",
       )}
     >
       {transcriptPrimary ? (
@@ -121,13 +95,13 @@ function FloatingOverlay({
         <div
           className={cn(
             "floating-overlay-status-lane relative w-full shrink-0 overflow-hidden",
-            isMiniLayout || idleMenuOpen ? STATUS_LANE_MINI_H : STATUS_LANE_EXPANDED_H,
+            isMiniLayout ? STATUS_LANE_MINI_H : STATUS_LANE_EXPANDED_H,
           )}
         >
           <div
             className={cn(
               "absolute inset-0 flex min-w-0 items-center gap-2.5 px-0.5",
-              isMiniLayout || idleMenuOpen
+              isMiniLayout
                 ? "justify-center"
                 : state === "processing" || !alignTranscript
                   ? "justify-center"
@@ -166,10 +140,9 @@ function FloatingOverlay({
                 className={cn(
                   "floating-overlay-status-label font-medium leading-snug tracking-[-0.01em] text-overlay-chrome-fg-muted transition-none",
                   isMiniLayout && "max-w-full shrink-0 text-center text-[12px]",
-                  idleMenuOpen && "max-w-full shrink-0 text-center text-[13px]",
-                  !isMiniLayout && !idleMenuOpen && "text-[13px]",
-                  !isMiniLayout && !idleMenuOpen && alignTranscript && state !== "processing" && "min-w-0 flex-1 text-left",
-                  !isMiniLayout && !idleMenuOpen && expandedCenterRow && "min-w-0 max-w-full truncate text-center",
+                  !isMiniLayout && "text-[13px]",
+                  !isMiniLayout && alignTranscript && state !== "processing" && "min-w-0 flex-1 text-left",
+                  !isMiniLayout && expandedCenterRow && "min-w-0 max-w-full truncate text-center",
                 )}
               >
                 {getStateLabel(state)}
@@ -178,31 +151,6 @@ function FloatingOverlay({
           </div>
         </div>
       )}
-
-      {showHideSlot ? (
-        <div
-          data-overlay-no-drag=""
-          className="floating-overlay-hide-slot w-full"
-          data-expanded={inlineHideOpen ? true : undefined}
-        >
-          <div className="floating-overlay-hide-slot-inner">
-            <div className="floating-overlay-hide-actions w-full">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 w-full justify-center text-[12px] text-muted-foreground hover:text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onHideDictationBar();
-                }}
-              >
-                Hide dictation bar
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
