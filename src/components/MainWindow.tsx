@@ -1,13 +1,4 @@
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  useReducer,
-  useEffectEvent,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useState, useEffect, useCallback, useRef, useReducer, useEffectEvent, type KeyboardEvent, type ReactNode } from "react";
 import { listen, emit } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
@@ -16,59 +7,25 @@ import { getVersion } from "@tauri-apps/api/app";
 import { SettingsGearIcon } from "@/components/icons/SettingsGearIcon";
 import { CloseIcon } from "@/components/icons/CloseIcon";
 import { getHistory, clearHistory, type HistoryEntry } from "../history";
-import {
-  DICTATION_SHORTCUT_OPTIONS,
-  getDictationShortcut,
-  setDictationShortcut,
-  DEFAULT_DICTATION_SHORTCUT,
-  formatDictationShortcutForUi,
-  type DictationShortcutOption,
-} from "../dictationShortcut";
+import { DICTATION_SHORTCUT_OPTIONS, getDictationShortcut, setDictationShortcut, DEFAULT_DICTATION_SHORTCUT, formatDictationShortcutForUi, type DictationShortcutOption } from "../dictationShortcut";
 import { cn } from "@/lib/utils";
 import { Elevated } from "@/lib/elevated";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Drawer } from "vaul";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  parseThemePreference,
-  syncDocumentTheme,
-  THEME_STORAGE_KEY,
-  type ThemePreference,
-} from "@/themePreference";
-import {
-  AFTER_DICTATION_OPTIONS,
-  DEFAULT_AFTER_DICTATION_ACTION,
-  afterDictationActionLabel,
-  parseAfterDictationAction,
-  type AfterDictationActionOption,
-} from "../afterDictationAction";
-import {
-  DICTATION_BAR_MODE_OPTIONS,
-  dictationBarModeLabel,
-  dictationBarModeFromEnabled,
-  overlayBarEnabledFromMode,
-  parseDictationBarMode,
-} from "../dictationBarMode";
-import {
-  FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS,
-  fetchOverlayBarEnabledWithRetry,
-} from "../overlayBarPrefFetch";
+import { parseThemePreference, syncDocumentTheme, THEME_STORAGE_KEY, type ThemePreference } from "@/themePreference";
+import { AFTER_DICTATION_OPTIONS, DEFAULT_AFTER_DICTATION_ACTION, afterDictationActionLabel, parseAfterDictationAction, type AfterDictationActionOption } from "../afterDictationAction";
+import { DICTATION_BAR_MODE_OPTIONS, dictationBarModeLabel, dictationBarModeFromEnabled, overlayBarEnabledFromMode, parseDictationBarMode } from "../dictationBarMode";
+import { FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS, fetchOverlayBarEnabledWithRetry } from "../overlayBarPrefFetch";
 import { warmUpMicPermissionForWebview } from "../transcription/wavCapture";
 
 function isTauriRuntime(): boolean {
   return (
     typeof window !== "undefined" &&
-    (((window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ != null) ||
-      (import.meta.env.TAURI_PLATFORM != null && import.meta.env.TAURI_PLATFORM !== ""))
+    ((window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ != null || (import.meta.env.TAURI_PLATFORM != null && import.meta.env.TAURI_PLATFORM !== ""))
   );
 }
 
@@ -77,8 +34,7 @@ const HISTORY_CARD_SHELL = "gap-0 rounded-2xl py-0 outline-none";
 
 const HISTORY_CARD_BODY = "px-4 py-3.5";
 /** Empty-history how-to: numbered circles + vertical connector */
-const HISTORY_TIMELINE_BUBBLE =
-  "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[9.75px] font-medium tabular-nums text-muted-foreground";
+const HISTORY_TIMELINE_BUBBLE = "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-[9.75px] font-medium tabular-nums text-muted-foreground";
 /** Hover/focus affordances layered on top of HISTORY_CARD_SHELL */
 const HISTORY_CARD_INTERACTIVE =
   "group transition-[background-color,box-shadow,transform] duration-100 ease-[var(--ease-ui-snappy)] hover:bg-accent/40 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -106,25 +62,14 @@ function settingsPrefsReducer(state: SettingsPrefs, patch: Partial<SettingsPrefs
 }
 
 /** ChatGPT-like row: stacked label/description left, trailing control aligned right. */
-function SettingsSettingRow({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
+function SettingsSettingRow({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 py-5">
       <div className="min-w-0 flex-1">
         <p className="text-[13px] font-medium leading-snug text-foreground">{title}</p>
         <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{description}</p>
       </div>
-      <div
-        data-settings-control=""
-        className="relative z-[2] flex min-h-9 min-w-[10rem] shrink-0 items-center justify-end"
-      >
+      <div data-settings-control="" className="relative z-[2] flex min-h-9 min-w-[10rem] shrink-0 items-center justify-end">
         {children}
       </div>
     </div>
@@ -199,9 +144,7 @@ function HistoryItem({ entry, onCopy }: { entry: HistoryEntry; onCopy: (text: st
         <div className="text-[13px] leading-relaxed text-foreground">{entry.text}</div>
         <div className="mt-2 flex items-center justify-between text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           <span>{formatTime(entry.timestamp)}</span>
-          <span className={cn("text-muted-foreground transition-colors duration-80 ease-[var(--ease-ui)]", copied ? "text-success" : "group-hover:text-primary")}>
-            {copied ? "Copied" : "Copy"}
-          </span>
+          <span className={cn("text-muted-foreground transition-colors duration-80 ease-[var(--ease-ui)]", copied ? "text-success" : "group-hover:text-primary")}>{copied ? "Copied" : "Copy"}</span>
         </div>
       </CardContent>
     </Card>
@@ -230,10 +173,7 @@ function MainWindow() {
 
   /** Single fetch+apply for `get_overlay_bar_enabled`. Skips its write if an event-listener path already resolved the pref with a fresher value. */
   const applyOverlayBarPrefFromIpc = useEffectEvent(async () => {
-    const enabled = await fetchOverlayBarEnabledWithRetry(
-      () => invoke<boolean>("get_overlay_bar_enabled"),
-      FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS,
-    );
+    const enabled = await fetchOverlayBarEnabledWithRetry(() => invoke<boolean>("get_overlay_bar_enabled"), FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS);
     if (overlayBarPrefResolvedRef.current) return;
     overlayBarPrefResolvedRef.current = true;
     updateSettingsPrefs({ overlayBarEnabled: enabled });
@@ -242,30 +182,17 @@ function MainWindow() {
 
   const applyAllSettingsFromIpc = useEffectEvent(async () => {
     const [overlayBarShowResult, themeResult, afterDictationActionResult] = await Promise.allSettled([
-      fetchOverlayBarEnabledWithRetry(
-        () => invoke<boolean>("get_overlay_bar_enabled"),
-        FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS,
-      ),
+      fetchOverlayBarEnabledWithRetry(() => invoke<boolean>("get_overlay_bar_enabled"), FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS),
       invoke<string>("get_theme"),
       invoke<string>("get_after_dictation_action"),
     ]);
     /** If a fresher `overlay-bar-enabled-changed` arrived during the await, use the in-memory pref instead of the fetched one. */
-    const overlayBarShow = overlayBarPrefResolvedRef.current
-      ? overlayBarEnabled
-      : overlayBarShowResult.status === "fulfilled"
-        ? overlayBarShowResult.value
-        : overlayBarEnabled;
+    const overlayBarShow = overlayBarPrefResolvedRef.current ? overlayBarEnabled : overlayBarShowResult.status === "fulfilled" ? overlayBarShowResult.value : overlayBarEnabled;
     overlayBarPrefResolvedRef.current = true;
     updateSettingsPrefs({
       overlayBarEnabled: overlayBarShow,
-      themePreference:
-        themeResult.status === "fulfilled"
-          ? parseThemePreference(themeResult.value)
-          : parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY)),
-      afterDictationAction:
-        afterDictationActionResult.status === "fulfilled"
-          ? parseAfterDictationAction(afterDictationActionResult.value)
-          : afterDictationAction,
+      themePreference: themeResult.status === "fulfilled" ? parseThemePreference(themeResult.value) : parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY)),
+      afterDictationAction: afterDictationActionResult.status === "fulfilled" ? parseAfterDictationAction(afterDictationActionResult.value) : afterDictationAction,
     });
     setOverlayBarPrefResolved(true);
   });
@@ -447,9 +374,7 @@ function MainWindow() {
   }, [historyEntries.length, refreshHistory]);
 
   const selectPresetShortcut = useCallback((preset: string) => {
-    const next = (DICTATION_SHORTCUT_OPTIONS as readonly string[]).includes(preset)
-      ? (preset as DictationShortcutOption)
-      : DEFAULT_DICTATION_SHORTCUT;
+    const next = (DICTATION_SHORTCUT_OPTIONS as readonly string[]).includes(preset) ? (preset as DictationShortcutOption) : DEFAULT_DICTATION_SHORTCUT;
     setDictationShortcut(next);
     setLiveShortcut(next);
     void emit("dictation-shortcut-changed", next);
@@ -493,22 +418,14 @@ function MainWindow() {
   }, []);
 
   return (
-    <div
-      data-vaul-drawer-wrapper=""
-      className="flex min-h-svh select-none flex-col bg-background text-foreground"
-    >
+    <div data-vaul-drawer-wrapper="" className="flex min-h-svh select-none flex-col bg-background text-foreground">
       <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/80 p-6">
         <div className="min-w-0 space-y-1">
           <h1 className="text-[22px] font-medium tracking-[-0.025em] text-foreground">Mello Voice</h1>
           <p className="text-[13px] text-muted-foreground">Closing minimises to the tray.</p>
         </div>
 
-        <Drawer.Root
-          open={settingsOpen}
-          onOpenChange={setSettingsOpen}
-          shouldScaleBackground
-          setBackgroundColorOnScale={false}
-        >
+        <Drawer.Root open={settingsOpen} onOpenChange={setSettingsOpen} shouldScaleBackground setBackgroundColorOnScale={false}>
           <Drawer.Trigger asChild>
             <Button type="button" variant="surface" size="icon" aria-label="Settings">
               <SettingsGearIcon strokeWidth={1.5} className="size-4" />
@@ -516,133 +433,93 @@ function MainWindow() {
           </Drawer.Trigger>
           <Drawer.Portal>
             <Drawer.Overlay className="fixed inset-0 z-[120] bg-black/35 backdrop-blur-[1px]" />
-            <Drawer.Content
-              className="fixed inset-x-0 bottom-0 z-[121] flex max-h-[min(95vh,36rem)] flex-col overflow-hidden rounded-t-[1.25rem]"
-            >
-              <Elevated
-                offset={1}
-                className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-t-[1.25rem]"
-              >
-              <div className="flex shrink-0 flex-col border-b border-border/80 px-5 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2">
-                <Drawer.Handle className="mb-1" />
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <Drawer.Title className="text-[17px] font-medium tracking-[-0.02em] leading-tight text-foreground">
-                      Settings
-                    </Drawer.Title>
-                    <Drawer.Description className="sr-only">
-                      Dictation shortcut, bar, after-dictation behaviour and appearance for Mello Voice.
-                    </Drawer.Description>
+            <Drawer.Content className="fixed inset-x-0 bottom-0 z-[121] flex max-h-[min(95vh,36rem)] flex-col overflow-hidden rounded-t-[1.25rem]">
+              <Elevated offset={1} className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-t-[1.25rem]">
+                <div className="flex shrink-0 flex-col border-b border-border/80 px-5 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2">
+                  <Drawer.Handle className="mb-1" />
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <Drawer.Title className="text-[17px] font-medium tracking-[-0.02em] leading-tight text-foreground">Settings</Drawer.Title>
+                      <Drawer.Description className="sr-only">Dictation shortcut, bar, after-dictation behaviour and appearance for Mello Voice.</Drawer.Description>
+                    </div>
+                    <Drawer.Close asChild>
+                      <Button type="button" variant="ghost" size="icon" aria-label="Close settings">
+                        <CloseIcon strokeWidth={1.5} className="size-4" />
+                      </Button>
+                    </Drawer.Close>
                   </div>
-                  <Drawer.Close asChild>
-                    <Button type="button" variant="ghost" size="icon" aria-label="Close settings">
-                      <CloseIcon strokeWidth={1.5} className="size-4" />
-                    </Button>
-                  </Drawer.Close>
                 </div>
-              </div>
-              <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain">
-                <div className="flex flex-col gap-0 pb-6 px-5 pt-1">
-                  <SettingsSettingRow
-                    title="Dictation shortcut"
-                    description="Hold the shortcut whilst speaking."
-                  >
-                    <Select
-                      value={
-                        (DICTATION_SHORTCUT_OPTIONS as readonly string[]).includes(liveShortcut)
-                          ? liveShortcut
-                          : DEFAULT_DICTATION_SHORTCUT
-                      }
-                      onValueChange={(v) => selectPresetShortcut(v)}
-                    >
-                      <SelectTrigger aria-label="Dictation shortcut" className="w-full max-w-none">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DICTATION_SHORTCUT_OPTIONS.map((preset) => (
-                          <SelectItem key={preset} value={preset}>
-                            {formatDictationShortcutForUi(preset)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </SettingsSettingRow>
-                  <Separator className="bg-border/80" />
-                  <SettingsSettingRow
-                    title="Dictation bar"
-                    description="Show the floating bar all the time or only while dictating."
-                  >
-                    <Select
-                      value={dictationBarModeFromEnabled(overlayBarEnabled)}
-                      onValueChange={(v) =>
-                        void setDictationBarPreference(overlayBarEnabledFromMode(parseDictationBarMode(v)))
-                      }
-                    >
-                      <SelectTrigger aria-label="Dictation bar visibility" className="w-full max-w-none">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DICTATION_BAR_MODE_OPTIONS.map((opt) => (
-                          <SelectItem key={opt} value={opt}>
-                            {dictationBarModeLabel(opt)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </SettingsSettingRow>
-                  <Separator className="bg-border/80" />
-                  <SettingsSettingRow
-                    title="After dictation"
-                    description="Choose action after speaking."
-                  >
-                    <Select
-                      value={
-                        (AFTER_DICTATION_OPTIONS as readonly string[]).includes(afterDictationAction)
-                          ? afterDictationAction
-                          : DEFAULT_AFTER_DICTATION_ACTION
-                      }
-                      onValueChange={(v) =>
-                        void setAfterDictationPreference(parseAfterDictationAction(v))
-                      }
-                    >
-                      <SelectTrigger aria-label="After dictation" className="w-full max-w-none">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {AFTER_DICTATION_OPTIONS.map((opt) => (
-                          <SelectItem key={opt} value={opt}>
-                            {afterDictationActionLabel(opt)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </SettingsSettingRow>
-                  <Separator className="bg-border/80" />
-                  <SettingsSettingRow
-                    title="Appearance"
-                    description="System colours or light / dark"
-                  >
-                    <Select value={themePreference} onValueChange={(v) => void applyThemePreference(parseThemePreference(v))}>
-                      <SelectTrigger aria-label="Appearance theme" className="w-full max-w-none">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {THEME_OPTIONS.map(({ value, label }) => (
-                          <SelectItem key={value} value={value}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </SettingsSettingRow>
-                  <Separator className="bg-border/80" />
-                  {appVersionLabel ? (
-                    <p className="mt-6 text-center text-[11px] text-muted-foreground tabular-nums">
-                      Version {appVersionLabel}
-                    </p>
-                  ) : null}
+                <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain">
+                  <div className="flex flex-col gap-0 pb-6 px-5 pt-1">
+                    <SettingsSettingRow title="Dictation shortcut" description="Hold the shortcut whilst speaking.">
+                      <Select
+                        value={(DICTATION_SHORTCUT_OPTIONS as readonly string[]).includes(liveShortcut) ? liveShortcut : DEFAULT_DICTATION_SHORTCUT}
+                        onValueChange={(v) => selectPresetShortcut(v)}
+                      >
+                        <SelectTrigger aria-label="Dictation shortcut" className="w-full max-w-none">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DICTATION_SHORTCUT_OPTIONS.map((preset) => (
+                            <SelectItem key={preset} value={preset}>
+                              {formatDictationShortcutForUi(preset)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </SettingsSettingRow>
+                    <Separator className="bg-border/80" />
+                    <SettingsSettingRow title="Dictation bar" description="Show the floating bar all the time or only while dictating.">
+                      <Select value={dictationBarModeFromEnabled(overlayBarEnabled)} onValueChange={(v) => void setDictationBarPreference(overlayBarEnabledFromMode(parseDictationBarMode(v)))}>
+                        <SelectTrigger aria-label="Dictation bar visibility" className="w-full max-w-none">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DICTATION_BAR_MODE_OPTIONS.map((opt) => (
+                            <SelectItem key={opt} value={opt}>
+                              {dictationBarModeLabel(opt)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </SettingsSettingRow>
+                    <Separator className="bg-border/80" />
+                    <SettingsSettingRow title="After dictation" description="Choose action after speaking.">
+                      <Select
+                        value={(AFTER_DICTATION_OPTIONS as readonly string[]).includes(afterDictationAction) ? afterDictationAction : DEFAULT_AFTER_DICTATION_ACTION}
+                        onValueChange={(v) => void setAfterDictationPreference(parseAfterDictationAction(v))}
+                      >
+                        <SelectTrigger aria-label="After dictation" className="w-full max-w-none">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AFTER_DICTATION_OPTIONS.map((opt) => (
+                            <SelectItem key={opt} value={opt}>
+                              {afterDictationActionLabel(opt)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </SettingsSettingRow>
+                    <Separator className="bg-border/80" />
+                    <SettingsSettingRow title="Appearance" description="System colours or light / dark">
+                      <Select value={themePreference} onValueChange={(v) => void applyThemePreference(parseThemePreference(v))}>
+                        <SelectTrigger aria-label="Appearance theme" className="w-full max-w-none">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {THEME_OPTIONS.map(({ value, label }) => (
+                            <SelectItem key={value} value={value}>
+                              {label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </SettingsSettingRow>
+                    <Separator className="bg-border/80" />
+                    {appVersionLabel ? <p className="mt-6 text-center text-[11px] text-muted-foreground tabular-nums">Version {appVersionLabel}</p> : null}
+                  </div>
                 </div>
-              </div>
               </Elevated>
             </Drawer.Content>
           </Drawer.Portal>
@@ -662,10 +539,7 @@ function MainWindow() {
               type="button"
               variant="ghost"
               size="sm"
-              className={cn(
-                "h-7 min-w-[4.5rem] justify-center text-[12px] text-muted-foreground hover:text-destructive",
-                historyEntries.length === 0 && "invisible pointer-events-none",
-              )}
+              className={cn("h-7 min-w-[4.5rem] justify-center text-[12px] text-muted-foreground hover:text-destructive", historyEntries.length === 0 && "invisible pointer-events-none")}
               onClick={handleClear}
               tabIndex={historyEntries.length === 0 ? -1 : 0}
               aria-hidden={historyEntries.length === 0}
@@ -688,9 +562,7 @@ function MainWindow() {
                             <div className={HISTORY_TIMELINE_BUBBLE}>1</div>
                             <div className="mt-0 w-px min-h-2.5 flex-1 bg-border" aria-hidden />
                           </div>
-                          <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">
-                            Click where you want text to go.
-                          </p>
+                          <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">Click where you want text to go.</p>
                         </li>
                         <li className="flex gap-3">
                           <div className="flex w-6 shrink-0 flex-col items-center">
@@ -709,9 +581,7 @@ function MainWindow() {
                           <div className="flex w-6 shrink-0 flex-col items-center">
                             <div className={HISTORY_TIMELINE_BUBBLE}>3</div>
                           </div>
-                          <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">
-                            Your words are pasted into the focused field.
-                          </p>
+                          <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">Your words are pasted into the focused field.</p>
                         </li>
                       </ol>
                     </div>

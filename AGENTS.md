@@ -17,6 +17,7 @@ Use these conventions before introducing new libraries or animation helpers:
 
 - **Root:** `<SurfaceProvider value={1}>` in `main.tsx`.
 - **Raised UI:** wrap with **`<Elevated offset={n}>`** (optional **`shadowLevel`**). **`Card`** defaults **`surfaceOffset={1}`**; drawer offset lives in **`MainWindow.tsx`**. **`useSurface()`** + **`SURFACE_BG`** for inset fills (e.g. settings segment buttons). Tailwind needs **literal** `bg-surface-*` / `shadow-surface-*`—use **`surface-classes.ts`** maps, not templates.
+- **Interactive states:** hover / active fills are **not new elevated surfaces**. Per Fluid examples, use shared **`bg-hover`** / **`bg-active`** tokens (`--hover` = foreground 6%, `--active` = foreground 10%) for flat controls such as **`Button variant="ghost"`** and menu/select rows. Use `bg-surface-*` / `<Elevated>` only when the component itself is a raised substrate (panel, popover, card, drawer, surface button), not for ordinary hover feedback.
 - **Chrome:** elevated things use **soft `ring-*` + Fluid shadow in light**. **Do not stack a hard `border` on the same outer edge** as elevation shadow (looks double / harsh). **`Elevated`** owns the shared **`dark:shadow-none`** rule—**dark mode = ring + fill only, no box-shadow** on those surfaces; **`Button` `variant="surface"`** follows the same language (see `button.tsx`).
 - **`variant="surface"`** (settings icon): **`bg-card`** (+1 step vs page), same ring language as elevated surfaces; meant for **substrate 1** (header). If reused deeper in the tree, reconsider or use substrate-aware classes.
 
