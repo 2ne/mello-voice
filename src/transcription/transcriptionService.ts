@@ -2,7 +2,6 @@ import { polishFinalTranscript, whisperTranscribeWavBase64 } from './whisperLoca
 import { pickBestTranscriptPair } from './transcriptMerge'
 
 const FINAL_WHISPER_TIMEOUT_SECS = 165
-const PARTIAL_WHISPER_TIMEOUT_SECS = 54
 /** Local Whisper; returns trimmed text or `null` when Whisper cannot produce a usable transcript. */
 export async function transcribeWithWhisperPreferLocal(
   wav: Uint8Array,
@@ -17,11 +16,6 @@ export async function transcribeWithWhisperPreferLocal(
   } catch {
     return null
   }
-}
-
-/** Faster timeout for incremental passes while recording (warm daemon keeps this snappy). */
-export async function transcribeWithWhisperPartialHint(wav: Uint8Array): Promise<string | null> {
-  return transcribeWithWhisperPreferLocal(wav, { timeoutSecs: PARTIAL_WHISPER_TIMEOUT_SECS })
 }
 
 /** Full pipeline: heuristic polish via Rust (same UX as paste input). */

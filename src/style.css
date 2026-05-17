@@ -1,9 +1,20 @@
+/* =============================================================================
+   Imports — Tailwind first, then project animation keyframes, then UI stack.
+   https://tailwindcss.com/docs/adding-custom-styles#using-custom-css
+   ============================================================================= */
 @import "tailwindcss";
+@import "./animation.css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 
+/* =============================================================================
+   Variants
+   ============================================================================= */
 @custom-variant dark (&:is(.dark *));
 
+/* =============================================================================
+   Theme bridge (@theme inline) — maps semantic CSS variables to Tailwind tokens.
+   ============================================================================= */
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: "Inter Variable", sans-serif;
@@ -70,33 +81,52 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  @keyframes spinner-move {
-    to {
-      stroke-dashoffset: -100;
-    }
-  }
-  @keyframes spinner-dash {
-    0%,
-    100% {
-      stroke-dasharray: 15 85;
-    }
-    50% {
-      stroke-dasharray: 40 60;
-    }
-  }
+  /*
+   * Transition utilities use `var(--default-transition-timing-function)` (see Tailwind transition-* docs).
+   * Point it at our UI curve (`--ease-ui` on `:root`) so controls need only `duration-*`, not `ease-[…]` every time.
+   */
+  --default-transition-timing-function: var(--ease-ui);
+  --ease-snappy: var(--ease-ui-snappy);
+  /*
+   * Type scale — standard Tailwind names (`text-xs` … `text-2xl`); sizes tuned for dense UI.
+   * Rem @ 16px root. `text-2xs` is the sub-`xs` step (timeline index bubble only).
+   */
+   --text-2xs: 0.609375rem; /* 9.75px */
+   --text-2xs--line-height: 1.2; /* 11.7px */
+   
+   --text-xs: 0.6875rem; /* 11px */
+   --text-xs--line-height: 1.3; /* 14.3px */
+   
+   --text-sm: 0.75rem; /* 12px */
+   --text-sm--line-height: 1.4; /* 16.8px */
+   
+   --text-base: 0.8125rem; /* 13px */
+   --text-base--line-height: 1.5; /* 19.5px */
+   
+   --text-lg: 0.875rem; /* 14px */
+   --text-lg--line-height: 1.45; /* 20.3px */
+   
+   --text-xl: 1.0625rem; /* 17px */
+   --text-xl--line-height: 1.35; /* 23px */
+   
+   --text-2xl: 1.375rem; /* 22px */
+   --text-2xl--line-height: 1.25; /* 27.5px */
 }
 
+/* =============================================================================
+   Semantic tokens (light)
+   ============================================================================= */
 :root {
-  /* Surface ladder (light) */
-  --surface-1: #fafafa;
-  --surface-2: #fcfcfc;
-  --surface-3: #ffffff;
-  --surface-4: #ffffff;
-  --surface-5: #ffffff;
-  --surface-6: #ffffff;
-  --surface-7: #ffffff;
-  --surface-8: #ffffff;
-  --shadow-color: rgb(0 0 0 / 6%);
+  /* Surface ladder (light) — oklch neutrals matched to prior hex stops */
+  --surface-1: oklch(0.985 0 0);
+  --surface-2: oklch(0.991 0 0);
+  --surface-3: oklch(1 0 0);
+  --surface-4: oklch(1 0 0);
+  --surface-5: oklch(1 0 0);
+  --surface-6: oklch(1 0 0);
+  --surface-7: oklch(1 0 0);
+  --surface-8: oklch(1 0 0);
+  --shadow-color: oklch(0 0 0 / 6%);
   --shadow-1: 0 0 0 1px var(--shadow-color);
   --shadow-2: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color);
   --shadow-3: 0 0 0 1px var(--shadow-color), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color);
@@ -165,41 +195,49 @@
   --ease-ui-snappy: linear(0, 0.4 41%, 0.78 71%, 1);
   --ease-opacity-breathe: linear(0, 0.09 21%, 0.47 50%, 0.91 79%, 1);
   --ease-spinner-dash: linear(0, 0.46 50%, 1);
+
+  /* Settings drawer ([Vaul](https://github.com/emilkowalski/vaul)) — duration/easing referenced below */
+  --settings-drawer-duration: 200ms;
+  --settings-drawer-ease: linear(0, 0.52 42%, 0.82 72%, 1);
 }
 
+/* =============================================================================
+   Semantic tokens (dark)
+   ============================================================================= */
 .dark {
-  --surface-1: #171717;
-  --surface-2: #1e1e1e;
-  --surface-3: #252525;
-  --surface-4: #2c2c2c;
-  --surface-5: #333333;
-  --surface-6: #3a3a3a;
-  --surface-7: #414141;
-  --surface-8: #484848;
-  --dm-hi-base: rgb(255 255 255 / 1%);
-  --dm-hi-mid: rgb(255 255 255 / 2%);
-  --dm-hi-high: rgb(255 255 255 / 4%);
-  --dm-hi-peak: rgb(255 255 255 / 6%);
-  --dm-ring-base: rgb(255 255 255 / 2%);
-  --dm-ring-mid: rgb(255 255 255 / 4%);
-  --dm-ring-high: rgb(255 255 255 / 6%);
-  --dm-drop: rgb(0 0 0 / 18%);
+  /* Surface ladder (dark) — oklch neutrals matched to prior hex stops */
+  --surface-1: oklch(0.205 0 0);
+  --surface-2: oklch(0.235 0 0);
+  --surface-3: oklch(0.264 0 0);
+  --surface-4: oklch(0.293 0 0);
+  --surface-5: oklch(0.321 0 0);
+  --surface-6: oklch(0.348 0 0);
+  --surface-7: oklch(0.375 0 0);
+  --surface-8: oklch(0.402 0 0);
+  --dm-hi-base: oklch(1 0 0 / 1%);
+  --dm-hi-mid: oklch(1 0 0 / 2%);
+  --dm-hi-high: oklch(1 0 0 / 4%);
+  --dm-hi-peak: oklch(1 0 0 / 6%);
+  --dm-ring-base: oklch(1 0 0 / 2%);
+  --dm-ring-mid: oklch(1 0 0 / 4%);
+  --dm-ring-high: oklch(1 0 0 / 6%);
+  --dm-drop: oklch(0 0 0 / 18%);
   --shadow-1: inset 0 0 0 1px var(--dm-ring-base);
   --shadow-2: inset 0 1px 0 0 var(--dm-hi-base), inset 0 0 0 1px var(--dm-ring-base), 0 1px 1px -0.5px var(--dm-drop);
-  --shadow-3: inset 0 1px 0 0 var(--dm-hi-mid), inset 0 0 0 1px var(--dm-ring-base), 0 0 0 1px rgb(0 0 0 / 12%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop);
+  --shadow-3: inset 0 1px 0 0 var(--dm-hi-mid), inset 0 0 0 1px var(--dm-ring-base), 0 0 0 1px oklch(0 0 0 / 12%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop);
   --shadow-4:
-    inset 0 1px 0 0 var(--dm-hi-mid), inset 0 0 0 1px var(--dm-ring-mid), 0 0 0 1px rgb(0 0 0 / 14%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop);
+    inset 0 1px 0 0 var(--dm-hi-mid), inset 0 0 0 1px var(--dm-ring-mid), 0 0 0 1px oklch(0 0 0 / 14%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop);
   --shadow-5:
-    inset 0 1px 0 0 var(--dm-hi-high), inset 0 0 0 1px var(--dm-ring-mid), 0 0 0 1px rgb(0 0 0 / 16%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop),
+    inset 0 1px 0 0 var(--dm-hi-high), inset 0 0 0 1px var(--dm-ring-mid), 0 0 0 1px oklch(0 0 0 / 16%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop),
     0 12px 12px -6px var(--dm-drop);
   --shadow-6:
-    inset 0 1px 0 0 var(--dm-hi-high), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px rgb(0 0 0 / 18%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop),
+    inset 0 1px 0 0 var(--dm-hi-high), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px oklch(0 0 0 / 18%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop),
     0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop);
   --shadow-7:
-    inset 0 1px 0 0 var(--dm-hi-peak), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px rgb(0 0 0 / 20%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop),
+    inset 0 1px 0 0 var(--dm-hi-peak), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px oklch(0 0 0 / 20%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop),
     0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop), 0 48px 48px -24px var(--dm-drop);
   --shadow-8:
-    inset 0 1px 0 0 var(--dm-hi-peak), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px rgb(0 0 0 / 22%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop),
+    inset 0 1px 0 0 var(--dm-hi-peak), inset 0 0 0 1px var(--dm-ring-high), 0 0 0 1px oklch(0 0 0 / 22%), 0 1px 1px -0.5px var(--dm-drop), 0 3px 3px -1.5px var(--dm-drop), 0 6px 6px -3px var(--dm-drop),
     0 12px 12px -6px var(--dm-drop), 0 24px 24px -12px var(--dm-drop), 0 48px 48px -24px var(--dm-drop), 0 96px 96px -48px var(--dm-drop);
 
   --background: var(--surface-1);
@@ -240,28 +278,30 @@
   --sidebar-ring: var(--ring);
 }
 
+/* =============================================================================
+   Base layer — global defaults (Tailwind `base` layer)
+   https://tailwindcss.com/docs/adding-custom-styles#adding-base-styles
+   ============================================================================= */
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    /* Scrollbars — Tailwind v4.3+ `scrollbar-*` utilities (Firefox + scrollbar-color-aware WebKit). See /docs/scrollbar-width, /docs/scrollbar-color. */
+    @apply border-border outline-ring/50 scrollbar-thin scrollbar-thumb-muted-foreground scrollbar-track-transparent;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
+
   html {
     @apply font-sans antialiased;
   }
+
+  body {
+    @apply bg-background text-foreground text-base;
+  }
 }
 
-/*
- * Settings drawer ([vaul](https://github.com/emilkowalski/vaul)): the library injects motion CSS at runtime.
- * Drawer + overlay: `html …` beats injected rules. Background scale uses inline transition (500ms in Vaul) —
- * sync it with `--settings-drawer-duration` via `[data-vaul-drawer-wrapper]` + `!important`.
- */
-:root {
-  --settings-drawer-duration: 200ms;
-  --settings-drawer-ease: linear(0, 0.52 42%, 0.82 72%, 1);
-}
-
+/* =============================================================================
+   Vaul settings drawer — library injects motion CSS; `html …` beats injected rules.
+   Background scale uses inline transition (500ms in Vaul) — keep wrapper in sync
+   with `--settings-drawer-duration` via `[data-vaul-drawer-wrapper]` + `!important`.
+   ============================================================================= */
 html [data-vaul-drawer-wrapper] {
   transition-duration: var(--settings-drawer-duration) !important;
   transition-timing-function: var(--settings-drawer-ease) !important;
@@ -275,8 +315,8 @@ html [data-vaul-drawer] {
 }
 
 /*
- * Vaul sets `touch-action: none` on the sheet for drag-to-dismiss; without a narrower value on real
- * controls, press / :active feedback (and our scale) can feel dead on WebView2 + mouse.
+ * Vaul sets `touch-action: none` on the sheet for drag-to-dismiss; without a narrower
+ * value on real controls, press / :active feedback (and our scale) can feel dead on WebView2 + mouse.
  */
 html [data-vaul-drawer] :where(button, [role="button"]) {
   touch-action: manipulation;
@@ -310,7 +350,9 @@ html [data-vaul-handle]:active {
   }
 }
 
-/* Tauri overlay window: transparent root so only the pill is visible */
+/* =============================================================================
+   Tauri overlay window — transparent root so only the pill is visible
+   ============================================================================= */
 html.overlay-window body,
 html.overlay-window #root {
   background-color: transparent !important;
@@ -321,12 +363,10 @@ html.overlay-window .floating-overlay {
   filter: none !important;
 }
 
-/*
- * Floating bar motion — refined easing via linear() stops (see
- * https://www.joshwcomeau.com/animation/linear-timing-function/ ),
- * interpolate-size ( https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/interpolate-size ),
- * @starting-style ( https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@starting-style ).
- */
+/* =============================================================================
+   Floating overlay chrome — motion tokens, pulse, listening breathe
+   (easing: https://www.joshwcomeau.com/animation/linear-timing-function/ )
+   ============================================================================= */
 html.overlay-window .floating-overlay.floating-overlay-chrome {
   /* Prefer smooth interpolation when sizing involves keywords / intrinsic layout */
   interpolate-size: allow-keywords;
@@ -354,16 +394,6 @@ html.overlay-window .floating-overlay.floating-overlay-chrome[data-chrome-varian
 }
 
 /* Listening / transcribing — pulse only a tint layer so label opacity stays solid */
-@keyframes overlay-chrome-pulse-wash {
-  0%,
-  100% {
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 html.overlay-window .floating-overlay-chrome-pulse::before {
   content: "";
   position: absolute;
@@ -385,79 +415,6 @@ html.overlay-window .floating-overlay-chrome-pulse > * {
 }
 
 /* Whole-bar opacity breathe while listening — visible on “Listening…” and with live text */
-@keyframes overlay-chrome-listening-opacity-breathe {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.9;
-  }
-}
-
 html.overlay-window .floating-overlay-chrome-listening-breathe {
   animation: overlay-chrome-listening-opacity-breathe 1s var(--ease-opacity-breathe) infinite;
-}
-
-/* Idle state — three-bar Mello mark (short / tall / short), middle reads lighter.
-   Opacity-only motion (no transform) — lighter compositing than scaleY in embedded WebViews. */
-@keyframes overlay-idle-logo-bar-breathe {
-  0%,
-  100% {
-    opacity: 0.75;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-html.overlay-window .overlay-idle-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.1875rem;
-  flex-shrink: 0;
-}
-
-html.overlay-window .overlay-idle-logo-bar {
-  width: 0.1875rem;
-  border-radius: 9999px;
-  animation-name: overlay-idle-logo-bar-breathe;
-  animation-duration: 1.28s;
-  animation-timing-function: var(--ease-opacity-breathe);
-  animation-iteration-count: infinite;
-}
-
-html.overlay-window .overlay-idle-logo-bar--side {
-  height: 0.4375rem;
-  background-color: color-mix(in oklab, var(--overlay-chrome-fg) 52%, transparent);
-}
-
-html.overlay-window .overlay-idle-logo-bar--mid {
-  height: 0.875rem;
-  background-color: color-mix(in oklab, var(--overlay-chrome-fg) 94%, transparent);
-}
-
-html.overlay-window .overlay-idle-logo-bar--left {
-  animation-delay: 0ms;
-}
-
-html.overlay-window .overlay-idle-logo-bar--center {
-  animation-delay: 130ms;
-}
-
-html.overlay-window .overlay-idle-logo-bar--right {
-  animation-delay: 260ms;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html.overlay-window .overlay-idle-logo-bar {
-    animation: none;
-    opacity: 1;
-  }
-}
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: gray transparent;
 }

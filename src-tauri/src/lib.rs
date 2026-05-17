@@ -99,6 +99,30 @@ const HISTORY_FILE: &str = "history.json";
 const MAX_ENTRIES: usize = 500;
 const MAX_PASTE_TEXT_CHARS: usize = 20_000;
 
+struct MicOverlayBoot(Mutex<bool>);
+
+fn mic_overlay_boot_allowed(app: &tauri::AppHandle) -> bool {
+    app.state::<MicOverlayBoot>()
+        .0
+        .lock()
+        .map(|g| *g)
+        .unwrap_or(false)
+}
+
+fn set_mic_overlay_boot_allowed_inner(app: &tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    {
+        let cell = app.state::<MicOverlayBoot>();
+        let mut guard = cell
+            .0
+            .lock()
+            .map_err(|_| "mic overlay boot lock poisoned".to_string())?;
+        *guard = enabled;
+    }
+    app.emit("mic-overlay-boot-changed", enabled)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Show and focus the main window. The dictation overlay is shown only when the user preference allows it
 /// (restored from the main window when it becomes visible).
 fn show_main_and_overlay(app: &tauri::AppHandle) {
@@ -109,8 +133,8 @@ fn show_main_and_overlay(app: &tauri::AppHandle) {
 }
 
 fn universal_tray_icon_image(app: &tauri::AppHandle) -> Image<'static> {
-    // Light pack is the safe default before the webview applies theme-aware icons.
-    let primary = "icons/runtime/light/mello-voice-32.png";
+    // Single bundled PNG for the tray (see `icons/runtime/dark/` in resources).
+    let primary = "icons/runtime/dark/mello-voice-32.png";
     if let Ok(p) = app.path().resolve(primary, BaseDirectory::Resource) {
         if p.exists() {
             if let Ok(img) = Image::from_path(p) {
@@ -131,7 +155,7 @@ fn universal_tray_icon_image(app: &tauri::AppHandle) -> Image<'static> {
         }
     }
 
-    panic!("tray icon: expected bundled icons/32x32.png or runtime light tray PNG");
+    panic!("tray icon: expected bundled icons/32x32.png or runtime dark tray PNG");
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -263,7 +287,9 @@ fn set_overlay_bar_enabled(app: tauri::AppHandle, enabled: bool) -> Result<(), S
     save_prefs(&app, &prefs)?;
     if let Some(overlay) = app.get_webview_window("overlay") {
         if enabled {
-            overlay.show().map_err(|e| e.to_string())?;
+            if mic_overlay_boot_allowed(&app) {
+                overlay.show().map_err(|e| e.to_string())?;
+            }
         } else {
             overlay.hide().map_err(|e| e.to_string())?;
         }
@@ -302,9 +328,40 @@ fn quit_app(app: tauri::AppHandle) {
 
 #[tauri::command]
 fn show_overlay_window(app: tauri::AppHandle) -> Result<(), String> {
+    if !mic_overlay_boot_allowed(&app) {
+        return Ok(());
+    }
     if let Some(overlay) = app.get_webview_window("overlay") {
         overlay.show().map_err(|e| e.to_string())?;
     }
+    Ok(())
+}
+
+#[tauri::command]
+fn set_mic_overlay_boot_allowed(app: tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    set_mic_overlay_boot_allowed_inner(&app, enabled)
+}
+
+#[tauri::command]
+fn get_mic_overlay_boot_allowed(app: tauri::AppHandle) -> Result<bool, String> {
+    Ok(mic_overlay_boot_allowed(&app))
+}
+
+#[tauri::command]
+fn raise_mic_recovery_to_main(app: tauri::AppHandle, reason: Option<String>) -> Result<(), String> {
+    set_mic_overlay_boot_allowed_inner(&app, false)?;
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let _ = overlay.hide();
+    }
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.show();
+        let _ = main.set_focus();
+    }
+    app.emit(
+        "mic-recovery-required",
+        serde_json::json!({ "reason": reason }),
+    )
+    .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -408,6 +465,21 @@ async fn relay_dictation_hotkey(app: tauri::AppHandle, state: String) -> Result<
 
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
+        let normalized = state.trim().to_ascii_lowercase();
+        let is_pressed =
+            normalized == "pressed" || normalized == "press" || normalized == "down";
+        if !mic_overlay_boot_allowed(&app) {
+            // Gate is disabled while mic onboarding/recovery is required.
+            // Do not route hotkey presses into the overlay to avoid repeated recovery loops.
+            if is_pressed {
+                if let Some(main) = app.get_webview_window("main") {
+                    let _ = main.show();
+                    let _ = main.set_focus();
+                }
+                let _ = app.emit("mic-hotkey-while-blocked", serde_json::json!({}));
+            }
+            return Ok(());
+        }
         if let Some(overlay) = app.get_webview_window("overlay") {
             let _ = overlay.show();
             let _ = overlay.unminimize();
@@ -502,6 +574,9 @@ pub fn run() {
             clear_history,
             quit_app,
             show_overlay_window,
+            set_mic_overlay_boot_allowed,
+            get_mic_overlay_boot_allowed,
+            raise_mic_recovery_to_main,
             get_overlay_bar_enabled,
             set_overlay_bar_enabled,
             get_after_dictation_action,
@@ -531,6 +606,7 @@ pub fn run() {
 
             let initial_history = load_history(&app_handle).unwrap_or_default();
             app.manage(HistoryStore(Mutex::new(initial_history)));
+            app.manage(MicOverlayBoot(Mutex::new(false)));
 
             // Build tray menu
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
@@ -572,6 +648,10 @@ pub fn run() {
                         }
                     }
                 });
+            }
+
+            if let Some(overlay) = app.get_webview_window("overlay") {
+                let _ = overlay.hide();
             }
 
             Ok(())

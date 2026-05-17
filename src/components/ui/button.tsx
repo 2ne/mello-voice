@@ -9,6 +9,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import { useShape } from "@/lib/shape-context";
+import { LoadingSpinnerIcon } from "@/components/icons/LoadingSpinnerIcon";
 
 /** Leading/trailing slot shape for lightweight SVG icon components. */
 type IconComponent = ComponentType<{
@@ -21,7 +22,7 @@ const buttonVariants = cva(
   [
     "group relative isolate inline-flex items-center justify-center outline-none",
     "text-box-trim-both text-box-edge-cap-alphabetic",
-    "touch-manipulation transition-transform duration-80 ease-[var(--ease-ui)]",
+    "touch-manipulation transition-transform duration-80",
     "active:scale-[0.975]",
     "disabled:opacity-50 disabled:pointer-events-none",
     "focus-visible:ring-1 focus-visible:ring-primary",
@@ -39,9 +40,9 @@ const buttonVariants = cva(
         ghost: "text-muted-foreground hover:text-foreground",
       },
       size: {
-        sm: "h-7 px-3 text-[12px] gap-1",
-        md: "h-8 px-4 text-[13px] gap-1.5",
-        lg: "h-9 px-5 text-[14px] gap-1.5",
+        sm: "h-7 px-3 text-sm gap-1",
+        md: "h-8 px-4 text-base gap-1.5",
+        lg: "h-9 px-5 text-lg gap-1.5",
         "icon-sm": "h-8 w-8 p-0 [&_svg]:h-3.5 [&_svg]:w-3.5",
         icon: "h-9 w-9 p-0 [&_svg]:h-4 [&_svg]:w-4",
         "icon-lg": "h-10 w-10 p-0 [&_svg]:h-5 [&_svg]:w-5",
@@ -126,7 +127,7 @@ function Button({
         <span
           aria-hidden
           className={cn(
-            "absolute inset-0 rounded-[inherit] transition-[background-color] duration-80 ease-[var(--ease-ui)]",
+            "absolute inset-0 rounded-[inherit] transition-[background-color] duration-80",
             bgClass
           )}
         />
@@ -143,28 +144,11 @@ function Button({
                 )}
               </span>
               <span className="absolute inset-0 flex items-center justify-center">
-                <svg
-                  className="size-8"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <path
-                    d="M 12 12 C 14 8.5 19 8.5 19 12 C 19 15.5 14 15.5 12 12 C 10 8.5 5 8.5 5 12 C 5 15.5 10 15.5 12 12 Z"
-                    stroke="currentColor"
-                    strokeWidth="1.125"
-                    strokeLinecap="round"
-                    pathLength="100"
-                    style={{
-                      strokeDasharray: "15 85",
-                      animation:
-                        "spinner-move 900ms linear infinite, spinner-dash 900ms var(--ease-spinner-dash) infinite",
-                    }}
-                  />
-                </svg>
+                <LoadingSpinnerIcon />
               </span>
             </>
           ) : isIconOnly ? (
-            <span className="[&_svg]:stroke-[1.5] [&_svg]:transition-[stroke-width] [&_svg]:duration-80 [&_svg]:ease-[var(--ease-ui)] group-hover:[&_svg]:stroke-[2]">
+            <span className="[&_svg]:stroke-[1.5] [&_svg]:transition-[stroke-width] [&_svg]:duration-80 group-hover:[&_svg]:stroke-[2]">
               {children}
             </span>
           ) : (
@@ -173,7 +157,7 @@ function Button({
                 <LeadingIcon
                   size={iconSize}
                   strokeWidth={1.5}
-                  className="transition-[stroke-width] duration-80 ease-[var(--ease-ui)] group-hover:stroke-[2]"
+                  className="transition-[stroke-width] duration-80 group-hover:stroke-[2]"
                 />
               )}
               <span>{children}</span>
@@ -181,7 +165,7 @@ function Button({
                 <TrailingIcon
                   size={iconSize}
                   strokeWidth={1.5}
-                  className="transition-[stroke-width] duration-80 ease-[var(--ease-ui)] group-hover:stroke-[2]"
+                  className="transition-[stroke-width] duration-80 group-hover:stroke-[2]"
                 />
               )}
             </>

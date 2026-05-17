@@ -8,8 +8,8 @@ import FloatingOverlay from "./FloatingOverlay";
 import { shouldShowSessionChrome } from "./overlaySessionState";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import {
-  ensureMicPermission,
-  warmUpMicPermissionForWebview,
+  getMicPermissionState,
+  mapMicError,
   startWavMicCapture,
   stopWavMicCapture,
 } from "../transcription/wavCapture";
@@ -70,14 +70,9 @@ function OverlayRoot() {
   const isExpandedRef = useRef(false);
   /** Synchronous mirror of `barPrefsResolved` so a slow boot fetch can't clobber a fresher event-driven write. */
   const barPrefsResolvedRef = useRef(false);
-  /** One-shot guard so toggling the bar on/off doesn't re-trigger `getUserMedia()` warm-up. */
-  const overlayMicWarmupDoneRef = useRef(false);
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [barEnabled, setBarEnabled] = useState(true);
-  /** After first `get_overlay_bar_enabled` read — avoids mic warm-up while `barEnabled` still reflects only the optimistic default. */
-  const [barPrefsResolved, setBarPrefsResolved] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -102,10 +97,6 @@ function OverlayRoot() {
   }, [barEnabled]);
 
   useEffect(() => {
-    isListeningRef.current = isListening;
-  }, [isListening]);
-
-  useEffect(() => {
     isExpandedRef.current = isExpanded;
   }, [isExpanded]);
 
@@ -122,6 +113,24 @@ function OverlayRoot() {
       if (errorRef.current) return;
       void getCurrentWindow().hide().catch(() => {});
     }, 50);
+  }, []);
+
+  const applyOverlayVisibility = useCallback(async (enabled: boolean) => {
+    if (enabled) {
+      const allowed = await invoke<boolean>("get_mic_overlay_boot_allowed").catch(() => false);
+      if (!allowed) {
+        await getCurrentWindow().hide().catch(() => {});
+        return;
+      }
+      try {
+        await getCurrentWindow().show();
+        await positionOverlayTopCenter();
+      } catch (e) {
+        console.warn("Could not show overlay:", e);
+      }
+    } else {
+      await getCurrentWindow().hide().catch(() => {});
+    }
   }, []);
 
   const overlayDragSessionRef = useRef<{
@@ -250,19 +259,13 @@ function OverlayRoot() {
           /** Privacy-first on boot: do not leave an idle overlay visible when persisted preference cannot be read. */
           FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS,
         );
-        if (cancelled) return;
-        /** Skip clobbering if the event listener already wrote a fresher value during our await. */
-        if (barPrefsResolvedRef.current) return;
-        barPrefsResolvedRef.current = true;
-        setBarEnabled(enabled);
-        barEnabledRef.current = enabled;
-        if (enabled) {
-          await getCurrentWindow().show().catch(() => {});
-          await positionOverlayTopCenter().catch(() => {});
-        } else {
-          await getCurrentWindow().hide().catch(() => {});
+        if (!cancelled && !barPrefsResolvedRef.current) {
+          /** Skip clobbering if the event listener already wrote a fresher value during our await. */
+          barPrefsResolvedRef.current = true;
+          setBarEnabled(enabled);
+          barEnabledRef.current = enabled;
+          await applyOverlayVisibility(enabled);
         }
-        if (!cancelled) setBarPrefsResolved(true);
       })();
     }, 0);
 
@@ -270,47 +273,48 @@ function OverlayRoot() {
       cancelled = true;
       clearTimeout(bootDelay);
     };
-  }, []);
+  }, [applyOverlayVisibility]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     listen<boolean>("overlay-bar-enabled-changed", (event) => {
       const v = event.payload;
       barPrefsResolvedRef.current = true;
-      setBarPrefsResolved(true);
       setBarEnabled(v);
       barEnabledRef.current = v;
       if (!v) {
         void getCurrentWindow().hide().catch(() => {});
       } else {
-        void (async () => {
-          try {
-            await getCurrentWindow().show();
-            await positionOverlayTopCenter();
-          } catch (e) {
-            console.warn("Could not show overlay:", e);
-          }
-        })();
+        void applyOverlayVisibility(true);
       }
     }).then((fn) => {
       unlisten = fn;
     });
     return () => unlisten?.();
-  }, []);
+  }, [applyOverlayVisibility]);
 
-  /**
-   * Warm up the overlay's mic permission once the bar pref resolves to "always visible". Per WebView2 (Windows),
-   * the permission store can differ between webviews, so we touch it from this webview specifically. One-shot.
-   */
   useEffect(() => {
-    if (overlayMicWarmupDoneRef.current) return;
-    if (!barEnabled || !barPrefsResolved) return;
-    const id = window.setTimeout(() => {
-      overlayMicWarmupDoneRef.current = true;
-      warmUpMicPermissionForWebview("overlay-always-bar");
-    }, 400);
-    return () => clearTimeout(id);
-  }, [barEnabled, barPrefsResolved]);
+    let unlisten: (() => void) | undefined;
+    void listen<boolean>("mic-overlay-boot-changed", (event) => {
+      const allowed = event.payload;
+      if (!allowed) {
+        void getCurrentWindow().hide().catch(() => {});
+        return;
+      }
+      void (async () => {
+        if (!barEnabledRef.current) return;
+        try {
+          await getCurrentWindow().show();
+          await positionOverlayTopCenter();
+        } catch (e) {
+          console.warn("Could not show overlay:", e);
+        }
+      })();
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, []);
 
   const displayState = activeError
     ? "error"
@@ -409,7 +413,7 @@ function OverlayRoot() {
           if (!active) {
             shortcutHeldRef.current = false;
             setIsExpanded(false);
-            setIsListening(false);
+            isListeningRef.current = false;
             stopListening();
             clearTranscript();
             await stopWavMicCapture().catch(() => {});
@@ -437,11 +441,12 @@ function OverlayRoot() {
           console.warn("Could not show overlay:", e);
         }
 
-        const permissionGranted = await ensureMicPermission();
-        if (!permissionGranted) {
+        const perm = await getMicPermissionState();
+        // "prompt" can still succeed in this webview after getUserMedia triggers the OS permission flow.
+        // Treat only explicit denial as unrecoverable before capture start to avoid a recovery-loop dead-end.
+        if (perm === "denied") {
           shortcutHeldRef.current = false;
-          setIsExpanded(false);
-          setSessionError("Microphone access is required. Allow it and try again.");
+          await invoke("raise_mic_recovery_to_main", { reason: "notAllowed" }).catch(() => {});
           hideOverlayWhenBarPreferOff();
           return;
         }
@@ -453,18 +458,19 @@ function OverlayRoot() {
           console.warn("WAV mic capture:", e);
           shortcutHeldRef.current = false;
           setIsExpanded(false);
-          setSessionError("Could not start microphone capture.");
+          const mapped = mapMicError(e);
+          await invoke("raise_mic_recovery_to_main", { reason: mapped }).catch(() => {});
           hideOverlayWhenBarPreferOff();
           return;
         }
         startListening();
-        setIsListening(true);
+        isListeningRef.current = true;
       } else {
         if (!shortcutHeldRef.current) return;
         shortcutHeldRef.current = false;
         lastPressAtRef.current = -Infinity;
         setIsExpanded(false);
-        setIsListening(false);
+        isListeningRef.current = false;
         setIsProcessing(true);
         const wavPromise = stopWavMicCapture().catch((e) => {
           console.warn("stop WAV capture:", e);

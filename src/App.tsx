@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
@@ -10,7 +10,6 @@ import {
   getAppliedThemePreference,
   THEME_STORAGE_KEY,
 } from './themePreference'
-import { setupThemeAwareIcons } from './themeAwareIcons'
 
 function isTauriRuntime(): boolean {
   return (
@@ -29,7 +28,6 @@ function isOverlayWindow(): boolean {
 
 function App() {
   const isOverlay = isOverlayWindow()
-  const unThemeIconsRef = useRef<(() => void) | undefined>(undefined)
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
@@ -49,13 +47,7 @@ function App() {
       syncDocumentTheme(t)
     }
 
-    void (async () => {
-      await loadStoredTheme()
-      if (!isOverlay) {
-        unThemeIconsRef.current?.()
-        unThemeIconsRef.current = await setupThemeAwareIcons()
-      }
-    })()
+    void loadStoredTheme()
 
     const onMq = () => {
       if (getAppliedThemePreference() === 'system') syncDocumentTheme('system')
@@ -75,8 +67,6 @@ function App() {
     return () => {
       mq.removeEventListener('change', onMq)
       unlisten?.()
-      unThemeIconsRef.current?.()
-      unThemeIconsRef.current = undefined
     }
   }, [isOverlay])
 
@@ -94,14 +84,30 @@ function App() {
     }
   }, [isOverlay])
 
-  // WebView2 still shows its system context menu (incl. Quit) unless the default is prevented.
-  // Capture phase ensures this runs before host behaviour; our own handlers still receive the event.
+  // WebView2 shows a system context menu (Reload, DevTools, etc.) unless default is prevented.
+  // Capture phase runs before host behaviour; keyboard shortcuts below catch reload keys as well.
   useEffect(() => {
-    if (!isOverlay) return
+    if (!isTauriRuntime()) return
     const blockHostMenu = (e: Event) => e.preventDefault()
     document.addEventListener('contextmenu', blockHostMenu, { capture: true })
     return () => document.removeEventListener('contextmenu', blockHostMenu, { capture: true })
-  }, [isOverlay])
+  }, [])
+
+  // Full reload drops the JS runtime while Rust may still resolve invoke callbacks → "Couldn't find callback id".
+  useEffect(() => {
+    if (!isTauriRuntime()) return
+    const blockReloadShortcuts = (e: KeyboardEvent) => {
+      if (e.key === 'F5') {
+        e.preventDefault()
+        return
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('keydown', blockReloadShortcuts, { capture: true })
+    return () => window.removeEventListener('keydown', blockReloadShortcuts, { capture: true })
+  }, [])
 
   return isOverlay ? <OverlayRoot /> : <MainWindow />
 }

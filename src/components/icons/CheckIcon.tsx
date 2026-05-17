@@ -1,10 +1,18 @@
 /** Lightweight tick for Radix Select item indicator — avoid icon packs for one path. */
-export function CheckIcon({ className, strokeWidth = 2 }: { className?: string; strokeWidth?: number }) {
+export function CheckIcon({
+  className,
+  strokeWidth = 2,
+  size = 14,
+}: {
+  className?: string;
+  strokeWidth?: number;
+  size?: number;
+}) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      width={14}
-      height={14}
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

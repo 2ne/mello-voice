@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ensureMicPermission } from './wavCapture'
+import {
+  ensureMicPermission,
+  mapMicError,
+  requestMicPermission,
+} from './wavCapture'
 
 type PermissionStateLike = 'granted' | 'prompt' | 'denied'
 
@@ -50,10 +54,10 @@ describe('ensureMicPermission', () => {
     expect(nav.mediaDevices?.getUserMedia).not.toHaveBeenCalled()
   })
 
-  it('returns true when permission state is granted', async () => {
+  it('returns true when permission state is granted and gUM succeeds', async () => {
     const nav = mockNavigator({ permissionState: 'granted' })
     await expect(ensureMicPermission()).resolves.toBe(true)
-    expect(nav.mediaDevices?.getUserMedia).not.toHaveBeenCalled()
+    expect(nav.mediaDevices?.getUserMedia).toHaveBeenCalledTimes(1)
   })
 
   it('requests mic when state is prompt and stops temp stream tracks', async () => {
@@ -67,5 +71,40 @@ describe('ensureMicPermission', () => {
     await expect(ensureMicPermission()).resolves.toBe(false)
     expect(nav.permissions?.query).toHaveBeenCalledTimes(1)
     expect(nav.mediaDevices?.getUserMedia).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('mapMicError', () => {
+  it('maps DOMException names', () => {
+    expect(mapMicError(new DOMException('x', 'NotAllowedError'))).toBe('notAllowed')
+    expect(mapMicError(new DOMException('x', 'NotFoundError'))).toBe('notFound')
+    expect(mapMicError(new DOMException('x', 'NotReadableError'))).toBe('notReadable')
+    expect(mapMicError(new DOMException('x', 'AbortError'))).toBe('unknown')
+  })
+
+  it('maps object name field', () => {
+    expect(mapMicError({ name: 'NotAllowedError' })).toBe('notAllowed')
+  })
+
+  it('returns unknown for other errors', () => {
+    expect(mapMicError(new Error('blocked'))).toBe('unknown')
+  })
+})
+
+describe('requestMicPermission', () => {
+  it('returns ok true when granted and capture probe succeeds', async () => {
+    const nav = mockNavigator({ permissionState: 'granted' })
+    await expect(requestMicPermission()).resolves.toEqual({ ok: true })
+    expect(nav.mediaDevices?.getUserMedia).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns mapped notAllowed when denied', async () => {
+    mockNavigator({ permissionState: 'denied' })
+    await expect(requestMicPermission()).resolves.toEqual({ ok: false, mapped: 'notAllowed' })
+  })
+
+  it('returns mapped error when granted but capture probe fails', async () => {
+    mockNavigator({ permissionState: 'granted', mediaRejects: true })
+    await expect(requestMicPermission()).resolves.toEqual({ ok: false, mapped: 'unknown' })
   })
 })

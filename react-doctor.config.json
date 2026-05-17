@@ -1,7 +1,6 @@
 {
   "ignore": {
     "files": [
-      "_icons_v2/**",
       "public/pcm-capture.worklet.js"
     ],
     "overrides": [

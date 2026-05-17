@@ -1,0 +1,49 @@
+/* Three-bar Mello mark — opacity-only breathe (lighter compositing than scaleY in embedded WebViews). */
+@keyframes mello-logo-bar-breathe {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Overlay pill — pulse wash on the chrome layer only */
+@keyframes overlay-chrome-pulse-wash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Whole-bar opacity while listening */
+@keyframes overlay-chrome-listening-opacity-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* Button / LoadingSpinnerIcon — indeterminate stroke loop */
+@keyframes spinner-move {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+@keyframes spinner-dash {
+  0%,
+  100% {
+    stroke-dasharray: 15 85;
+  }
+  50% {
+    stroke-dasharray: 40 60;
+  }
+}

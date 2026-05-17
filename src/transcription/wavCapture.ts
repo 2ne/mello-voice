@@ -1,13 +1,11 @@
 import {
   concatFloatChunks,
   floatsToMonoWavPcm,
-  sliceTail,
   trimSilentEdges,
 } from './wavEncoder'
 
 /** Retain at most ~8 minutes of raw PCM at 48 kHz (reasonable cap for long sessions). */
 const RAW_RETAIN_SECONDS = 480
-const PARTIAL_TAIL_SECONDS = 28
 const MIC_CAPTURE_CONSTRAINTS: MediaStreamConstraints = {
   audio: {
     channelCount: 1,
@@ -37,7 +35,29 @@ type CaptureState =
 
 let state: CaptureState = { kind: 'idle' }
 
-type MicPermissionState = 'granted' | 'prompt' | 'denied' | 'unknown'
+export type MicPermissionState = 'granted' | 'prompt' | 'denied' | 'unknown'
+
+export type MicRecoveryKind = 'notAllowed' | 'notFound' | 'notReadable' | 'unknown'
+
+/** Exact onboarding / recovery copy (main window + overlay-raised recovery). */
+export const MIC_RECOVERY_COPY: Record<MicRecoveryKind, { title: string; body: string }> = {
+  notAllowed: {
+    title: 'Microphone access is blocked',
+    body: 'Enable microphone access for Mello Voice in Windows settings, then try again.',
+  },
+  notFound: {
+    title: 'No microphone available',
+    body: 'Enable or connect a microphone, then try again.',
+  },
+  notReadable: {
+    title: 'Microphone unavailable',
+    body: 'Another app may be using your microphone. Close it or choose another microphone, then try again.',
+  },
+  unknown: {
+    title: "We couldn't use the microphone",
+    body: 'Check your microphone settings, then try again.',
+  },
+}
 
 async function readMicPermissionState(): Promise<MicPermissionState> {
   if (typeof navigator === 'undefined') return 'unknown'
@@ -57,34 +77,61 @@ async function readMicPermissionState(): Promise<MicPermissionState> {
   return 'unknown'
 }
 
+export async function getMicPermissionState(): Promise<MicPermissionState> {
+  return readMicPermissionState()
+}
+
+/** Map getUserMedia / MediaStream errors for user-facing recovery. */
+export function mapMicError(err: unknown): MicRecoveryKind {
+  if (err instanceof DOMException) {
+    if (err.name === 'NotAllowedError') return 'notAllowed'
+    if (err.name === 'NotFoundError') return 'notFound'
+    if (err.name === 'NotReadableError') return 'notReadable'
+  }
+  if (err && typeof err === 'object' && 'name' in err) {
+    const n = String((err as { name: string }).name)
+    if (n === 'NotAllowedError') return 'notAllowed'
+    if (n === 'NotFoundError') return 'notFound'
+    if (n === 'NotReadableError') return 'notReadable'
+  }
+  return 'unknown'
+}
+
+export type RequestMicPermissionResult =
+  | { ok: true }
+  | { ok: false; mapped: MicRecoveryKind }
+
+/**
+ * Main window only — do not call from the overlay webview.
+ * Triggers the system permission prompt when needed and returns mapped errors for onboarding UI.
+ */
+export async function requestMicPermission(): Promise<RequestMicPermissionResult> {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    return { ok: false, mapped: 'unknown' }
+  }
+  const state = await readMicPermissionState()
+  if (state === 'denied') {
+    return { ok: false, mapped: 'notAllowed' }
+  }
+
+  try {
+    // Probe actual capture availability even when Permissions API says "granted".
+    // System-level microphone toggles can still make getUserMedia fail.
+    const stream = await navigator.mediaDevices.getUserMedia(MIC_CAPTURE_CONSTRAINTS)
+    stream.getTracks().forEach((t) => t.stop())
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, mapped: mapMicError(e) }
+  }
+}
+
 /**
  * Requests microphone permission when needed and immediately closes the temporary stream.
  * Returns true when microphone access is usable for capture.
  */
 export async function ensureMicPermission(): Promise<boolean> {
-  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
-    return false
-  }
-  const state = await readMicPermissionState()
-  if (state === 'denied') return false
-  if (state === 'granted') return true
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia(MIC_CAPTURE_CONSTRAINTS)
-    stream.getTracks().forEach((t) => t.stop())
-    return true
-  } catch {
-    return false
-  }
-}
-
-/** Best-effort permission probe; logs in dev when microphone access is not usable. */
-export function warmUpMicPermissionForWebview(context: string): void {
-  void ensureMicPermission().then((ok) => {
-    if (!ok && import.meta.env.DEV) {
-      console.warn(`[mello] mic permission warm-up (${context}): not granted or unavailable`)
-    }
-  })
+  const r = await requestMicPermission()
+  return r.ok
 }
 
 function totalChunkSamples(chunks: readonly Float32Array[]): number {
@@ -224,30 +271,6 @@ export async function startWavMicCapture(): Promise<void> {
     /** ScriptProcessor fallback (deprecated but universal). */
     startScriptProcessorCapture(pipe)
   }
-}
-
-/**
- * Encode the last `seconds` of live audio as WAV for partial Whisper passes.
- * Cheap enough for ~6 s cadence; Whisper does the heavy lifting.
- */
-export function peekTailWav(seconds: number = PARTIAL_TAIL_SECONDS): Uint8Array {
-  if (state.kind !== 'capturing') {
-    return new Uint8Array(0)
-  }
-
-  const rate = Math.min(state.context.sampleRate, 48000)
-  const merged = concatFloatChunks(state.chunks)
-  if (merged.length === 0) {
-    return new Uint8Array(0)
-  }
-
-  const want = Math.floor(rate * Math.max(4, Math.min(seconds, 60)))
-  let tail = sliceTail(merged, want)
-  tail = trimSilentEdges(tail, rate, 0.007, 50)
-  if (tail.length < rate * 0.35) {
-    return new Uint8Array(0)
-  }
-  return floatsToMonoWavPcm(tail, rate)
 }
 
 export async function stopWavMicCapture(): Promise<Uint8Array> {

@@ -30,7 +30,7 @@
         "height": 80,
         "resizable": false,
         "fullscreen": false,
-        "visible": true,
+        "visible": false,
         "alwaysOnTop": true,
         "focusable": false,
         "decorations": false,
@@ -61,7 +61,7 @@
     "resources": {
       "resources/models/ggml-base.en-q8_0.bin": "models/ggml-base.en-q8_0.bin",
       "resources/whisper_runtime/**/*": "whisper_runtime/",
-      "icons/runtime/": "icons/runtime/"
+      "icons/runtime/dark/mello-voice-32.png": "icons/runtime/dark/mello-voice-32.png"
     }
   }
 }

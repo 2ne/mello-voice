@@ -1,5 +1,8 @@
 import { cn } from "@/lib/utils";
 
+const overlayIdleBarBase =
+  "w-[0.1875rem] shrink-0 rounded-full animate-[mello-logo-bar-breathe_1.28s_var(--ease-opacity-breathe)_infinite] motion-reduce:animate-none motion-reduce:opacity-100";
+
 type OverlayState = "idle" | "listening" | "processing" | "error";
 
 interface FloatingOverlayProps {
@@ -67,7 +70,7 @@ function FloatingOverlay({
   const listeningPulse = state === "listening";
 
   const flowingBodyClasses = cn(
-    "relative z-[1] w-full min-w-0 shrink px-0.5 text-left text-[13px] font-medium leading-snug tracking-[-0.01em]",
+    "relative z-[1] w-full min-w-0 shrink px-0.5 text-left text-base font-medium leading-snug tracking-[-0.01em]",
     "break-words [overflow-wrap:anywhere] [word-break:break-word]",
   );
 
@@ -116,18 +119,27 @@ function FloatingOverlay({
             )}
             {state === "idle" ? (
               <div
-                className="overlay-idle-logo"
+                className="flex shrink-0 items-center justify-center gap-[0.1875rem]"
                 role="img"
                 aria-label={getStateLabel(state)}
               >
                 <span
-                  className="overlay-idle-logo-bar overlay-idle-logo-bar--side overlay-idle-logo-bar--left"
+                  className={cn(
+                    overlayIdleBarBase,
+                    "h-[0.4375rem] bg-[color-mix(in_oklab,var(--overlay-chrome-fg)_52%,transparent)]",
+                  )}
                 />
                 <span
-                  className="overlay-idle-logo-bar overlay-idle-logo-bar--mid overlay-idle-logo-bar--center"
+                  className={cn(
+                    overlayIdleBarBase,
+                    "h-[0.875rem] bg-[color-mix(in_oklab,var(--overlay-chrome-fg)_94%,transparent)] delay-[130ms]",
+                  )}
                 />
                 <span
-                  className="overlay-idle-logo-bar overlay-idle-logo-bar--side overlay-idle-logo-bar--right"
+                  className={cn(
+                    overlayIdleBarBase,
+                    "h-[0.4375rem] bg-[color-mix(in_oklab,var(--overlay-chrome-fg)_52%,transparent)] delay-[260ms]",
+                  )}
                 />
               </div>
             ) : (
@@ -139,8 +151,8 @@ function FloatingOverlay({
                 }
                 className={cn(
                   "floating-overlay-status-label font-medium leading-snug tracking-[-0.01em] text-overlay-chrome-fg-muted transition-none",
-                  isMiniLayout && "max-w-full shrink-0 text-center text-[12px]",
-                  !isMiniLayout && "text-[13px]",
+                  isMiniLayout && "max-w-full shrink-0 text-center text-xs",
+                  !isMiniLayout && "text-base",
                   !isMiniLayout && alignTranscript && state !== "processing" && "min-w-0 flex-1 text-left",
                   !isMiniLayout && expandedCenterRow && "min-w-0 max-w-full truncate text-center",
                 )}

@@ -10,13 +10,7 @@
     "global-shortcut:allow-unregister",
     "core:event:allow-listen",
     "core:event:allow-emit",
-    "core:window:allow-set-icon",
     "core:window:allow-set-title",
-    "core:window:allow-theme",
-    "core:tray:allow-get-by-id",
-    "core:tray:allow-set-icon",
-    "core:image:allow-from-path",
-    "core:path:allow-join",
-    "core:path:allow-resolve-directory"
+    "core:window:allow-theme"
   ]
 }
