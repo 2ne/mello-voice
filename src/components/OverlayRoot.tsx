@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState } from "react";
+import { useEffect, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { getCurrentWindow, primaryMonitor, LogicalPosition, LogicalSize, PhysicalPosition, cursorPosition } from "@tauri-apps/api/window";
 import { moveWindow, Position } from "@tauri-apps/plugin-positioner";
 import { invoke } from "@tauri-apps/api/core";
@@ -23,14 +23,31 @@ import {
   FALLBACK_OVERLAY_BAR_ENABLED_WHEN_FETCH_FAILS,
   fetchOverlayBarEnabledWithRetry,
 } from "../overlayBarPrefFetch";
+import { CAPS_DOUBLE_TAP_WINDOW_MS, evaluateCapsDoubleTap } from "../capsLockDictationGesture";
 
 const TOP_OFFSET = 10;
 const OVERLAY_WIDTH = 340;
 const IDLE_CIRCLE_SIZE = 28;
 const MIN_OVERLAY_HEIGHT = 52;
-const DUPLICATE_PRESS_DEBOUNCE_MS = 88;
 const RESIZE_EPSILON = 2;
 const OVERLAY_DRAG_THRESHOLD_PX = 6;
+
+/**
+ * Known minimum chrome height per expanded state, derived from `FloatingOverlay`
+ * Tailwind classes so we can pre-size the native window before paint even when
+ * `scrollHeight` is unreliable (i.e. while transitioning between mini and expanded
+ * widths — the chrome still occupies the previous narrow width when measured).
+ *
+ * Layout per state: chrome.height = max(chrome.min-height, padding-block + content-min-height).
+ *   listening:  min-h-[52px] + py-1.5 (12px) + content min-h-11 (44px) = 56px
+ *   processing: min-h-[56px] + py-3   (24px) + content h-8    (32px) = 56px
+ *   error:      min-h-[56px] + py-3   (24px) + content (variable, floor) = 56px
+ * +1 logical pixel guards against subpixel clipping during the chrome's CSS transition.
+ */
+const EXPANDED_HEIGHT_FLOOR = 57;
+
+/** Cover the slowest chrome transition (260ms expanded variant) plus a small settle buffer. */
+const OVERLAY_SHRINK_DELAY_MS = 280;
 
 function isTauriRuntime(): boolean {
   return (
@@ -61,11 +78,15 @@ type HotkeyState = string;
 
 function OverlayRoot() {
   const overlayRef = useRef<HTMLDivElement>(null);
-  const shortcutHeldRef = useRef(false);
   const barEnabledRef = useRef(true);
   const errorRef = useRef<string | null>(null);
-  const lastResizeFrameRef = useRef({ width: 0, height: 0 });
-  const lastPressAtRef = useRef(-Infinity);
+  /** Last logical dimensions actually sent to the native window. Shared by the layout-effect
+   *  pre-grow path and the ResizeObserver safety net so they don't fight each other. */
+  const lastAppliedSizeRef = useRef({ width: 0, height: 0 });
+  /** Pending deferred shrink (chrome animates downward inside a still-larger window). */
+  const pendingShrinkTimeoutRef = useRef<number | null>(null);
+  /** Monotonic op id so a slow async setSize can't undo a fresher one. */
+  const resizeOpRef = useRef(0);
   const isListeningRef = useRef(false);
   const isExpandedRef = useRef(false);
   /** Synchronous mirror of `barPrefsResolved` so a slow boot fetch can't clobber a fresher event-driven write. */
@@ -75,13 +96,17 @@ function OverlayRoot() {
   const [barEnabled, setBarEnabled] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const isProcessingRef = useRef(false);
+
+  const capsTapWindowRef = useRef<number[]>([]);
+  const capsLastAcceptedPressRef = useRef(-Infinity);
+  const capsStaleTimerRef = useRef<number | null>(null);
 
   const {
     interimTranscript,
     finalTranscript,
     error: speechError,
     startListening,
-    stopListening,
     stopAndWaitForFinal,
     clearTranscript,
   } = useSpeechRecognition();
@@ -99,6 +124,37 @@ function OverlayRoot() {
   useEffect(() => {
     isExpandedRef.current = isExpanded;
   }, [isExpanded]);
+
+  useEffect(() => {
+    isProcessingRef.current = isProcessing;
+  }, [isProcessing]);
+
+  const clearCapsStaleTimer = useCallback(() => {
+    if (capsStaleTimerRef.current != null) {
+      window.clearTimeout(capsStaleTimerRef.current);
+      capsStaleTimerRef.current = null;
+    }
+  }, []);
+
+  const resetCapsGestureState = useCallback(() => {
+    capsTapWindowRef.current = [];
+    capsLastAcceptedPressRef.current = -Infinity;
+    clearCapsStaleTimer();
+  }, [clearCapsStaleTimer]);
+
+  const scheduleCapsWindowStaleClear = useCallback(() => {
+    clearCapsStaleTimer();
+    capsStaleTimerRef.current = window.setTimeout(() => {
+      capsTapWindowRef.current = [];
+      capsStaleTimerRef.current = null;
+    }, CAPS_DOUBLE_TAP_WINDOW_MS + 40);
+  }, [clearCapsStaleTimer]);
+
+  useEffect(() => {
+    return () => {
+      clearCapsStaleTimer();
+    };
+  }, [clearCapsStaleTimer]);
 
   const sessionChromeVisible = shouldShowSessionChrome({
     barEnabled,
@@ -326,72 +382,217 @@ function OverlayRoot() {
 
   const idleCircleVisible = sessionChromeVisible && displayState === "idle";
 
-  // Resize the native overlay window itself so transparent space does not steal clicks from apps underneath.
-  useEffect(() => {
+  /**
+   * Single source of truth for "what size should the native overlay window be right now?".
+   *
+   * Width handling is straightforward (mini = 28, expanded = 340). Height is trickier:
+   * during a mini↔expanded transition the chrome still has the previous (narrow) layout
+   * width when we measure, so a fresh `scrollHeight` reading wraps text and reports a
+   * misleading value. In that case we fall back to a known per-state floor. Once the
+   * window has caught up to `OVERLAY_WIDTH`, `scrollHeight` becomes trustworthy and
+   * grows the window naturally for multi-line transcripts.
+   */
+  const computeTargetSize = useCallback((): { width: number; height: number } | null => {
+    const host = overlayRef.current;
+    const chrome = host?.firstElementChild instanceof HTMLElement ? host.firstElementChild : null;
+    if (!chrome) return null;
+    if (idleCircleVisible) {
+      return { width: IDLE_CIRCLE_SIZE, height: IDLE_CIRCLE_SIZE };
+    }
+    const last = lastAppliedSizeRef.current;
+    const widthAtTarget = last.width >= OVERLAY_WIDTH - RESIZE_EPSILON;
+    const measured = widthAtTarget
+      ? Math.max(MIN_OVERLAY_HEIGHT, Math.ceil(chrome.scrollHeight) + 1)
+      : EXPANDED_HEIGHT_FLOOR;
+    return { width: OVERLAY_WIDTH, height: Math.max(EXPANDED_HEIGHT_FLOOR, measured) };
+  }, [idleCircleVisible]);
+
+  const applyWindowSize = useCallback(async (width: number, height: number) => {
+    const opId = ++resizeOpRef.current;
+    const win = getCurrentWindow();
+    try {
+      const [position, size, scale] = await Promise.all([
+        win.outerPosition(),
+        win.outerSize(),
+        win.scaleFactor(),
+      ]);
+      if (opId !== resizeOpRef.current) return; // newer resize has superseded us
+      await win.setSize(new LogicalSize(width, height));
+      const nextPhysicalWidth = Math.round(width * scale);
+      const nextX = Math.round(position.x + (size.width - nextPhysicalWidth) / 2);
+      await win.setPosition(new PhysicalPosition(nextX, position.y));
+    } catch (err) {
+      console.warn("Could not resize overlay:", err);
+    }
+  }, []);
+
+  /**
+   * Native window must lead the CSS chrome animation so the pill is never clipped.
+   *
+   * - GROW synchronously in `useLayoutEffect` (before browser paint): if the new
+   *   target is bigger, snap the window to that size immediately. The chrome's CSS
+   *   transition then animates inside an already-large-enough window.
+   * - SHRINK after the CSS chrome transition has settled (~280ms): leaving the window
+   *   temporarily larger than the pill is invisible because the surrounding area is
+   *   transparent, but shrinking first would clip the pill while it animates down.
+   *
+   * Re-runs on transcript / error changes too so multi-line text growth is captured
+   * pre-paint instead of chasing it with a `ResizeObserver` frame behind.
+   */
+  useLayoutEffect(() => {
     if (!sessionChromeVisible) {
-      lastResizeFrameRef.current = { width: 0, height: 0 };
+      if (pendingShrinkTimeoutRef.current != null) {
+        clearTimeout(pendingShrinkTimeoutRef.current);
+        pendingShrinkTimeoutRef.current = null;
+      }
+      lastAppliedSizeRef.current = { width: 0, height: 0 };
       return;
     }
+    const target = computeTargetSize();
+    if (!target) return;
+    const last = lastAppliedSizeRef.current;
+    const widthGrew = target.width > last.width + RESIZE_EPSILON;
+    const heightGrew = target.height > last.height + RESIZE_EPSILON;
+    const widthShrank = target.width < last.width - RESIZE_EPSILON;
+    const heightShrank = target.height < last.height - RESIZE_EPSILON;
+    if (!widthGrew && !heightGrew && !widthShrank && !heightShrank) return;
+
+    if (pendingShrinkTimeoutRef.current != null) {
+      clearTimeout(pendingShrinkTimeoutRef.current);
+      pendingShrinkTimeoutRef.current = null;
+    }
+
+    if (widthGrew || heightGrew) {
+      lastAppliedSizeRef.current = { width: target.width, height: target.height };
+      void applyWindowSize(target.width, target.height);
+      return;
+    }
+
+    /** Shrink only: defer past the chrome's CSS transition so the pill isn't clipped mid-animation. */
+    pendingShrinkTimeoutRef.current = window.setTimeout(() => {
+      pendingShrinkTimeoutRef.current = null;
+      const settled = computeTargetSize();
+      if (!settled) return;
+      lastAppliedSizeRef.current = { width: settled.width, height: settled.height };
+      void applyWindowSize(settled.width, settled.height);
+    }, OVERLAY_SHRINK_DELAY_MS);
+  }, [
+    sessionChromeVisible,
+    displayState,
+    idleCircleVisible,
+    interimTranscript,
+    finalTranscript,
+    activeError,
+    computeTargetSize,
+    applyWindowSize,
+  ]);
+
+  /** Safety net for reflows our React deps don't see (font load, transcript wrapping that
+   *  doesn't change the transcript string between renders, OS scale changes). Only grows
+   *  the window — shrinkage is owned by the layout effect's deferred path above. */
+  useEffect(() => {
+    if (!sessionChromeVisible) return;
     const host = overlayRef.current;
     const chrome = host?.firstElementChild instanceof HTMLElement ? host.firstElementChild : null;
     if (!chrome) return;
-    const win = getCurrentWindow();
-    let raf = 0;
-    const resizeToContent = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const width = idleCircleVisible
-          ? IDLE_CIRCLE_SIZE
-          : OVERLAY_WIDTH;
-        /* +1 avoids subpixel clipping when the pill animates chrome height */
-        const height = idleCircleVisible
-          ? IDLE_CIRCLE_SIZE
-          : Math.max(MIN_OVERLAY_HEIGHT, Math.ceil(chrome.scrollHeight) + 1);
-        const previous = lastResizeFrameRef.current;
-        if (
-          Math.abs(width - previous.width) <= RESIZE_EPSILON &&
-          Math.abs(height - previous.height) <= RESIZE_EPSILON
-        ) {
-          return;
-        }
-        lastResizeFrameRef.current = { width, height };
-
-        void (async () => {
-          let previousPosition: PhysicalPosition | null = null;
-          let previousWidth = 0;
-          let scale = 1;
-          try {
-            const [position, size, windowScale] = await Promise.all([
-              win.outerPosition(),
-              win.outerSize(),
-              win.scaleFactor(),
-            ]);
-            previousPosition = position;
-            previousWidth = size.width;
-            scale = windowScale;
-          } catch {
-            /* Keep resizing even if the anchor readback is unavailable. */
-          }
-
-          await win.setSize(new LogicalSize(width, height));
-
-          if (!previousPosition) return;
-          const nextPhysicalWidth = Math.round(width * scale);
-          const nextX = Math.round(previousPosition.x + (previousWidth - nextPhysicalWidth) / 2);
-          await win.setPosition(new PhysicalPosition(nextX, previousPosition.y));
-        })().catch((err) => {
-          console.warn("Could not resize overlay:", err);
-        });
-      });
-    };
-    resizeToContent();
-    const observer = new ResizeObserver(resizeToContent);
+    const observer = new ResizeObserver(() => {
+      const target = computeTargetSize();
+      if (!target) return;
+      const last = lastAppliedSizeRef.current;
+      const widthGrew = target.width > last.width + RESIZE_EPSILON;
+      const heightGrew = target.height > last.height + RESIZE_EPSILON;
+      if (!widthGrew && !heightGrew) return;
+      lastAppliedSizeRef.current = { width: target.width, height: target.height };
+      void applyWindowSize(target.width, target.height);
+    });
     observer.observe(chrome);
+    return () => observer.disconnect();
+  }, [sessionChromeVisible, idleCircleVisible, computeTargetSize, applyWindowSize]);
+
+  useEffect(() => {
     return () => {
-      cancelAnimationFrame(raf);
-      observer.disconnect();
+      if (pendingShrinkTimeoutRef.current != null) {
+        clearTimeout(pendingShrinkTimeoutRef.current);
+        pendingShrinkTimeoutRef.current = null;
+      }
     };
-  }, [sessionChromeVisible, displayState, idleCircleVisible]);
+  }, []);
+
+  const runStopDictationPipeline = useCallback(async () => {
+    resetCapsGestureState();
+
+    setIsExpanded(false);
+    isListeningRef.current = false;
+    setIsProcessing(true);
+    const wavPromise = stopWavMicCapture().catch((e) => {
+      console.warn("stop WAV capture:", e);
+      return new Uint8Array(0);
+    });
+    try {
+      const wav = await wavPromise;
+      const whisperPromise = transcribeWithWhisperPreferLocal(wav);
+      const [whisperText, fallbackSpeech] = await Promise.all([whisperPromise, stopAndWaitForFinal()]);
+      clearTranscript();
+
+      const text = await buildFinalDictationText({
+        whisperPreferred: whisperText,
+        webSpeechFallback: fallbackSpeech,
+      });
+
+      if (text) {
+        await addToHistory(text);
+        emit("history-updated").catch(() => {});
+        await new Promise((r) => setTimeout(r, 280));
+        try {
+          await invoke("paste_text", { text });
+        } catch (e) {
+          console.error("Failed to paste:", e);
+        }
+      }
+    } finally {
+      setIsProcessing(false);
+      hideOverlayWhenBarPreferOff();
+    }
+  }, [resetCapsGestureState, clearTranscript, hideOverlayWhenBarPreferOff, stopAndWaitForFinal]);
+
+  const runStartDictationPipeline = useCallback(async () => {
+    const pref = await fetchOverlayBarEnabledWithRetry(
+      () => invoke<boolean>("get_overlay_bar_enabled"),
+      FALLBACK_OVERLAY_BAR_ENABLED_WHEN_FETCH_FAILS,
+    );
+    barEnabledRef.current = pref;
+
+    setSessionError(null);
+
+    try {
+      await getCurrentWindow().show();
+    } catch (e) {
+      console.warn("Could not show overlay:", e);
+    }
+
+    const perm = await getMicPermissionState();
+    if (perm === "denied") {
+      await invoke("raise_mic_recovery_to_main", { reason: "notAllowed" }).catch(() => {});
+      hideOverlayWhenBarPreferOff();
+      return;
+    }
+
+    setIsExpanded(true);
+    try {
+      await startWavMicCapture();
+    } catch (e) {
+      console.warn("WAV mic capture:", e);
+      setIsExpanded(false);
+      const mapped = mapMicError(e);
+      await invoke("raise_mic_recovery_to_main", { reason: mapped }).catch(() => {});
+      hideOverlayWhenBarPreferOff();
+      return;
+    }
+    startListening();
+    isListeningRef.current = true;
+
+    resetCapsGestureState();
+  }, [hideOverlayWhenBarPreferOff, resetCapsGestureState, startListening]);
 
   const handleShortcut = useCallback(
     async (event: { state: HotkeyState }) => {
@@ -402,111 +603,45 @@ function OverlayRoot() {
         normalizedState === "released" || normalizedState === "release" || normalizedState === "up";
       if (!isPressedEvent && !isReleasedEvent) return;
 
-      if (isPressedEvent) {
-        // Missed Released — reset stale refs only when nothing is actively capturing.
-        if (shortcutHeldRef.current) {
-          const active = isListeningRef.current || isExpandedRef.current;
-          if (active) {
-            // Global shortcut repeat can emit additional Pressed events while holding; ignore re-entry.
-            return;
-          }
-          if (!active) {
-            shortcutHeldRef.current = false;
-            setIsExpanded(false);
-            isListeningRef.current = false;
-            stopListening();
-            clearTranscript();
-            await stopWavMicCapture().catch(() => {});
-          }
-        }
+      if (isReleasedEvent) {
+        return;
+      }
+      const nowCaps = performance.now();
+      if (isProcessingRef.current) {
+        return;
+      }
 
-        const now = performance.now();
-        if (now - lastPressAtRef.current < DUPLICATE_PRESS_DEBOUNCE_MS) {
-          return;
-        }
-        lastPressAtRef.current = now;
+      const tap = evaluateCapsDoubleTap({
+        windowPressesMs: capsTapWindowRef.current,
+        now: nowCaps,
+        lastAcceptedPressAt: capsLastAcceptedPressRef.current,
+      });
 
-        const pref = await fetchOverlayBarEnabledWithRetry(
-          () => invoke<boolean>("get_overlay_bar_enabled"),
-          FALLBACK_OVERLAY_BAR_ENABLED_WHEN_FETCH_FAILS,
-        );
-        barEnabledRef.current = pref;
+      if (!tap.consumed) {
+        return;
+      }
 
-        shortcutHeldRef.current = true;
-        setSessionError(null);
+      capsTapWindowRef.current = tap.nextWindowPressesMs;
+      capsLastAcceptedPressRef.current = tap.nextLastAcceptedPressAt;
 
-        try {
-          await getCurrentWindow().show();
-        } catch (e) {
-          console.warn("Could not show overlay:", e);
-        }
+      if (!tap.shouldAct) {
+        scheduleCapsWindowStaleClear();
+        return;
+      }
+      clearCapsStaleTimer();
 
-        const perm = await getMicPermissionState();
-        // "prompt" can still succeed in this webview after getUserMedia triggers the OS permission flow.
-        // Treat only explicit denial as unrecoverable before capture start to avoid a recovery-loop dead-end.
-        if (perm === "denied") {
-          shortcutHeldRef.current = false;
-          await invoke("raise_mic_recovery_to_main", { reason: "notAllowed" }).catch(() => {});
-          hideOverlayWhenBarPreferOff();
-          return;
-        }
-
-        setIsExpanded(true);
-        try {
-          await startWavMicCapture();
-        } catch (e) {
-          console.warn("WAV mic capture:", e);
-          shortcutHeldRef.current = false;
-          setIsExpanded(false);
-          const mapped = mapMicError(e);
-          await invoke("raise_mic_recovery_to_main", { reason: mapped }).catch(() => {});
-          hideOverlayWhenBarPreferOff();
-          return;
-        }
-        startListening();
-        isListeningRef.current = true;
+      if (isListeningRef.current) {
+        await runStopDictationPipeline();
       } else {
-        if (!shortcutHeldRef.current) return;
-        shortcutHeldRef.current = false;
-        lastPressAtRef.current = -Infinity;
-        setIsExpanded(false);
-        isListeningRef.current = false;
-        setIsProcessing(true);
-        const wavPromise = stopWavMicCapture().catch((e) => {
-          console.warn("stop WAV capture:", e);
-          return new Uint8Array(0);
-        });
-        try {
-          const wav = await wavPromise;
-          const whisperPromise = transcribeWithWhisperPreferLocal(wav);
-          const [whisperText, fallbackSpeech] = await Promise.all([
-            whisperPromise,
-            stopAndWaitForFinal(),
-          ]);
-          clearTranscript();
-
-          const text = await buildFinalDictationText({
-            whisperPreferred: whisperText,
-            webSpeechFallback: fallbackSpeech,
-          });
-
-          if (text) {
-            await addToHistory(text);
-            emit("history-updated").catch(() => {});
-            await new Promise((r) => setTimeout(r, 280));
-            try {
-              await invoke("paste_text", { text });
-            } catch (e) {
-              console.error("Failed to paste:", e);
-            }
-          }
-        } finally {
-          setIsProcessing(false);
-          hideOverlayWhenBarPreferOff();
-        }
+        await runStartDictationPipeline();
       }
     },
-    [clearTranscript, hideOverlayWhenBarPreferOff, startListening, stopAndWaitForFinal, stopListening],
+    [
+      clearCapsStaleTimer,
+      runStartDictationPipeline,
+      runStopDictationPipeline,
+      scheduleCapsWindowStaleClear,
+    ],
   );
 
   // Global shortcut is registered on the main window so it still fires while this overlay webview is hidden (WebView2 can stop delivering plugin IPC here).

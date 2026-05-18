@@ -616,7 +616,7 @@ pub fn run() {
             let _tray = TrayIconBuilder::with_id("main")
                 .icon(universal_tray_icon_image(app.handle()))
                 .menu(&menu)
-                .tooltip("Mello Voice: hold the dictation shortcut whilst speaking.")
+                .tooltip("Mello Voice: double-tap Caps Lock to toggle dictation.")
                 .on_menu_event(move |app, event| {
                     if event.id.as_ref() == "show" {
                         show_main_and_overlay(&app);

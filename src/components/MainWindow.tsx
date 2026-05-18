@@ -9,7 +9,7 @@ import { CloseIcon } from "@/components/icons/CloseIcon";
 import { CopyIcon } from "@/components/icons/CopyIcon";
 import { CheckIcon } from "@/components/icons/CheckIcon";
 import { getHistory, clearHistory, type HistoryEntry } from "../history";
-import { DICTATION_SHORTCUT_OPTIONS, getDictationShortcut, setDictationShortcut, DEFAULT_DICTATION_SHORTCUT, formatDictationShortcutForUi, type DictationShortcutOption } from "../dictationShortcut";
+import { DICTATION_GLOBAL_SHORTCUT, DICTATION_SHORTCUT_UI_LABEL, dictationShortcutGestureParts } from "../dictationShortcut";
 import { cn } from "@/lib/utils";
 import { Elevated } from "@/lib/elevated";
 import { Button } from "@/components/ui/button";
@@ -128,6 +128,7 @@ function SettingsSettingRow({ title, description, children }: { title: string; d
 
 function HistoryItem({ entry, onCopy }: { entry: HistoryEntry; onCopy: (text: string) => void }) {
   const [copied, setCopied] = useState(false);
+  const [copyTriggerActive, setCopyTriggerActive] = useState(false);
   const copiedTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -155,6 +156,8 @@ function HistoryItem({ entry, onCopy }: { entry: HistoryEntry; onCopy: (text: st
     [entry.text, onCopy],
   );
 
+  const copyTooltipOpen = copyTriggerActive || copied;
+
   return (
     <Card
       data-copied={copied}
@@ -173,13 +176,24 @@ function HistoryItem({ entry, onCopy }: { entry: HistoryEntry; onCopy: (text: st
             "group-focus-within/history:pointer-events-auto group-focus-within/history:opacity-100",
           )}
         >
-          <Tooltip content={copied ? "Copied to clipboard" : "Copy transcription"} side="left">
+          <Tooltip
+            content={copied ? "Copied" : "Copy"}
+            side="left"
+            forceOpen={copyTooltipOpen}
+            onOpenChange={(open) => {
+              if (open) setCopyTriggerActive(true);
+            }}
+          >
             <Button
               type="button"
               variant="ghost"
               size="icon-sm"
               className="size-7 text-muted-foreground hover:text-foreground"
-              aria-label={copied ? "Copied to clipboard" : "Copy transcription"}
+              aria-label={copied ? "Copied" : "Copy"}
+              onPointerEnter={() => setCopyTriggerActive(true)}
+              onPointerLeave={() => setCopyTriggerActive(false)}
+              onFocus={() => setCopyTriggerActive(true)}
+              onBlur={() => setCopyTriggerActive(false)}
               onClick={handleCopy}
             >
               <span className="relative block size-3.5 shrink-0">
@@ -208,7 +222,7 @@ function HistoryItem({ entry, onCopy }: { entry: HistoryEntry; onCopy: (text: st
 
 function MainWindow() {
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
-  const [liveShortcut, setLiveShortcut] = useState(getDictationShortcut);
+  const dictationGestureHintParts = dictationShortcutGestureParts();
   const [mainUiState, updateMainUiState] = useReducer(mainUiReducer, INITIAL_MAIN_UI_STATE);
   /** Controlled so we can reject focus-driven opens after the drawer closes (Radix restores focus → instant tooltip). */
   const { settingsOpen, settingsTooltipOpen } = mainUiState;
@@ -322,14 +336,6 @@ function MainWindow() {
     });
   });
 
-  const onDictationShortcutRegisterFailed = useEffectEvent(() => {
-    setLiveShortcut(getDictationShortcut());
-  });
-
-  const onDictationShortcutChanged = useEffectEvent((shortcut: string) => {
-    setLiveShortcut(shortcut);
-  });
-
   const onOverlayBarEnabledChanged = useEffectEvent((enabled: boolean) => {
     overlayBarPrefResolvedRef.current = true;
     updateSettingsPrefs({ overlayBarEnabled: enabled });
@@ -363,22 +369,12 @@ function MainWindow() {
   useEffect(() => {
     refreshHistory();
     let unlistenHistory: (() => void) | undefined;
-    let unlistenShortcutFail: (() => void) | undefined;
-    let unlistenShortcutOk: (() => void) | undefined;
     let unlistenOverlayPref: (() => void) | undefined;
     let unlistenMicRecovery: (() => void) | undefined;
     let unlistenMicBlockedHotkey: (() => void) | undefined;
 
     listen("history-updated", () => void refreshHistory()).then((fn) => {
       unlistenHistory = fn;
-    });
-    listen("dictation-shortcut-register-failed", () => {
-      onDictationShortcutRegisterFailed();
-    }).then((fn) => {
-      unlistenShortcutFail = fn;
-    });
-    listen<string>("dictation-shortcut-changed", (e) => onDictationShortcutChanged(e.payload)).then((fn) => {
-      unlistenShortcutOk = fn;
     });
     listen<boolean>("overlay-bar-enabled-changed", (e) => {
       onOverlayBarEnabledChanged(e.payload);
@@ -406,8 +402,6 @@ function MainWindow() {
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       unlistenHistory?.();
-      unlistenShortcutFail?.();
-      unlistenShortcutOk?.();
       unlistenOverlayPref?.();
       unlistenMicRecovery?.();
       unlistenMicBlockedHotkey?.();
@@ -488,46 +482,12 @@ function MainWindow() {
         await unregister(previous).catch(() => {});
       }
       try {
-        await register(liveShortcut, (event) => {
+        await register(DICTATION_GLOBAL_SHORTCUT, (event) => {
           void invoke("relay_dictation_hotkey", { state: event.state }).catch(() => {});
         });
-        registeredShortcutRef.current = liveShortcut;
-      } catch (e) {
-        const message = String(e);
-        let recovered = previous ?? DEFAULT_DICTATION_SHORTCUT;
-        if (previous !== null) {
-          try {
-            await register(previous, (event) => {
-              void invoke("relay_dictation_hotkey", { state: event.state }).catch(() => {});
-            });
-            registeredShortcutRef.current = previous;
-            recovered = previous;
-          } catch {
-            recovered = DEFAULT_DICTATION_SHORTCUT;
-            try {
-              await register(recovered, (event) => {
-                void invoke("relay_dictation_hotkey", { state: event.state }).catch(() => {});
-              });
-              registeredShortcutRef.current = recovered;
-            } catch {
-              registeredShortcutRef.current = null;
-            }
-          }
-        } else {
-          try {
-            await register(DEFAULT_DICTATION_SHORTCUT, (event) => {
-              void invoke("relay_dictation_hotkey", { state: event.state }).catch(() => {});
-            });
-            registeredShortcutRef.current = DEFAULT_DICTATION_SHORTCUT;
-            recovered = DEFAULT_DICTATION_SHORTCUT;
-          } catch {
-            registeredShortcutRef.current = null;
-          }
-        }
-        const uiShortcut = registeredShortcutRef.current ?? recovered;
-        setDictationShortcut(uiShortcut);
-        setLiveShortcut(uiShortcut);
-        await emit("dictation-shortcut-register-failed", { message }).catch(() => {});
+        registeredShortcutRef.current = DICTATION_GLOBAL_SHORTCUT;
+      } catch {
+        registeredShortcutRef.current = null;
       }
     };
     void setup();
@@ -538,13 +498,12 @@ function MainWindow() {
         registeredShortcutRef.current = null;
       }
     };
-  }, [liveShortcut]);
+  }, []);
 
   useEffect(() => {
     if (!settingsOpen) return;
     overlayBarPrefResolvedRef.current = false;
     void applyAllSettingsFromIpc();
-    setLiveShortcut(getDictationShortcut());
   }, [settingsOpen]);
 
   useEffect(() => {
@@ -573,13 +532,6 @@ function MainWindow() {
     await clearHistory();
     await refreshHistory();
   }, [historyEntries.length, refreshHistory]);
-
-  const selectPresetShortcut = useCallback((preset: string) => {
-    const next = (DICTATION_SHORTCUT_OPTIONS as readonly string[]).includes(preset) ? (preset as DictationShortcutOption) : DEFAULT_DICTATION_SHORTCUT;
-    setDictationShortcut(next);
-    setLiveShortcut(next);
-    void emit("dictation-shortcut-changed", next);
-  }, []);
 
   const setDictationBarPreference = useCallback(async (enabled: boolean) => {
     try {
@@ -665,7 +617,7 @@ function MainWindow() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <Drawer.Title className="text-xl font-medium tracking-[-0.02em] leading-tight text-foreground">Settings</Drawer.Title>
-                      <Drawer.Description className="sr-only">Dictation shortcut, bar, after-dictation behaviour and appearance for Mello Voice.</Drawer.Description>
+                      <Drawer.Description className="sr-only">Dictation bar, after-dictation behaviour and appearance for Mello Voice.</Drawer.Description>
                     </div>
                     <Drawer.Close asChild>
                       <Button type="button" variant="ghost" size="icon" aria-label="Close settings">
@@ -676,24 +628,6 @@ function MainWindow() {
                 </div>
                 <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain">
                   <div className="flex flex-col gap-0 pb-6 px-5 pt-1">
-                    <SettingsSettingRow title="Dictation shortcut" description="Hold the shortcut whilst speaking.">
-                      <Select
-                        value={(DICTATION_SHORTCUT_OPTIONS as readonly string[]).includes(liveShortcut) ? liveShortcut : DEFAULT_DICTATION_SHORTCUT}
-                        onValueChange={(v) => selectPresetShortcut(v)}
-                      >
-                        <SelectTrigger aria-label="Dictation shortcut" className="w-full max-w-none">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {DICTATION_SHORTCUT_OPTIONS.map((preset) => (
-                            <SelectItem key={preset} value={preset}>
-                              {formatDictationShortcutForUi(preset)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </SettingsSettingRow>
-                    <Separator className="bg-border/80" />
                     <SettingsSettingRow title="Dictation bar" description="Show the floating bar all the time or only while dictating.">
                       <Select value={dictationBarModeFromEnabled(overlayBarEnabled)} onValueChange={(v) => void setDictationBarPreference(overlayBarEnabledFromMode(parseDictationBarMode(v)))}>
                         <SelectTrigger aria-label="Dictation bar visibility" className="w-full max-w-none">
@@ -795,11 +729,11 @@ function MainWindow() {
                             <div className="mt-0 w-px min-h-2.5 flex-1 bg-border" aria-hidden />
                           </div>
                           <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">
-                            Hold{" "}
+                            {dictationGestureHintParts.beforeKey}
                             <kbd className="inline-flex items-center rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-xs leading-none text-foreground">
-                              {formatDictationShortcutForUi(liveShortcut)}
-                            </kbd>{" "}
-                            whilst speaking.
+                              {DICTATION_SHORTCUT_UI_LABEL}
+                            </kbd>
+                            {dictationGestureHintParts.afterKey}
                           </p>
                         </li>
                         <li className="flex gap-3">

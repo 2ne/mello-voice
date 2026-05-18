@@ -31,6 +31,16 @@
   }
 }
 
+/* Listening row — idle→listening mount; keyframes avoid relying on @starting-style in embedded WebViews */
+@keyframes overlay-listening-label-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Button / LoadingSpinnerIcon — indeterminate stroke loop */
 @keyframes spinner-move {
   to {

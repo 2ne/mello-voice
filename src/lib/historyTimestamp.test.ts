@@ -9,14 +9,19 @@ describe("formatHistoryTimestampLabel", () => {
   /** Fixed local instant so relative math does not depend on UTC parsing. */
   const anchor = new Date(2026, 4, 14, 12, 0, 0);
 
-  it("shows just now under five seconds", () => {
+  it("shows just now for the full first minute", () => {
     const date = new Date(anchor.getTime() - 4_000);
     expect(formatHistoryTimestampLabel(date, anchor)).toBe("just now");
+
+    const fifteenSec = new Date(anchor.getTime() - 15_000);
+    expect(formatHistoryTimestampLabel(fifteenSec, anchor)).toBe("just now");
+
+    const fiftyNineSec = new Date(anchor.getTime() - 59_000);
+    expect(formatHistoryTimestampLabel(fiftyNineSec, anchor)).toBe("just now");
   });
 
-  it("shows compact seconds", () => {
-    const date = new Date(anchor.getTime() - 10_000);
-    expect(formatHistoryTimestampLabel(date, anchor)).toBe("10s");
+  it("shows 1m at one minute elapsed", () => {
+    expect(formatHistoryTimestampLabel(new Date(anchor.getTime() - 60_000), anchor)).toBe("1m");
   });
 
   it("shows minutes and hours", () => {
@@ -64,11 +69,15 @@ describe("formatHistoryTimestampTooltip", () => {
 describe("getHistoryTimestampRefreshMs", () => {
   const anchor = new Date(2026, 4, 14, 12, 0, 0);
 
-  it("returns faster intervals for fresher rows", () => {
-    expect(getHistoryTimestampRefreshMs(new Date(anchor.getTime() - 10_000), anchor)).toBe(1_000);
-    expect(getHistoryTimestampRefreshMs(new Date(anchor.getTime() - 30 * 60_000), anchor)).toBe(30_000);
-    expect(getHistoryTimestampRefreshMs(new Date(anchor.getTime() - 3 * 60 * 60_000), anchor)).toBe(60_000);
-    expect(getHistoryTimestampRefreshMs(new Date(anchor.getTime() - 2 * 24 * 60 * 60_000), anchor)).toBe(5 * 60_000);
+  it("returns delay until label would change within each coarse bucket", () => {
+    expect(getHistoryTimestampRefreshMs(new Date(anchor.getTime() - 10_000), anchor)).toBe(50_000);
+
+    expect(getHistoryTimestampRefreshMs(new Date(anchor.getTime() - 30 * 60_000), anchor)).toBe(60_000);
+
+    expect(getHistoryTimestampRefreshMs(new Date(anchor.getTime() - 3 * 60 * 60_000), anchor)).toBe(60 * 60_000);
+
+    expect(getHistoryTimestampRefreshMs(new Date(anchor.getTime() - 2 * 24 * 60 * 60_000), anchor)).toBe(24 * 60 * 60_000);
+
     expect(getHistoryTimestampRefreshMs(new Date(2026, 3, 1, 12, 0, 0), anchor)).toBe(60 * 60_000);
   });
 });

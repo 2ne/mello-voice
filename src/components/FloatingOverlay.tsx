@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { overlayListeningStopHint } from "@/dictationShortcut";
 
 const overlayIdleBarBase =
   "w-[0.1875rem] shrink-0 rounded-full animate-[mello-logo-bar-breathe_1.28s_var(--ease-opacity-breathe)_infinite] motion-reduce:animate-none motion-reduce:opacity-100";
@@ -25,9 +26,23 @@ function getStateLabel(state: OverlayState): string {
   }
 }
 
-/** Fixed lane when showing idle mark / status text / Processing — keeps vertical alignment stable during chrome morphs. */
-const STATUS_LANE_MINI_H = "h-5"; /* 20px — fits inside min-h-7 + py-1 mini pill */
-const STATUS_LANE_EXPANDED_H = "h-8"; /* 32px — spinner + one line */
+/**
+ * Lane floors per state. These deliberately SNAP between class changes; transitioning
+ * `min-height` here causes two visible bugs because the chrome's expanded variant snaps
+ * its own `min-height` / `padding-block` (see the `data-chrome-variant="expanded"` rule
+ * in style.css and its "Ready slides upward" comment):
+ *   - idle→listening: the listening label wipes in through the lane's `overflow-hidden`
+ *     as the lane grows from 20px to 44px.
+ *   - listening→processing: chrome padding snaps 12→24 while the lane min-height still
+ *     animates 44→32, so chrome height briefly bulges to `24 + 44 = 68` before settling.
+ * If a future change re-enables tweening on the chrome expanded variant, animating these
+ * lane min-heights becomes safe again.
+ */
+const STATUS_LANE_MINI_H = "min-h-5"; /* 20px — fits inside min-h-7 + p-0 mini pill */
+const STATUS_LANE_EXPANDED_H = "min-h-8"; /* 32px — spinner + one line */
+
+/** Listening hint + transcript share this minimum so chrome height stays stable when text appears. */
+const LISTENING_EXPANDED_BODY_MIN = "min-h-11"; /* 44px */
 
 function FloatingOverlay({
   state,
@@ -66,11 +81,15 @@ function FloatingOverlay({
   const alignTranscript = !hasError && (trimmedInterim.length > 0 || trimmedFinal.length > 0);
   const expandedCenterRow = !isMiniLayout && (!alignTranscript || state === "processing");
 
+  /** Echo empty-history hint while mic is live but Whisper has not emitted text yet. */
+  const showListeningStopHint =
+    state === "listening" && !hasError && trimmedFinal.length === 0 && trimmedInterim.length === 0;
+
   /** Pulse for whole listening capture — quiet “Listening…” and live transcript */
   const listeningPulse = state === "listening";
 
   const flowingBodyClasses = cn(
-    "relative z-[1] w-full min-w-0 shrink px-0.5 text-left text-base font-medium leading-snug tracking-[-0.01em]",
+    "floating-overlay-body relative z-[1] w-full min-w-0 shrink px-0.5 text-left text-base font-medium leading-snug tracking-[-0.01em]",
     "break-words [overflow-wrap:anywhere] [word-break:break-word]",
   );
 
@@ -83,12 +102,24 @@ function FloatingOverlay({
         listeningPulse && "floating-overlay-chrome-pulse floating-overlay-chrome-listening-breathe",
         isMiniLayout &&
           "size-7 min-h-7 flex-col items-center justify-center rounded-full p-0",
-        !isMiniLayout && "min-h-[56px] w-full flex-col items-stretch justify-center rounded-[28px] px-5 py-3",
+        !isMiniLayout &&
+          cn(
+            "w-full flex-col items-stretch justify-center rounded-[28px] px-5",
+            listeningPulse ? "min-h-[52px] py-1.5" : "min-h-[56px] py-3",
+          ),
       )}
     >
       {transcriptPrimary ? (
-        <div aria-live="polite" className={cn(flowingBodyClasses, "text-overlay-chrome-fg")}>
-          {transcriptInline}
+        <div
+          aria-live="polite"
+          className={cn(
+            flowingBodyClasses,
+            "text-overlay-chrome-fg",
+            /* `flex` centers vertically; final + interim must sit inside one child or each <span> becomes its own column. */
+            state === "listening" && cn(LISTENING_EXPANDED_BODY_MIN, "flex items-center"),
+          )}
+        >
+          <span className="block min-w-0 w-full">{transcriptInline}</span>
         </div>
       ) : hasError ? (
         <div aria-live="polite" className={cn(flowingBodyClasses, "text-destructive")}>
@@ -97,8 +128,8 @@ function FloatingOverlay({
       ) : (
         <div
           className={cn(
-            "floating-overlay-status-lane relative w-full shrink-0 overflow-hidden",
-            isMiniLayout ? STATUS_LANE_MINI_H : STATUS_LANE_EXPANDED_H,
+            "floating-overlay-status-lane floating-overlay-body relative w-full shrink-0 overflow-hidden",
+            isMiniLayout ? STATUS_LANE_MINI_H : showListeningStopHint ? LISTENING_EXPANDED_BODY_MIN : STATUS_LANE_EXPANDED_H,
           )}
         >
           <div
@@ -143,22 +174,53 @@ function FloatingOverlay({
                 />
               </div>
             ) : (
-              <p
+              <div
                 aria-live={
                   state === "processing" || state === "listening"
                     ? "polite"
                     : "off"
                 }
                 className={cn(
-                  "floating-overlay-status-label font-medium leading-snug tracking-[-0.01em] text-overlay-chrome-fg-muted transition-none",
-                  isMiniLayout && "max-w-full shrink-0 text-center text-xs",
-                  !isMiniLayout && "text-base",
-                  !isMiniLayout && alignTranscript && state !== "processing" && "min-w-0 flex-1 text-left",
-                  !isMiniLayout && expandedCenterRow && "min-w-0 max-w-full truncate text-center",
+                  /* Keep the listening label + hint on single lines throughout the chrome's
+                   * width animation (28px → 340px / 340px → 28px). Without this, the hint
+                   * `Double-tap Caps Lock to stop` wraps to 3–4 lines at intermediate widths,
+                   * overflows the lane's 44px overflow-hidden frame, then unwraps when the
+                   * chrome reaches full width — visible as reflowing and white space inside
+                   * the pill during the open transition. With nowrap the text just gets
+                   * horizontally clipped by the lane and reveals symmetrically from center
+                   * as the chrome widens. */
+                  "whitespace-nowrap",
+                  /* Fade the "Listening…" label + hint in only once the chrome has grown
+                   * to its full width. Class is conditional on state === "listening" so the
+                   * enter animation only runs on the fresh mount for idle→listening; it's a
+                   * no-op for listening↔processing because the wrapper stays mounted (just
+                   * its content swaps) and for the close animation because the wrapper
+                   * unmounts (nothing to animate). See src/style.css. */
+                  state === "listening" && "floating-overlay-listening-fade-in",
+                  showListeningStopHint &&
+                    "flex min-h-full flex-col items-center justify-center gap-1 text-center",
                 )}
               >
-                {getStateLabel(state)}
-              </p>
+                <p
+                  className={cn(
+                    "floating-overlay-status-label font-medium tracking-[-0.01em] text-overlay-chrome-fg-muted transition-none",
+                    isMiniLayout && "max-w-full shrink-0 text-center text-xs",
+                    !isMiniLayout && "text-base leading-snug",
+                    !isMiniLayout && alignTranscript && state !== "processing" && "min-w-0 flex-1 text-left",
+                    !isMiniLayout &&
+                      expandedCenterRow &&
+                      !showListeningStopHint &&
+                      "min-w-0 max-w-full truncate text-center",
+                  )}
+                >
+                  {getStateLabel(state)}
+                </p>
+                {showListeningStopHint ? (
+                  <p className="floating-overlay-status-label max-w-full px-1 text-center text-xs font-normal leading-snug tracking-[-0.01em] text-overlay-chrome-fg-muted opacity-90">
+                    {overlayListeningStopHint()}
+                  </p>
+                ) : null}
+              </div>
             )}
           </div>
         </div>

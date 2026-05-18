@@ -1,10 +1,11 @@
-/** Display timestamps for transcription history: relative for recent rows, absolute en-GB-style dates after a week. */
+/** Display timestamps for transcription history: relative for recent rows, absolute en-GB-style dates after a week.
+ *  Under one minute shows "just now" (no per-second ticker); timers fire only when the label would actually change.
+ */
 
 export function formatHistoryTimestampLabel(date: Date, now: Date): string {
-  const diffMs = now.getTime() - date.getTime();
+  const diffMs = Math.max(0, now.getTime() - date.getTime());
   const seconds = Math.floor(diffMs / 1000);
-  if (seconds < 5) return "just now";
-  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 60) return "just now";
 
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m`;
@@ -37,12 +38,30 @@ export function formatHistoryTimestampTooltip(date: Date): string {
 
 /** How long until the visible label may change; drives a lightweight timer in the UI. */
 export function getHistoryTimestampRefreshMs(date: Date, now: Date): number {
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const diffMs = Math.max(0, now.getTime() - date.getTime());
+  const seconds = Math.floor(diffMs / 1000);
 
-  if (seconds < 60) return 1_000;
-  if (seconds < 60 * 60) return 30_000;
-  if (seconds < 24 * 60 * 60) return 60_000;
-  if (seconds < 7 * 24 * 60 * 60) return 5 * 60_000;
+  if (seconds < 60) {
+    return Math.max(1, 60_000 - diffMs);
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    const nextBoundaryMs = (minutes + 1) * 60_000;
+    return Math.max(1, nextBoundaryMs - diffMs);
+  }
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    const nextBoundaryMs = (hours + 1) * 60 * 60_000;
+    return Math.max(1, nextBoundaryMs - diffMs);
+  }
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) {
+    const nextBoundaryMs = (days + 1) * 24 * 60 * 60_000;
+    return Math.max(1, nextBoundaryMs - diffMs);
+  }
 
   return 60 * 60_000;
 }

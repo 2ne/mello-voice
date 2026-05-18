@@ -1,6 +1,6 @@
 # Mello Voice
 
-Desktop dictation (**Windows**: primary target; **macOS** supported): **hold a global shortcut**, speak, **release** to finalize. The transcript is copied to the clipboard, then pasted with **Ctrl+V** (**Windows / Linux**) or **⌘V** (**macOS**) into the focused field, and appended to **history** in the main window.
+Desktop dictation (**Windows**: primary target; **macOS** supported): **double‑tap Caps Lock** to start and stop dictating. The transcript is pasted with **Ctrl+V** (**Windows / Linux**) or **⌘V** (**macOS**) into the focused field and saved to **history**.
 
 Transcription is **local-only**: bundled **whisper.cpp** (`whisper-cli`) processes recordings on this machine. The app does not use Web Speech or cloud speech APIs.
 
@@ -20,7 +20,7 @@ Frontend entry: `src/` (main window, floating overlay, transcription pipeline). 
 
 ## Features
 
-- **Hold-to-talk** with a **system-wide** shortcut (registered from the main window so it works even when the overlay is not focused).
+- **Hotkey**: global **Caps Lock**, **double‑tap** to toggle dictation on/off.
 - **Floating dictation bar** (overlay): status while dictating; compact when idle depending on settings.
 - **Paste-to-focus**: put the caret in the target field, then dictate; final text is pasted via **simulated Ctrl+V** (**⌘V** on macOS) and optionally **Enter** — see settings.
 - **History** in the main window: tap a row to copy; **Clear all**.
@@ -29,11 +29,10 @@ Frontend entry: `src/` (main window, floating overlay, transcription pipeline). 
 
 ## Settings
 
-All of these live in the main window **Settings** drawer (gear). Values are persisted (Rust prefs for most; dictation shortcut preset also in `localStorage` on the web side).
+All of these live in the main window **Settings** drawer (gear). Values are persisted in Rust app preferences on the desktop.
 
 | Setting | Meaning |
 | ------- | ------- |
-| **Dictation shortcut** | Preset global hotkey. **Hold** while speaking, **release** to finish. Choices: `Ctrl+Shift+Space`, `Ctrl+Alt+Space`. Default: `Ctrl+Shift+Space`. If registration fails (another app owns the combo), the app falls back when it can and updates the effective shortcut. |
 | **Dictation bar** | **Always visible** vs **Hide when idle** (overlay presence when you are not dictating). You can also **Hide dictation bar** from the bar’s context menu. |
 | **After dictation** | **Paste text** — clipboard + **Ctrl+V** only. **Paste and send** — same, then simulates **Enter** for chat-style fields. |
 | **Appearance** | **System**, **Light**, or **Dark**. |
@@ -120,7 +119,7 @@ Unsigned builds may trigger **SmartScreen** (“Unknown publisher”). Code sign
 
 1. First run: allow **microphone** when Windows prompts; if blocked, fix under **Settings → Privacy & security → Microphone**.
 2. Open the app (main window + tray). You may close the main window; dictation keeps running from the tray.
-3. Focus the target field, **hold** the dictation shortcut, speak, **release** — text pastes and may send per **After dictation**.
+3. Focus the field. **Double‑tap Caps Lock** to listen, double‑tap again to stop — then **After dictation** runs.
 4. Tray: **Show** / **Quit**. Dictation bar: right‑click for **Hide dictation bar**.
 
 ## Repo layout (high level)
