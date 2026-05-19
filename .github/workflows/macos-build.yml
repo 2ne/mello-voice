@@ -1,7 +1,7 @@
 name: macOS Build
 
+# Production macOS + Windows installers: push tag v* (see release.yml and RELEASE.md).
 on:
-  push:
   workflow_dispatch:
 
 jobs:

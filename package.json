@@ -11,7 +11,9 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify": "npm run test && npm run build && cargo test --manifest-path src-tauri/Cargo.toml"
+    "verify": "npm run test && npm run build && cargo test --manifest-path src-tauri/Cargo.toml",
+    "version:bump": "node scripts/bump-version.mjs",
+    "release:prepare": "node scripts/prepare-release.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.10.1",

@@ -1,14 +1,16 @@
 ---
 name: mello-voice-windows-release
 description: >-
-  Builds and ships Mello Voice on Windows via Tauri (NSIS setup.exe + WiX MSI), including
-  Whisper sidecars/DLL/model setup from npm run setup:whisper. Use when the user asks how to
-  build installers, distribute the app to others, share release artifacts, prerequisites for
-  end users, or when release/bundle/signing workflows are ambiguous.
+  Local Windows installer builds (NSIS setup.exe + WiX MSI) and end-user install expectations.
+  For publishing a version to GitHub (tag, release notes, CI Windows+macOS artifacts), use
+  mello-voice-release instead. Use when the user asks how to build installers locally,
+  distribute manually, SmartScreen/WebView2/mic prerequisites, or signing — not for a normal ship.
 disable-model-invocation: true
 ---
 
 # Mello Voice — Windows release & distribution
+
+**GitHub Releases (tag → CI → installers + notes):** use **[mello-voice-release](../mello-voice-release/SKILL.md)**. This skill is for **local builds** and **end-user install** details.
 
 ## What you ship to other people
 
@@ -56,8 +58,8 @@ Dev vs release:
 
 ## Sharing artifacts
 
-- Upload **one** of: `Mello Voice_*_x64-setup.exe` **or** the `.msi` to **GitHub Releases**, cloud storage, etc.
-- Optional: attach **README snippet** (WebView2, mic, SmartScreen) in release notes.
+- Normal path: **mello-voice-release** skill (CI uploads to GitHub Releases).
+- Manual fallback: upload `*-setup.exe` or `.msi` yourself; use the **Install** section from `releases/TEMPLATE.md` for notes wording.
 
 ## Code signing (not automated in repo)
 

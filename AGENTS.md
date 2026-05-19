@@ -61,6 +61,10 @@ Do **not** stop after `npm run verify` alone when the user will look at the UIâ€
 
 This is **in addition to** `npm run verify` when that rule appliesâ€”verification is for the automated suite; restarting the app is so the user can visually confirm the change.
 
+## Releases (agent-owned)
+
+When the user wants to **ship** a version, read **`.cursor/skills/mello-voice-release/SKILL.md`** and run the full flow: **`npm run verify`**, **`npm run release:prepare`**, write **`releases/vX.Y.Z.md`** (tone: **`releases/v1.0.0.md`**), update **`CHANGELOG.md`**, commit, **`git tag vX.Y.Z`**, push commit + tag. CI builds **Windows + macOS** installers and publishes the GitHub Release from that notes file. Human-oriented summary: **`RELEASE.md`**.
+
 ## Windows release (installers for users)
 
 To produce **sharable installers** (not just `tauri dev`):

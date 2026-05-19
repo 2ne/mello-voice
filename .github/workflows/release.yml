@@ -1,40 +1,122 @@
-name: Release Automation
+name: Release
 
 on:
   push:
     tags:
-      - 'v*' # Trigger workflow when a tag starting with 'v' is pushed
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
-  release:
-    name: Create GitHub Release
+  guard:
+    name: Verify version
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
-    # Step 1: Checkout the repository
-    - name: Checkout code
-      uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
-    # Step 2: Create a release
-    - name: Create GitHub Release
-      id: create_release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ github.ref_name }} # The tag that triggered the workflow
-        release_name: ${{ github.ref_name }}
-        name: ${{ github.ref_name }}
-        body: |
-          Automated release created for tag ${{ github.ref_name }}.
-        draft: false # Set to true if you want draft releases
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag must match app version and release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          APP_VERSION="$(node -p "JSON.parse(require('fs').readFileSync('src-tauri/tauri.conf.json','utf8')).version")"
+          if [ "$VERSION" != "$APP_VERSION" ]; then
+            echo "::error::Tag ${TAG} (v${VERSION}) does not match src-tauri/tauri.conf.json (${APP_VERSION})."
+            echo "Run npm run release:prepare, commit, then tag v${APP_VERSION}."
+            exit 1
+          fi
+          NOTES="releases/v${VERSION}.md"
+          if [ ! -f "$NOTES" ]; then
+            echo "::error::Missing ${NOTES} (user-facing release notes)."
+            exit 1
+          fi
 
-    # Step 3: Upload assets (optional, for generated artifacts)
-    # Uncomment and configure this section if your project generates files to include in the release
-    # - name: Upload Release Asset
-    #   uses: softprops/action-gh-release@v1
-    #   with:
-    #     files: ./path-to-your-asset # Replace with the path to your build artifact
+  build:
+    name: Build (${{ matrix.label }})
+    needs: guard
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS
+            os: macos-latest
+            artifact: macos
+          - label: Windows
+            os: windows-latest
+            artifact: windows
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare Whisper assets
+        run: npm run setup:whisper
+
+      - name: Build Tauri app
+        run: npm run tauri build
+
+      - name: Upload macOS bundles
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v5
+        with:
+          name: macos
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/bundle/dmg/*.dmg
+            src-tauri/target/release/bundle/macos/*.app.tar.gz
+
+      - name: Upload Windows installers
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v5
+        with:
+          name: windows
+          if-no-files-found: error
+          path: |
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/msi/*.msi
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v5
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: List release assets
+        run: find release-assets -type f | sort
+
+      - name: Compose release notes
+        run: node scripts/compose-release-body.mjs "${{ github.ref_name }}" > release-body.md
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Mello Voice ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          body_path: release-body.md
+          files: release-assets/**/*

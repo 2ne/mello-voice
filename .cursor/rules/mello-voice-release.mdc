@@ -1,0 +1,16 @@
+---
+description: Agent-owned GitHub releases — bump version, user-facing notes, tag, push for Windows/macOS CI
+globs:
+alwaysApply: true
+---
+
+# Mello Voice — releases are agent-owned
+
+When the user wants to **release**, **ship**, **publish**, **tag**, **bump the app version for users**, or says they updated the version and want installers / GitHub Release handled:
+
+1. Read and follow **`.cursor/skills/mello-voice-release/SKILL.md`** completely.
+2. **You** write **`releases/vX.Y.Z.md`** in the same tone as **`releases/v1.0.0.md`** (user-facing; not commit dumps).
+3. **You** run **`npm run verify`**, commit, create **`git tag vX.Y.Z`**, and **push the commit and tag** when they want it published — do not hand them a manual checklist unless push/CI is blocked.
+4. GitHub Actions builds **Windows + macOS** installers and publishes the Release from that notes file.
+
+Do not use GitHub’s auto-generated commit list as the release body. Do not ask the user to run `tauri build` or upload assets for a normal release.
