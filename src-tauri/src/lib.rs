@@ -94,6 +94,9 @@ fn prepend_whisper_dylibs_to_dyld(handle: &tauri::AppHandle) {
 mod transcribe;
 mod post_process;
 
+#[cfg(target_os = "windows")]
+mod mic_permission_windows;
+
 const PREFS_FILE: &str = "app-prefs.json";
 const HISTORY_FILE: &str = "history.json";
 const MAX_ENTRIES: usize = 500;
@@ -345,6 +348,28 @@ fn set_mic_overlay_boot_allowed(app: tauri::AppHandle, enabled: bool) -> Result<
 #[tauri::command]
 fn get_mic_overlay_boot_allowed(app: tauri::AppHandle) -> Result<bool, String> {
     Ok(mic_overlay_boot_allowed(&app))
+}
+
+#[tauri::command]
+fn runtime_os() -> &'static str {
+    std::env::consts::OS
+}
+
+/// Windows: clears WebView2 mic deny so the in-app prompt can appear again.
+#[tauri::command]
+fn reset_webview_mic_permission(app: tauri::AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let main = app
+            .get_webview_window("main")
+            .ok_or_else(|| "main window not found".to_string())?;
+        return mic_permission_windows::reset_webview_microphone_permission(&main);
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        Err("reset_webview_mic_permission is only available on Windows".to_string())
+    }
 }
 
 /// Opens the OS microphone privacy page (Windows Settings / macOS Privacy).
@@ -603,6 +628,8 @@ pub fn run() {
             get_mic_overlay_boot_allowed,
             raise_mic_recovery_to_main,
             open_mic_privacy_settings,
+            reset_webview_mic_permission,
+            runtime_os,
             get_overlay_bar_enabled,
             set_overlay_bar_enabled,
             get_after_dictation_action,

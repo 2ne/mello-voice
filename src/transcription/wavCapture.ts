@@ -42,8 +42,8 @@ export type MicRecoveryKind = 'notAllowed' | 'notFound' | 'notReadable' | 'unkno
 /** Exact onboarding / recovery copy (main window + overlay-raised recovery). */
 export const MIC_RECOVERY_COPY: Record<MicRecoveryKind, { title: string; body: string }> = {
   notAllowed: {
-    title: 'Microphone access is blocked',
-    body: 'After you choose Block, Mello Voice can’t show the permission prompt again. Open microphone settings, turn on access for Mello Voice, then tap Check again.',
+    title: 'Microphone access wasn’t granted',
+    body: 'Mello Voice doesn’t have permission to use your microphone yet. Open microphone settings, turn on access for Mello Voice, then tap Check again.',
   },
   notFound: {
     title: 'No microphone available',
@@ -57,6 +57,26 @@ export const MIC_RECOVERY_COPY: Record<MicRecoveryKind, { title: string; body: s
     title: "We couldn't use the microphone",
     body: 'Check your microphone settings, then try again.',
   },
+}
+
+/** Windows WebView2 stores Block/Allow in the app — Mello Voice often does not appear in Settings app list. */
+export const MIC_RECOVERY_COPY_WINDOWS: Partial<
+  Record<MicRecoveryKind, { title: string; body: string }>
+> = {
+  notAllowed: {
+    title: 'Microphone access wasn’t granted',
+    body: 'Mello Voice doesn’t have permission to use your microphone yet. Tap Show permission prompt again. If that doesn’t work, open Windows microphone settings and turn on Microphone access and Let desktop apps access your microphone.',
+  },
+}
+
+export function micRecoveryCopy(
+  recovery: MicRecoveryKind,
+  runtimeOs: string | null | undefined,
+): { title: string; body: string } {
+  if (runtimeOs === 'windows') {
+    return MIC_RECOVERY_COPY_WINDOWS[recovery] ?? MIC_RECOVERY_COPY[recovery]
+  }
+  return MIC_RECOVERY_COPY[recovery]
 }
 
 async function readMicPermissionState(): Promise<MicPermissionState> {

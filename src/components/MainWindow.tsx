@@ -232,6 +232,7 @@ function MainWindow() {
   const [appVersionLabel, setAppVersionLabel] = useState<string | null>(null);
   const [settingsPrefs, updateSettingsPrefs] = useReducer(settingsPrefsReducer, INITIAL_SETTINGS_PREFS);
   const [micGateState, updateMicGateState] = useReducer(micGateReducer, INITIAL_MIC_GATE_STATE);
+  const [runtimeOs, setRuntimeOs] = useState<string | null>(null);
   /** Synchronous mirror of `overlayBarPrefResolved` — lets late boot fetches skip clobbering a fresher event-driven write. */
   const overlayBarPrefResolvedRef = useRef(false);
   const registeredShortcutRef = useRef<string | null>(null);
@@ -303,7 +304,15 @@ function MainWindow() {
   }, []);
 
   const handleMicAllow = useCallback(async () => {
+    const wasWindowsBlocked = runtimeOs === "windows" && micRecoveryKind === "notAllowed";
     updateMicGateState({ busy: true, recoveryKind: null });
+    if (wasWindowsBlocked && isTauriRuntime()) {
+      try {
+        await invoke("reset_webview_mic_permission");
+      } catch (e) {
+        console.warn("reset_webview_mic_permission:", e);
+      }
+    }
     const result = await requestMicPermission();
     if (result.ok) {
       micRecoveryLockedRef.current = false;
@@ -326,7 +335,7 @@ function MainWindow() {
       micRecoveryLockedRef.current = true;
       updateMicGateState({ busy: false, recoveryKind: result.mapped, phase: "needsMic" });
     }
-  }, []);
+  }, [micRecoveryKind, runtimeOs]);
 
   const refreshHistory = useCallback(async () => {
     const entries = await getHistory();
@@ -436,6 +445,13 @@ function MainWindow() {
   useEffect(() => {
     void syncMicGate();
   }, [syncMicGate]);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    void invoke<string>("runtime_os")
+      .then(setRuntimeOs)
+      .catch(() => setRuntimeOs(null));
+  }, []);
 
   useEffect(() => {
     if (!isTauriRuntime()) return;
@@ -601,6 +617,7 @@ function MainWindow() {
       <MicOnboardingScreen
         phase={micPhase === "success" ? "success" : "prompt"}
         recovery={micPhase === "needsMic" ? micRecoveryKind : null}
+        runtimeOs={runtimeOs}
         busy={micBusy}
         onAllowClick={handleMicAllow}
         onOpenMicSettings={handleOpenMicSettings}

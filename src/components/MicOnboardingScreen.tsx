@@ -2,10 +2,7 @@ import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { MicrophoneOutlineIcon } from '@/components/icons/MicrophoneOutlineIcon'
 import { cn } from '@/lib/utils'
-import {
-  MIC_RECOVERY_COPY,
-  type MicRecoveryKind,
-} from '@/transcription/wavCapture'
+import { micRecoveryCopy, type MicRecoveryKind } from '@/transcription/wavCapture'
 
 const micOnboardingBarBase =
   'w-[0.3125rem] shrink-0 rounded-full animate-[mello-logo-bar-breathe_1.28s_var(--ease-opacity-breathe)_infinite] motion-reduce:animate-none motion-reduce:opacity-100'
@@ -38,6 +35,8 @@ function MicOnboardingLogoBars() {
 export interface MicOnboardingScreenProps {
   phase: 'prompt' | 'success'
   recovery: MicRecoveryKind | null
+  /** From `runtime_os` — Windows blocked flow differs (WebView2 vs Settings app list). */
+  runtimeOs?: string | null
   busy: boolean
   onAllowClick: () => void
   onOpenMicSettings?: () => void
@@ -46,18 +45,22 @@ export interface MicOnboardingScreenProps {
 export function MicOnboardingScreen({
   phase,
   recovery,
+  runtimeOs,
   busy,
   onAllowClick,
   onOpenMicSettings,
 }: MicOnboardingScreenProps) {
-  const recoveryCopy = recovery ? MIC_RECOVERY_COPY[recovery] : null
+  const recoveryCopy = recovery ? micRecoveryCopy(recovery, runtimeOs) : null
   const isNotFoundRecovery = recovery === 'notFound'
   const isBlockedRecovery = recovery === 'notAllowed'
-  const primaryCtaLabel = isBlockedRecovery
-    ? 'Open microphone settings'
-    : recovery === 'notFound' || recovery === 'notReadable' || recovery === 'unknown'
-      ? 'Retry microphone check'
-      : 'Allow microphone access'
+  const isWindowsBlocked = isBlockedRecovery && runtimeOs === 'windows'
+  const primaryCtaLabel = isWindowsBlocked
+    ? 'Show permission prompt again'
+    : isBlockedRecovery
+      ? 'Open microphone settings'
+      : recovery === 'notFound' || recovery === 'notReadable' || recovery === 'unknown'
+        ? 'Retry microphone check'
+        : 'Allow microphone access'
 
   if (phase === 'success') {
     return (
@@ -91,7 +94,7 @@ export function MicOnboardingScreen({
             <MicOnboardingLogoBars />
           </div>
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-[-0.03em] text-foreground">
+            <h1 className="mb-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">
               Mello Voice
             </h1>
             <p className="text-base leading-snug text-muted-foreground">
@@ -118,7 +121,7 @@ export function MicOnboardingScreen({
             </div>
           ) : null}
 
-          {isNotFoundRecovery ? null : (
+          {isNotFoundRecovery || isBlockedRecovery ? null : (
             <>
               <MicrophoneOutlineIcon
                 className="text-muted-foreground"
@@ -137,11 +140,22 @@ export function MicOnboardingScreen({
               size="lg"
               className="h-12 w-full rounded-full px-6 text-lg font-semibold"
               disabled={busy}
-              onClick={isBlockedRecovery ? (onOpenMicSettings ?? onAllowClick) : onAllowClick}
+              onClick={isWindowsBlocked ? onAllowClick : isBlockedRecovery ? (onOpenMicSettings ?? onAllowClick) : onAllowClick}
             >
               {primaryCtaLabel}
             </Button>
-            {isBlockedRecovery ? (
+            {isWindowsBlocked ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="lg"
+                className="h-11 w-full rounded-full px-6 text-base font-medium text-muted-foreground"
+                disabled={busy}
+                onClick={onOpenMicSettings ?? onAllowClick}
+              >
+                Open Windows microphone settings
+              </Button>
+            ) : isBlockedRecovery ? (
               <Button
                 type="button"
                 variant="ghost"
