@@ -1,0 +1,40 @@
+name: Release Automation
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger workflow when a tag starting with 'v' is pushed
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the repository
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    # Step 2: Create a release
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      with:
+        tag_name: ${{ github.ref_name }} # The tag that triggered the workflow
+        release_name: ${{ github.ref_name }}
+        body: |
+          Automated release created for tag ${{ github.ref_name }}.
+        draft: false # Set to true if you want draft releases
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Step 3: Upload assets (optional, for generated artifacts)
+    # Uncomment and configure this section if your project generates files to include in the release
+    # - name: Upload Release Asset
+    #   uses: actions/upload-release-asset@v1
+    #   with:
+    #     upload_url: ${{ steps.create_release.outputs.upload_url }}
+    #     asset_path: ./path-to-your-asset # Replace with the path to your build artifact
+    #     asset_name: your-asset-filename
+    #     asset_content_type: application/octet-stream
