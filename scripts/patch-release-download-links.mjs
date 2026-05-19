@@ -4,7 +4,7 @@
  *
  * Usage: node scripts/patch-release-download-links.mjs <vX.Y.Z> [body-file]
  *
- * Requires: GITHUB_TOKEN, GITHUB_REPOSITORY (owner/repo)
+ * Requires: GITHUB_TOKEN or GH_TOKEN, GITHUB_REPOSITORY (owner/repo)
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url'
 const tag = process.argv[2]
 const bodyFile = process.argv[3]
 const repo = process.env.GITHUB_REPOSITORY
-const token = process.env.GITHUB_TOKEN
+const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN
 
 if (!tag || !repo || !token) {
   console.error('Usage: GITHUB_TOKEN=… GITHUB_REPOSITORY=owner/repo node scripts/patch-release-download-links.mjs <vX.Y.Z> [body-file]')
