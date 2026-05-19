@@ -109,7 +109,9 @@ jobs:
         run: find release-assets -type f | sort
 
       - name: Compose release notes
-        run: node scripts/compose-release-body.mjs "${{ github.ref_name }}" > release-body.md
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/compose-release-body.mjs "${{ github.ref_name }}" release-assets > release-body.md
 
       - name: Publish release
         uses: softprops/action-gh-release@v2

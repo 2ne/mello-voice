@@ -18,8 +18,7 @@ Pushing **`vX.Y.Z`** runs [`.github/workflows/release.yml`](../../.github/workfl
 
 1. Confirms the tag matches `src-tauri/tauri.conf.json` (and `package.json` / `Cargo.toml`).
 2. Builds **Windows** (`*-setup.exe` + `.msi`) and **macOS** (`.dmg` + `.app.tar.gz`).
-3. Creates/updates the **GitHub Release** with those files attached.
-4. Sets the release description from **`releases/vX.Y.Z.md`** (user-facing — not commit logs).
+3. Creates/updates the **GitHub Release**, attaches installers (`.exe`, `.msi`, `.dmg`, `.app.tar.gz`), and sets the description from **`releases/vX.Y.Z.md`** plus an auto-generated **Direct downloads** section (clickable links in the notes and GitHub’s **Assets** list).
 
 One-time repo setting (tell the user if releases fail with permissions errors): **Settings → Actions → General → Workflow permissions → Read and write**.
 

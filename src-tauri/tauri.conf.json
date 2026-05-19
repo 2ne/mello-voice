@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Mello Voice",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "identifier": "com.mellovoice.app",
   "build": {
     "frontendDist": "../dist",
@@ -57,7 +57,9 @@
       "icons/icon.ico",
       "icons/icon.icns"
     ],
-    "externalBin": ["binaries/whisper-cli"],
+    "externalBin": [
+      "binaries/whisper-cli"
+    ],
     "resources": {
       "resources/models/ggml-base.en-q8_0.bin": "models/ggml-base.en-q8_0.bin",
       "resources/whisper_runtime/**/*": "whisper_runtime/",

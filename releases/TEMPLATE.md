@@ -9,7 +9,7 @@
 
 ### Windows
 
-Download **`Mello Voice_*_x64-setup.exe`** below (recommended). **`Mello Voice_*_x64_en-US.msi`** is also included for managed installs.
+Use the **Direct downloads** links above — **Windows setup (.exe)** is recommended; **MSI** is included for managed installs.
 
 - **Windows 10 or 11 (64-bit)** and **Microsoft Edge WebView2** (usually already installed).
 - Allow **microphone** access the first time you dictate.
@@ -17,7 +17,7 @@ Download **`Mello Voice_*_x64-setup.exe`** below (recommended). **`Mello Voice_*
 
 ### macOS
 
-Download the **`.dmg`**, open it, and drag **Mello Voice** to Applications.
+Use the **macOS disk image (.dmg)** link above, then drag **Mello Voice** to Applications.
 
 - **macOS 11 or later**.
 - Allow **microphone** access when prompted. If paste does not work, grant **Accessibility** for Mello Voice in **System Settings → Privacy & Security**.
