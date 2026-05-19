@@ -43,7 +43,7 @@ export type MicRecoveryKind = 'notAllowed' | 'notFound' | 'notReadable' | 'unkno
 export const MIC_RECOVERY_COPY: Record<MicRecoveryKind, { title: string; body: string }> = {
   notAllowed: {
     title: 'Microphone access is blocked',
-    body: 'Enable microphone access for Mello Voice in Windows settings, then try again.',
+    body: 'After you choose Block, Mello Voice can’t show the permission prompt again. Open microphone settings, turn on access for Mello Voice, then tap Check again.',
   },
   notFound: {
     title: 'No microphone available',
@@ -108,10 +108,6 @@ export type RequestMicPermissionResult =
 export async function requestMicPermission(): Promise<RequestMicPermissionResult> {
   if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
     return { ok: false, mapped: 'unknown' }
-  }
-  const state = await readMicPermissionState()
-  if (state === 'denied') {
-    return { ok: false, mapped: 'notAllowed' }
   }
 
   try {

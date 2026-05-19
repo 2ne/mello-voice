@@ -347,6 +347,31 @@ fn get_mic_overlay_boot_allowed(app: tauri::AppHandle) -> Result<bool, String> {
     Ok(mic_overlay_boot_allowed(&app))
 }
 
+/// Opens the OS microphone privacy page (Windows Settings / macOS Privacy).
+#[tauri::command]
+fn open_mic_privacy_settings() -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", "ms-settings:privacy-microphone"])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        Err("microphone privacy settings are not available on this platform".to_string())
+    }
+}
+
 #[tauri::command]
 fn raise_mic_recovery_to_main(app: tauri::AppHandle, reason: Option<String>) -> Result<(), String> {
     set_mic_overlay_boot_allowed_inner(&app, false)?;
@@ -577,6 +602,7 @@ pub fn run() {
             set_mic_overlay_boot_allowed,
             get_mic_overlay_boot_allowed,
             raise_mic_recovery_to_main,
+            open_mic_privacy_settings,
             get_overlay_bar_enabled,
             set_overlay_bar_enabled,
             get_after_dictation_action,

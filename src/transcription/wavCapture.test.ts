@@ -48,10 +48,10 @@ beforeEach(() => {
 })
 
 describe('ensureMicPermission', () => {
-  it('returns false when permission state is denied', async () => {
-    const nav = mockNavigator({ permissionState: 'denied' })
+  it('returns false when permission state is denied and gUM fails', async () => {
+    const nav = mockNavigator({ permissionState: 'denied', mediaRejects: true })
     await expect(ensureMicPermission()).resolves.toBe(false)
-    expect(nav.mediaDevices?.getUserMedia).not.toHaveBeenCalled()
+    expect(nav.mediaDevices?.getUserMedia).toHaveBeenCalledTimes(1)
   })
 
   it('returns true when permission state is granted and gUM succeeds', async () => {
@@ -66,10 +66,9 @@ describe('ensureMicPermission', () => {
     expect(nav.mediaDevices?.getUserMedia).toHaveBeenCalledTimes(1)
   })
 
-  it('returns false when permission query is unavailable and gUM fails', async () => {
+  it('returns false when capture probe fails', async () => {
     const nav = mockNavigator({ permissionQueryThrows: true, mediaRejects: true })
     await expect(ensureMicPermission()).resolves.toBe(false)
-    expect(nav.permissions?.query).toHaveBeenCalledTimes(1)
     expect(nav.mediaDevices?.getUserMedia).toHaveBeenCalledTimes(1)
   })
 })
@@ -98,9 +97,14 @@ describe('requestMicPermission', () => {
     expect(nav.mediaDevices?.getUserMedia).toHaveBeenCalledTimes(1)
   })
 
-  it('returns mapped notAllowed when denied', async () => {
-    mockNavigator({ permissionState: 'denied' })
+  it('returns mapped notAllowed when denied and capture probe fails', async () => {
+    const nav = mockNavigator({ permissionState: 'denied', mediaRejects: true })
+    const err = new DOMException('denied', 'NotAllowedError')
+    nav.mediaDevices!.getUserMedia = vi.fn(async () => {
+      throw err
+    })
     await expect(requestMicPermission()).resolves.toEqual({ ok: false, mapped: 'notAllowed' })
+    expect(nav.mediaDevices?.getUserMedia).toHaveBeenCalledTimes(1)
   })
 
   it('returns mapped error when granted but capture probe fails', async () => {

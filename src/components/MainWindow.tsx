@@ -262,6 +262,20 @@ function MainWindow() {
       } catch {
         /* ignore */
       }
+      const permission = await getMicPermissionState();
+      if (permission === "granted") {
+        const result = await requestMicPermission();
+        if (result.ok) {
+          micRecoveryLockedRef.current = false;
+          try {
+            await invoke("set_mic_overlay_boot_allowed", { enabled: true });
+          } catch {
+            /* ignore */
+          }
+          updateMicGateState({ recoveryKind: null, phase: "ready" });
+          return;
+        }
+      }
       updateMicGateState({ phase: "needsMic" });
       return;
     }
@@ -276,6 +290,15 @@ function MainWindow() {
       updateMicGateState({ phase: "needsMic" });
     } else {
       updateMicGateState({ recoveryKind: null, phase: "ready" });
+    }
+  }, []);
+
+  const handleOpenMicSettings = useCallback(async () => {
+    if (!isTauriRuntime()) return;
+    try {
+      await invoke("open_mic_privacy_settings");
+    } catch (e) {
+      console.warn("open_mic_privacy_settings:", e);
     }
   }, []);
 
@@ -580,6 +603,7 @@ function MainWindow() {
         recovery={micPhase === "needsMic" ? micRecoveryKind : null}
         busy={micBusy}
         onAllowClick={handleMicAllow}
+        onOpenMicSettings={handleOpenMicSettings}
       />
     );
   }

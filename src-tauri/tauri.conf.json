@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Mello Voice",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "identifier": "com.mellovoice.app",
   "build": {
     "frontendDist": "../dist",

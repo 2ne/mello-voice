@@ -40,6 +40,7 @@ export interface MicOnboardingScreenProps {
   recovery: MicRecoveryKind | null
   busy: boolean
   onAllowClick: () => void
+  onOpenMicSettings?: () => void
 }
 
 export function MicOnboardingScreen({
@@ -47,11 +48,14 @@ export function MicOnboardingScreen({
   recovery,
   busy,
   onAllowClick,
+  onOpenMicSettings,
 }: MicOnboardingScreenProps) {
   const recoveryCopy = recovery ? MIC_RECOVERY_COPY[recovery] : null
   const isNotFoundRecovery = recovery === 'notFound'
-  const primaryCtaLabel =
-    recovery === 'notFound' || recovery === 'notReadable' || recovery === 'unknown'
+  const isBlockedRecovery = recovery === 'notAllowed'
+  const primaryCtaLabel = isBlockedRecovery
+    ? 'Open microphone settings'
+    : recovery === 'notFound' || recovery === 'notReadable' || recovery === 'unknown'
       ? 'Retry microphone check'
       : 'Allow microphone access'
 
@@ -108,7 +112,7 @@ export function MicOnboardingScreen({
               className="w-full rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3 text-left"
             >
               <p className="text-base font-medium text-foreground">{recoveryCopy.title}</p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                 {recoveryCopy.body}
               </p>
             </div>
@@ -127,15 +131,29 @@ export function MicOnboardingScreen({
             </>
           )}
 
-          <Button
-            type="button"
-            size="lg"
-            className="h-12 w-full rounded-full px-6 text-lg font-semibold"
-            disabled={busy}
-            onClick={onAllowClick}
-          >
-            {primaryCtaLabel}
-          </Button>
+          <div className="flex w-full flex-col gap-3">
+            <Button
+              type="button"
+              size="lg"
+              className="h-12 w-full rounded-full px-6 text-lg font-semibold"
+              disabled={busy}
+              onClick={isBlockedRecovery ? (onOpenMicSettings ?? onAllowClick) : onAllowClick}
+            >
+              {primaryCtaLabel}
+            </Button>
+            {isBlockedRecovery ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="lg"
+                className="h-11 w-full rounded-full px-6 text-base font-medium text-muted-foreground"
+                disabled={busy}
+                onClick={onAllowClick}
+              >
+                Check again
+              </Button>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
