@@ -330,7 +330,7 @@ function MainWindow() {
       micSuccessTimerRef.current = window.setTimeout(() => {
         micSuccessTimerRef.current = null;
         updateMicGateState({ phase: "ready" });
-      }, 1200);
+      }, 650);
     } else {
       micRecoveryLockedRef.current = true;
       updateMicGateState({ busy: false, recoveryKind: result.mapped, phase: "needsMic" });

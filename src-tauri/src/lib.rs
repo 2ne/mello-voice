@@ -121,6 +121,17 @@ fn set_mic_overlay_boot_allowed_inner(app: &tauri::AppHandle, enabled: bool) -> 
             .map_err(|_| "mic overlay boot lock poisoned".to_string())?;
         *guard = enabled;
     }
+    if enabled {
+        if let Some(overlay) = app.get_webview_window("overlay") {
+            let _ = overlay.show();
+            let _ = overlay.unminimize();
+            let _ = overlay.emit("overlay-prime", ());
+        }
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = transcribe::warm_whisper_runtime(app).await;
+        });
+    }
     app.emit("mic-overlay-boot-changed", enabled)
         .map_err(|e| e.to_string())?;
     Ok(())
@@ -533,7 +544,7 @@ async fn relay_dictation_hotkey(app: tauri::AppHandle, state: String) -> Result<
         if let Some(overlay) = app.get_webview_window("overlay") {
             let _ = overlay.show();
             let _ = overlay.unminimize();
-            tokio::time::sleep(std::time::Duration::from_millis(55)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(24)).await;
             overlay
                 .emit(
                     "dictation-hotkey",
@@ -542,7 +553,7 @@ async fn relay_dictation_hotkey(app: tauri::AppHandle, state: String) -> Result<
                 .map_err(|e| e.to_string())?;
             return Ok(());
         }
-        tokio::time::sleep(std::time::Duration::from_millis(55)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(24)).await;
         app.emit(
             "dictation-hotkey",
             serde_json::json!({ "state": state }),
@@ -617,6 +628,7 @@ pub fn run() {
         .plugin(tauri_plugin_positioner::init())
         .invoke_handler(tauri::generate_handler![
             transcribe::transcribe_wav,
+            transcribe::warm_whisper_runtime,
             post_process::polish_final_transcript,
             paste_text,
             add_to_history,
@@ -706,6 +718,15 @@ pub fn run() {
             if let Some(overlay) = app.get_webview_window("overlay") {
                 let _ = overlay.hide();
             }
+
+            let prime_app = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(350)).await;
+                let _ = transcribe::warm_whisper_runtime(prime_app.clone()).await;
+                if let Some(overlay) = prime_app.get_webview_window("overlay") {
+                    let _ = overlay.emit("overlay-prime", ());
+                }
+            });
 
             Ok(())
         })

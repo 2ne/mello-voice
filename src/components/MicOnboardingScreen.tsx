@@ -54,9 +54,8 @@ export function MicOnboardingScreen({
   const isNotFoundRecovery = recovery === 'notFound'
   const isBlockedRecovery = recovery === 'notAllowed'
   const isWindowsBlocked = isBlockedRecovery && runtimeOs === 'windows'
-  const primaryCtaLabel = isWindowsBlocked
-    ? 'Show permission prompt again'
-    : isBlockedRecovery
+  const primaryCtaLabel =
+    isBlockedRecovery && !isWindowsBlocked
       ? 'Open microphone settings'
       : recovery === 'notFound' || recovery === 'notReadable' || recovery === 'unknown'
         ? 'Retry microphone check'
@@ -140,22 +139,15 @@ export function MicOnboardingScreen({
               size="lg"
               className="h-12 w-full rounded-full px-6 text-lg font-semibold"
               disabled={busy}
-              onClick={isWindowsBlocked ? onAllowClick : isBlockedRecovery ? (onOpenMicSettings ?? onAllowClick) : onAllowClick}
+              onClick={
+                isBlockedRecovery && !isWindowsBlocked
+                  ? (onOpenMicSettings ?? onAllowClick)
+                  : onAllowClick
+              }
             >
               {primaryCtaLabel}
             </Button>
-            {isWindowsBlocked ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="lg"
-                className="h-11 w-full rounded-full px-6 text-base font-medium text-muted-foreground"
-                disabled={busy}
-                onClick={onOpenMicSettings ?? onAllowClick}
-              >
-                Open Windows microphone settings
-              </Button>
-            ) : isBlockedRecovery ? (
+            {isBlockedRecovery && !isWindowsBlocked ? (
               <Button
                 type="button"
                 variant="ghost"

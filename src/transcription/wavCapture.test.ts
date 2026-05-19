@@ -3,6 +3,7 @@ import {
   ensureMicPermission,
   mapMicError,
   requestMicPermission,
+  warmWavMicCapturePipeline,
 } from './wavCapture'
 
 type PermissionStateLike = 'granted' | 'prompt' | 'denied'
@@ -110,5 +111,32 @@ describe('requestMicPermission', () => {
   it('returns mapped error when granted but capture probe fails', async () => {
     mockNavigator({ permissionState: 'granted', mediaRejects: true })
     await expect(requestMicPermission()).resolves.toEqual({ ok: false, mapped: 'unknown' })
+  })
+})
+
+describe('warmWavMicCapturePipeline', () => {
+  it('probes getUserMedia without throwing when capture is available', async () => {
+    const nav = mockNavigator({ permissionState: 'granted' })
+    const close = vi.fn(async () => {})
+    const resume = vi.fn(async () => {})
+    const addModule = vi.fn(async () => {})
+    vi.stubGlobal(
+      'AudioContext',
+      vi.fn(() => ({
+        state: 'running',
+        sampleRate: 48_000,
+        resume,
+        close,
+        audioWorklet: { addModule },
+      })),
+    )
+    await expect(warmWavMicCapturePipeline()).resolves.toBeUndefined()
+    expect(nav.mediaDevices?.getUserMedia).toHaveBeenCalledTimes(1)
+    expect(close).not.toHaveBeenCalled()
+  })
+
+  it('ignores getUserMedia failures', async () => {
+    mockNavigator({ permissionState: 'denied', mediaRejects: true })
+    await expect(warmWavMicCapturePipeline()).resolves.toBeUndefined()
   })
 })

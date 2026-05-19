@@ -4,6 +4,13 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-05-19
+
+- Faster, more responsive first dictation after microphone onboarding (background warmup).
+- Updated app icon across the app and installers.
+- **Windows:** simpler blocked-microphone screen — concise copy and one **Allow microphone access** button.
+- History shows **Just now** (capitalized) for very recent entries.
+
 ## [1.0.3] - 2026-05-19
 
 - Clearer copy when microphone access wasn’t granted; less cluttered blocked onboarding screen.
@@ -26,7 +33,8 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 - **Double-tap Caps Lock** dictation with local whisper.cpp transcription.
 - Paste into the focused app, optional **Paste and send**, floating dictation bar, history, and light/dark/system themes.
 
-[Unreleased]: https://github.com/2ne/mello-voice/compare/v1.0.3...HEAD
+[Unreleased]: https://github.com/2ne/mello-voice/compare/v1.0.4...HEAD
+[1.0.4]: https://github.com/2ne/mello-voice/releases/tag/v1.0.4
 [1.0.3]: https://github.com/2ne/mello-voice/releases/tag/v1.0.3
 [1.0.2]: https://github.com/2ne/mello-voice/releases/tag/v1.0.2
 [1.0.1]: https://github.com/2ne/mello-voice/releases/tag/v1.0.1

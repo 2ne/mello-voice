@@ -6,10 +6,13 @@ use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_shell::ShellExt;
 use tokio::time::{timeout, Duration};
 use uuid::Uuid;
+
+static WHISPER_RUNTIME_WARMED: AtomicBool = AtomicBool::new(false);
 
 const MODEL_REL: &str = "models/ggml-base.en-q8_0.bin";
 const TRANSCRIBE_DEFAULT_SECS: u64 = 120;
@@ -22,6 +25,38 @@ pub struct TranscribePayload {
     audio_wav_base64: String,
     #[serde(default)]
     timeout_secs: Option<u64>,
+}
+
+/// Loads the bundled whisper-cli + model once after mic access is granted so the first real
+/// dictation does not pay full cold-start cost.
+#[tauri::command]
+pub async fn warm_whisper_runtime(app: AppHandle) -> Result<(), String> {
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        let _ = app;
+        return Ok(());
+    }
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        if WHISPER_RUNTIME_WARMED.swap(true, Ordering::SeqCst) {
+            return Ok(());
+        }
+        let wav = minimal_silence_wav(16_000, 280);
+        let payload = TranscribePayload {
+            audio_wav_base64: B64_STANDARD.encode(&wav),
+            timeout_secs: Some(45),
+        };
+        match transcribe_desktop_inner(app, payload).await {
+            Ok(_) => Ok(()),
+            Err(e) if is_benign_warmup_error(&e) => Ok(()),
+            Err(e) => {
+                WHISPER_RUNTIME_WARMED.store(false, Ordering::SeqCst);
+                log::warn!("whisper warmup failed: {e}");
+                Ok(())
+            }
+        }
+    }
 }
 
 #[tauri::command]
@@ -215,6 +250,38 @@ fn format_whisper_stderr(transcript_so_far: &str, stderr: &[u8], prefix: &'stati
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn is_benign_warmup_error(msg: &str) -> bool {
+    let lower = msg.to_ascii_lowercase();
+    lower.contains("empty transcript")
+        || lower.contains("recording too short")
+        || lower.contains("too short")
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn minimal_silence_wav(sample_rate: u32, duration_ms: u32) -> Vec<u8> {
+    let num_samples = (sample_rate as u64 * duration_ms as u64 / 1000).max(1) as u32;
+    let data_size = num_samples * 2;
+    let riff_size = 36 + data_size;
+    let mut wav = Vec::with_capacity(44 + data_size as usize);
+    wav.extend_from_slice(b"RIFF");
+    wav.extend_from_slice(&riff_size.to_le_bytes());
+    wav.extend_from_slice(b"WAVE");
+    wav.extend_from_slice(b"fmt ");
+    wav.extend_from_slice(&16u32.to_le_bytes());
+    wav.extend_from_slice(&1u16.to_le_bytes());
+    wav.extend_from_slice(&1u16.to_le_bytes());
+    wav.extend_from_slice(&sample_rate.to_le_bytes());
+    let byte_rate = sample_rate * 2;
+    wav.extend_from_slice(&byte_rate.to_le_bytes());
+    wav.extend_from_slice(&2u16.to_le_bytes());
+    wav.extend_from_slice(&16u16.to_le_bytes());
+    wav.extend_from_slice(b"data");
+    wav.extend_from_slice(&data_size.to_le_bytes());
+    wav.resize(44 + data_size as usize, 0);
+    wav
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn trim_transcript(s: String) -> String {
     s.lines()
         .map(str::trim)
@@ -246,5 +313,18 @@ mod tests {
         assert_eq!(clamp_timeout(Some(1)), 18);
         assert_eq!(clamp_timeout(Some(120)), 120);
         assert_eq!(clamp_timeout(Some(999)), 240);
+    }
+
+    #[test]
+    fn minimal_silence_wav_is_valid_riff() {
+        let wav = minimal_silence_wav(16_000, 200);
+        assert!(wav.starts_with(b"RIFF"));
+        assert!(wav.len() >= 44);
+    }
+
+    #[test]
+    fn benign_warmup_errors_match_empty_or_short_audio() {
+        assert!(is_benign_warmup_error("whisper returned empty transcript"));
+        assert!(is_benign_warmup_error("recording too short or invalid wav"));
     }
 }

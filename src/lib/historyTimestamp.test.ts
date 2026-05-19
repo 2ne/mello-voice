@@ -9,15 +9,15 @@ describe("formatHistoryTimestampLabel", () => {
   /** Fixed local instant so relative math does not depend on UTC parsing. */
   const anchor = new Date(2026, 4, 14, 12, 0, 0);
 
-  it("shows just now for the full first minute", () => {
+  it("shows Just now for the full first minute", () => {
     const date = new Date(anchor.getTime() - 4_000);
-    expect(formatHistoryTimestampLabel(date, anchor)).toBe("just now");
+    expect(formatHistoryTimestampLabel(date, anchor)).toBe("Just now");
 
     const fifteenSec = new Date(anchor.getTime() - 15_000);
-    expect(formatHistoryTimestampLabel(fifteenSec, anchor)).toBe("just now");
+    expect(formatHistoryTimestampLabel(fifteenSec, anchor)).toBe("Just now");
 
     const fiftyNineSec = new Date(anchor.getTime() - 59_000);
-    expect(formatHistoryTimestampLabel(fiftyNineSec, anchor)).toBe("just now");
+    expect(formatHistoryTimestampLabel(fiftyNineSec, anchor)).toBe("Just now");
   });
 
   it("shows 1m at one minute elapsed", () => {

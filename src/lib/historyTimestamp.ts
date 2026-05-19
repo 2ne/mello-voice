@@ -1,11 +1,11 @@
 /** Display timestamps for transcription history: relative for recent rows, absolute en-GB-style dates after a week.
- *  Under one minute shows "just now" (no per-second ticker); timers fire only when the label would actually change.
+ *  Under one minute shows "Just now" (no per-second ticker); timers fire only when the label would actually change.
  */
 
 export function formatHistoryTimestampLabel(date: Date, now: Date): string {
   const diffMs = Math.max(0, now.getTime() - date.getTime());
   const seconds = Math.floor(diffMs / 1000);
-  if (seconds < 60) return "just now";
+  if (seconds < 60) return "Just now";
 
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m`;

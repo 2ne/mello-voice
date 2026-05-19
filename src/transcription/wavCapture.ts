@@ -35,6 +35,21 @@ type CaptureState =
 
 let state: CaptureState = { kind: 'idle' }
 
+let warmCapturePromise: Promise<void> | null = null
+
+/** Left open after warmup so the first real capture reuses AudioContext + worklet module load. */
+let primedCapture: {
+  context: AudioContext
+  workletReady: boolean
+} | null = null
+
+function disposePrimedCapture(): void {
+  if (!primedCapture) return
+  const ctx = primedCapture.context
+  primedCapture = null
+  void ctx.close().catch(() => {})
+}
+
 export type MicPermissionState = 'granted' | 'prompt' | 'denied' | 'unknown'
 
 export type MicRecoveryKind = 'notAllowed' | 'notFound' | 'notReadable' | 'unknown'
@@ -65,7 +80,7 @@ export const MIC_RECOVERY_COPY_WINDOWS: Partial<
 > = {
   notAllowed: {
     title: 'Microphone access wasn’t granted',
-    body: 'Mello Voice doesn’t have permission to use your microphone yet. Tap Show permission prompt again. If that doesn’t work, open Windows microphone settings and turn on Microphone access and Let desktop apps access your microphone.',
+    body: 'Tap Allow microphone access to try again.',
   },
 }
 
@@ -174,6 +189,50 @@ function workletModuleUrl(): string {
   return b.endsWith('/') ? `${b}pcm-capture.worklet.js` : `${b}/pcm-capture.worklet.js`
 }
 
+async function preloadWorkletModule(context: AudioContext): Promise<void> {
+  await context.audioWorklet.addModule(workletModuleUrl())
+}
+
+/**
+ * Overlay only — primes getUserMedia, AudioContext resume, and the PCM worklet so the first
+ * double-tap Caps Lock after mic onboarding does not pay cold-start latency.
+ */
+async function warmWavMicCapturePipelineInner(): Promise<void> {
+  if (state.kind === 'capturing') return
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return
+
+  let stream: MediaStream | null = null
+  try {
+    stream = await navigator.mediaDevices.getUserMedia(MIC_CAPTURE_CONSTRAINTS)
+    const context = new AudioContext({ latencyHint: 'interactive', sampleRate: undefined })
+    if (context.state === 'suspended') {
+      await context.resume()
+    }
+    let workletReady = false
+    try {
+      await preloadWorkletModule(context)
+      workletReady = true
+    } catch {
+      /** ScriptProcessor path does not need the worklet; ignore load failures here. */
+    }
+    stream.getTracks().forEach((t) => t.stop())
+    stream = null
+    disposePrimedCapture()
+    primedCapture = { context, workletReady }
+  } catch {
+    /** First dictation will surface permission / device errors. */
+    stream?.getTracks().forEach((t) => t.stop())
+  }
+}
+
+/** Best-effort; safe to call after mic access is granted (e.g. onboarding approve). */
+export function warmWavMicCapturePipeline(): Promise<void> {
+  warmCapturePromise ??= warmWavMicCapturePipelineInner().finally(() => {
+    warmCapturePromise = null
+  })
+  return warmCapturePromise
+}
+
 async function startWorkletCapture(params: {
   context: AudioContext
   micSource: MediaStreamAudioSourceNode
@@ -181,10 +240,14 @@ async function startWorkletCapture(params: {
   stream: MediaStream
   chunks: Float32Array[]
   maxRetainSamples: number
+  workletPreloaded?: boolean
 }): Promise<boolean> {
-  const { context, micSource, sinkGain, stream, chunks, maxRetainSamples } = params
+  const { context, micSource, sinkGain, stream, chunks, maxRetainSamples, workletPreloaded } =
+    params
 
-  await context.audioWorklet.addModule(workletModuleUrl())
+  if (!workletPreloaded) {
+    await preloadWorkletModule(context)
+  }
   const node = new AudioWorkletNode(context, 'pcm-capture', {
     channelCount: 1,
     numberOfInputs: 1,
@@ -258,9 +321,24 @@ export async function startWavMicCapture(): Promise<void> {
 
   const stream = await navigator.mediaDevices.getUserMedia(MIC_CAPTURE_CONSTRAINTS)
 
-  const context = new AudioContext({ latencyHint: "interactive", sampleRate: undefined })
-  if (context.state === 'suspended') {
-    await context.resume()
+  let workletPreloaded = false
+  let context: AudioContext
+  const primed = primedCapture
+  primedCapture = null
+  if (primed && primed.context.state !== 'closed') {
+    context = primed.context
+    workletPreloaded = primed.workletReady
+    if (context.state === 'suspended') {
+      await context.resume()
+    }
+  } else {
+    if (primed) {
+      void primed.context.close().catch(() => {})
+    }
+    context = new AudioContext({ latencyHint: 'interactive', sampleRate: undefined })
+    if (context.state === 'suspended') {
+      await context.resume()
+    }
   }
   const sampleRate = Math.min(context.sampleRate, 48000)
   const micSource = context.createMediaStreamSource(stream)
@@ -282,7 +360,7 @@ export async function startWavMicCapture(): Promise<void> {
   }
 
   try {
-    await startWorkletCapture(pipe)
+    await startWorkletCapture({ ...pipe, workletPreloaded })
   } catch {
     /** ScriptProcessor fallback (deprecated but universal). */
     startScriptProcessorCapture(pipe)
@@ -317,6 +395,7 @@ export async function stopWavMicCapture(): Promise<Uint8Array> {
     let merged = concatFloatChunks(chunks)
     merged = trimSilentEdges(merged, rate, 0.006, 55)
     await context.close()
+    disposePrimedCapture()
 
     if (merged.length < rate * 0.12) {
       return new Uint8Array(0)

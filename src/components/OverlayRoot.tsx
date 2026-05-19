@@ -6,12 +6,13 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
 import FloatingOverlay from "./FloatingOverlay";
 import { shouldShowSessionChrome } from "./overlaySessionState";
-import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
+import { useSpeechRecognition, warmSpeechRecognition } from "../hooks/useSpeechRecognition";
 import {
   getMicPermissionState,
   mapMicError,
   startWavMicCapture,
   stopWavMicCapture,
+  warmWavMicCapturePipeline,
 } from "../transcription/wavCapture";
 import {
   buildFinalDictationText,
@@ -141,6 +142,11 @@ function OverlayRoot() {
     capsLastAcceptedPressRef.current = -Infinity;
     clearCapsStaleTimer();
   }, [clearCapsStaleTimer]);
+
+  const primeDictationPipeline = useCallback(() => {
+    void warmWavMicCapturePipeline();
+    warmSpeechRecognition();
+  }, []);
 
   const scheduleCapsWindowStaleClear = useCallback(() => {
     clearCapsStaleTimer();
@@ -350,6 +356,29 @@ function OverlayRoot() {
   }, [applyOverlayVisibility]);
 
   useEffect(() => {
+    if (!isTauriRuntime()) return;
+    void invoke<boolean>("get_mic_overlay_boot_allowed")
+      .then((allowed) => {
+        if (allowed) primeDictationPipeline();
+      })
+      .catch(() => {});
+  }, [primeDictationPipeline]);
+
+  useEffect(() => {
+    let unlistenPrime: (() => void) | undefined;
+    void listen("overlay-prime", () => {
+      void invoke<boolean>("get_mic_overlay_boot_allowed")
+        .then((allowed) => {
+          if (allowed) primeDictationPipeline();
+        })
+        .catch(() => {});
+    }).then((fn) => {
+      unlistenPrime = fn;
+    });
+    return () => unlistenPrime?.();
+  }, [primeDictationPipeline]);
+
+  useEffect(() => {
     let unlisten: (() => void) | undefined;
     void listen<boolean>("mic-overlay-boot-changed", (event) => {
       const allowed = event.payload;
@@ -357,6 +386,7 @@ function OverlayRoot() {
         void getCurrentWindow().hide().catch(() => {});
         return;
       }
+      primeDictationPipeline();
       void (async () => {
         if (!barEnabledRef.current) return;
         try {
@@ -370,7 +400,7 @@ function OverlayRoot() {
       unlisten = fn;
     });
     return () => unlisten?.();
-  }, []);
+  }, [primeDictationPipeline]);
 
   const displayState = activeError
     ? "error"
@@ -556,10 +586,15 @@ function OverlayRoot() {
   }, [resetCapsGestureState, clearTranscript, hideOverlayWhenBarPreferOff, stopAndWaitForFinal]);
 
   const runStartDictationPipeline = useCallback(async () => {
-    const pref = await fetchOverlayBarEnabledWithRetry(
-      () => invoke<boolean>("get_overlay_bar_enabled"),
-      FALLBACK_OVERLAY_BAR_ENABLED_WHEN_FETCH_FAILS,
-    );
+    let pref = barEnabledRef.current;
+    if (!barPrefsResolvedRef.current) {
+      pref = await fetchOverlayBarEnabledWithRetry(
+        () => invoke<boolean>("get_overlay_bar_enabled"),
+        FALLBACK_OVERLAY_BAR_ENABLED_WHEN_FETCH_FAILS,
+      );
+      barPrefsResolvedRef.current = true;
+      setBarEnabled(pref);
+    }
     barEnabledRef.current = pref;
 
     setSessionError(null);

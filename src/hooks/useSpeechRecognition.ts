@@ -41,6 +41,23 @@ const SpeechRecognition =
   (window as unknown as { SpeechRecognition?: new () => SpeechRecognitionInstance }).SpeechRecognition ||
   (window as unknown as { webkitSpeechRecognition?: new () => SpeechRecognitionInstance }).webkitSpeechRecognition
 
+/** Overlay only — starts then aborts Web Speech so the first dictation session is snappier. */
+export function warmSpeechRecognition(): void {
+  if (!SpeechRecognition) return
+  try {
+    const recognition = new SpeechRecognition()
+    recognition.continuous = false
+    recognition.interimResults = false
+    recognition.onstart = () => {
+      recognition.abort()
+    }
+    recognition.onerror = () => {}
+    recognition.start()
+  } catch {
+    /* ignore — first real start will surface errors */
+  }
+}
+
 export interface UseSpeechRecognitionReturn {
   isListening: boolean
   interimTranscript: string
