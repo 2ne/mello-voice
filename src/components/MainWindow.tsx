@@ -82,7 +82,7 @@ function settingsPrefsReducer(state: SettingsPrefs, patch: Partial<SettingsPrefs
 }
 
 interface MicGateState {
-  phase: "checking" | "needsMic" | "success" | "ready";
+  phase: "checking" | "needsMic" | "warming" | "ready";
   recoveryKind: MicRecoveryKind | null;
   busy: boolean;
 }
@@ -240,15 +240,23 @@ function MainWindow() {
   const micPhaseRef = useRef(micPhase);
   /** Raised by overlay recovery. While true, only explicit "Allow microphone access" can clear mic gate. */
   const micRecoveryLockedRef = useRef(false);
-  const micSuccessTimerRef = useRef<number | null>(null);
   const { overlayBarEnabled, afterDictationAction, themePreference } = settingsPrefs;
 
   useEffect(() => {
     micPhaseRef.current = micPhase;
   }, [micPhase]);
 
+  const prepareDictationPipeline = useCallback(async () => {
+    if (!isTauriRuntime()) return;
+    try {
+      await invoke("prepare_dictation_pipeline");
+    } catch (e) {
+      console.warn("prepare_dictation_pipeline:", e);
+    }
+  }, []);
+
   const syncMicGate = useCallback(async () => {
-    if (micPhaseRef.current === "success") return;
+    if (micPhaseRef.current === "warming") return;
     const devOnboarding =
       import.meta.env.DEV &&
       typeof localStorage !== "undefined" &&
@@ -268,12 +276,9 @@ function MainWindow() {
         const result = await requestMicPermission();
         if (result.ok) {
           micRecoveryLockedRef.current = false;
-          try {
-            await invoke("set_mic_overlay_boot_allowed", { enabled: true });
-          } catch {
-            /* ignore */
-          }
-          updateMicGateState({ recoveryKind: null, phase: "ready" });
+          updateMicGateState({ recoveryKind: null, phase: "warming" });
+          await prepareDictationPipeline();
+          updateMicGateState({ phase: "ready" });
           return;
         }
       }
@@ -282,17 +287,19 @@ function MainWindow() {
     }
     const permission = await getMicPermissionState();
     const blockMain = permission !== "granted" || devOnboarding;
-    try {
-      await invoke("set_mic_overlay_boot_allowed", { enabled: !blockMain });
-    } catch {
-      /* ignore */
-    }
     if (blockMain) {
+      try {
+        await invoke("set_mic_overlay_boot_allowed", { enabled: false });
+      } catch {
+        /* ignore */
+      }
       updateMicGateState({ phase: "needsMic" });
     } else {
-      updateMicGateState({ recoveryKind: null, phase: "ready" });
+      updateMicGateState({ recoveryKind: null, phase: "warming" });
+      await prepareDictationPipeline();
+      updateMicGateState({ phase: "ready" });
     }
-  }, []);
+  }, [prepareDictationPipeline]);
 
   const handleOpenMicSettings = useCallback(async () => {
     if (!isTauriRuntime()) return;
@@ -316,26 +323,14 @@ function MainWindow() {
     const result = await requestMicPermission();
     if (result.ok) {
       micRecoveryLockedRef.current = false;
-      if (isTauriRuntime()) {
-        try {
-          await invoke("set_mic_overlay_boot_allowed", { enabled: true });
-        } catch {
-          /* ignore */
-        }
-      }
-      updateMicGateState({ busy: false, recoveryKind: null, phase: "success" });
-      if (micSuccessTimerRef.current !== null) {
-        window.clearTimeout(micSuccessTimerRef.current);
-      }
-      micSuccessTimerRef.current = window.setTimeout(() => {
-        micSuccessTimerRef.current = null;
-        updateMicGateState({ phase: "ready" });
-      }, 650);
+      updateMicGateState({ busy: false, recoveryKind: null, phase: "warming" });
+      await prepareDictationPipeline();
+      updateMicGateState({ phase: "ready" });
     } else {
       micRecoveryLockedRef.current = true;
       updateMicGateState({ busy: false, recoveryKind: result.mapped, phase: "needsMic" });
     }
-  }, [micRecoveryKind, runtimeOs]);
+  }, [micRecoveryKind, runtimeOs, prepareDictationPipeline]);
 
   const refreshHistory = useCallback(async () => {
     const entries = await getHistory();
@@ -470,14 +465,6 @@ function MainWindow() {
   }, [syncMicGate]);
 
   useEffect(() => {
-    return () => {
-      if (micSuccessTimerRef.current !== null) {
-        window.clearTimeout(micSuccessTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     void (async () => {
       let v: string | null = null;
       try {
@@ -604,19 +591,15 @@ function MainWindow() {
     await emit("theme-changed", next).catch(() => {});
   }, []);
 
-  if (micPhase === "checking") {
-    return (
-      <div className="flex min-h-svh items-center justify-center bg-background text-muted-foreground">
-        <p className="text-base">Loading…</p>
-      </div>
-    );
+  if (micPhase === "checking" || micPhase === "warming") {
+    return <MicOnboardingScreen phase="warming" recovery={null} busy={false} onAllowClick={handleMicAllow} />;
   }
 
-  if (micPhase === "needsMic" || micPhase === "success") {
+  if (micPhase === "needsMic") {
     return (
       <MicOnboardingScreen
-        phase={micPhase === "success" ? "success" : "prompt"}
-        recovery={micPhase === "needsMic" ? micRecoveryKind : null}
+        phase="prompt"
+        recovery={micRecoveryKind}
         runtimeOs={runtimeOs}
         busy={micBusy}
         onAllowClick={handleMicAllow}

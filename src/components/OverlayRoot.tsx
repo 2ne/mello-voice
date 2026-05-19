@@ -6,13 +6,14 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
 import FloatingOverlay from "./FloatingOverlay";
 import { shouldShowSessionChrome } from "./overlaySessionState";
-import { useSpeechRecognition, warmSpeechRecognition } from "../hooks/useSpeechRecognition";
+import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import {
   getMicPermissionState,
   mapMicError,
   startWavMicCapture,
   stopWavMicCapture,
   warmWavMicCapturePipeline,
+  resumeCaptureAudioIfActive,
 } from "../transcription/wavCapture";
 import {
   buildFinalDictationText,
@@ -106,13 +107,13 @@ function OverlayRoot() {
   const {
     interimTranscript,
     finalTranscript,
-    error: speechError,
     startListening,
     stopAndWaitForFinal,
     clearTranscript,
   } = useSpeechRecognition();
 
-  const activeError = speechError ?? sessionError;
+  /** Only session/mic errors belong in the pill — Web Speech is Whisper fallback and flakes on first WebView2 start. */
+  const activeError = sessionError;
 
   useEffect(() => {
     errorRef.current = activeError;
@@ -142,11 +143,6 @@ function OverlayRoot() {
     capsLastAcceptedPressRef.current = -Infinity;
     clearCapsStaleTimer();
   }, [clearCapsStaleTimer]);
-
-  const primeDictationPipeline = useCallback(() => {
-    void warmWavMicCapturePipeline();
-    warmSpeechRecognition();
-  }, []);
 
   const scheduleCapsWindowStaleClear = useCallback(() => {
     clearCapsStaleTimer();
@@ -357,26 +353,19 @@ function OverlayRoot() {
 
   useEffect(() => {
     if (!isTauriRuntime()) return;
-    void invoke<boolean>("get_mic_overlay_boot_allowed")
-      .then((allowed) => {
-        if (allowed) primeDictationPipeline();
-      })
-      .catch(() => {});
-  }, [primeDictationPipeline]);
-
-  useEffect(() => {
-    let unlistenPrime: (() => void) | undefined;
-    void listen("overlay-prime", () => {
-      void invoke<boolean>("get_mic_overlay_boot_allowed")
-        .then((allowed) => {
-          if (allowed) primeDictationPipeline();
-        })
-        .catch(() => {});
+    let unlistenWarm: (() => void) | undefined;
+    void listen("dictation-warm-request", async () => {
+      try {
+        await warmWavMicCapturePipeline();
+      } catch (e) {
+        console.warn("dictation-warm-request:", e);
+      }
+      await emit("dictation-warm-complete", {}).catch(() => {});
     }).then((fn) => {
-      unlistenPrime = fn;
+      unlistenWarm = fn;
     });
-    return () => unlistenPrime?.();
-  }, [primeDictationPipeline]);
+    return () => unlistenWarm?.();
+  }, []);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -386,12 +375,20 @@ function OverlayRoot() {
         void getCurrentWindow().hide().catch(() => {});
         return;
       }
-      primeDictationPipeline();
       void (async () => {
         if (!barEnabledRef.current) return;
+        const win = getCurrentWindow();
+        let wasVisible = false;
         try {
-          await getCurrentWindow().show();
-          await positionOverlayTopCenter();
+          wasVisible = await win.isVisible();
+        } catch {
+          /* ignore */
+        }
+        try {
+          await win.show();
+          if (!wasVisible) {
+            await positionOverlayTopCenter();
+          }
         } catch (e) {
           console.warn("Could not show overlay:", e);
         }
@@ -400,7 +397,7 @@ function OverlayRoot() {
       unlisten = fn;
     });
     return () => unlisten?.();
-  }, [primeDictationPipeline]);
+  }, []);
 
   const displayState = activeError
     ? "error"
@@ -598,6 +595,7 @@ function OverlayRoot() {
     barEnabledRef.current = pref;
 
     setSessionError(null);
+    clearTranscript();
 
     try {
       await getCurrentWindow().show();
@@ -623,11 +621,13 @@ function OverlayRoot() {
       hideOverlayWhenBarPreferOff();
       return;
     }
+    /** Let the WAV graph open the mic before Web Speech shares the device (avoids first-run `network` noise). */
+    await new Promise((r) => setTimeout(r, 150));
     startListening();
     isListeningRef.current = true;
 
     resetCapsGestureState();
-  }, [hideOverlayWhenBarPreferOff, resetCapsGestureState, startListening]);
+  }, [hideOverlayWhenBarPreferOff, resetCapsGestureState, startListening, clearTranscript]);
 
   const handleShortcut = useCallback(
     async (event: { state: HotkeyState }) => {
@@ -678,6 +678,31 @@ function OverlayRoot() {
       scheduleCapsWindowStaleClear,
     ],
   );
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        resumeCaptureAudioIfActive();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
+
+  useEffect(() => {
+    if (!isTauriRuntime() || !isExpanded) return;
+    let unlisten: (() => void) | undefined;
+    void getCurrentWindow()
+      .onFocusChanged(({ payload: focused }) => {
+        if (focused) resumeCaptureAudioIfActive();
+      })
+      .then((fn) => {
+        unlisten = fn;
+      });
+    return () => {
+      unlisten?.();
+    };
+  }, [isExpanded]);
 
   // Global shortcut is registered on the main window so it still fires while this overlay webview is hidden (WebView2 can stop delivering plugin IPC here).
   useEffect(() => {

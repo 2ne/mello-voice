@@ -108,16 +108,22 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       setIsListening(false)
     }
     recognition.onerror = (e) => {
-      /** Benign Chromium / WebSpeech cases while the mic is idle or between phrases. */
-      const benign = new Set(["aborted", "no-speech", "captured"])
+      /**
+       * Web Speech is optional fallback for local Whisper. Chromium/WebView2 often emits
+       * `network` on the first start while the mic is owned by our WAV capture — not user-facing.
+       */
+      const benign = new Set([
+        'aborted',
+        'no-speech',
+        'captured',
+        'network',
+        'service-not-allowed',
+        'language-not-supported',
+      ])
       if (benign.has(e.error)) return
-      if (e.error === "audio-capture") return
-      if (e.error === "not-allowed") {
-        setError("Microphone access denied")
-        return
-      }
-      if (e.error === "network") {
-        setError("Speech service unavailable. Check network and microphone permission.")
+      if (e.error === 'audio-capture') return
+      if (e.error === 'not-allowed') {
+        setError('Microphone access denied')
         return
       }
       setError(`Error: ${e.error}`)
@@ -210,6 +216,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   }, [])
 
   const clearTranscript = useCallback(() => {
+    setError(null)
     setInterimTranscript('')
     setFinalTranscript('')
     transcriptRef.current = { final: '', interim: '' }

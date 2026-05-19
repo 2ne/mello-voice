@@ -1,39 +1,11 @@
 import { Separator } from '@/components/ui/separator'
 import { Button } from '@/components/ui/button'
 import { MicrophoneOutlineIcon } from '@/components/icons/MicrophoneOutlineIcon'
-import { cn } from '@/lib/utils'
+import { MicOnboardingLogoBars } from '@/components/MicOnboardingLogoBars'
 import { micRecoveryCopy, type MicRecoveryKind } from '@/transcription/wavCapture'
 
-const micOnboardingBarBase =
-  'w-[0.3125rem] shrink-0 rounded-full animate-[mello-logo-bar-breathe_1.28s_var(--ease-opacity-breathe)_infinite] motion-reduce:animate-none motion-reduce:opacity-100'
-
-function MicOnboardingLogoBars() {
-  return (
-    <div className="flex shrink-0 items-center justify-center gap-[0.3125rem]" role="img" aria-hidden>
-      <span
-        className={cn(
-          micOnboardingBarBase,
-          'h-3 bg-[color-mix(in_oklab,var(--background)_52%,transparent)]',
-        )}
-      />
-      <span
-        className={cn(
-          micOnboardingBarBase,
-          'h-[1.35rem] bg-[color-mix(in_oklab,var(--background)_94%,transparent)] delay-[130ms]',
-        )}
-      />
-      <span
-        className={cn(
-          micOnboardingBarBase,
-          'h-3 bg-[color-mix(in_oklab,var(--background)_52%,transparent)] delay-[260ms]',
-        )}
-      />
-    </div>
-  )
-}
-
 export interface MicOnboardingScreenProps {
-  phase: 'prompt' | 'success'
+  phase: 'prompt' | 'warming'
   recovery: MicRecoveryKind | null
   /** From `runtime_os` — Windows blocked flow differs (WebView2 vs Settings app list). */
   runtimeOs?: string | null
@@ -61,23 +33,16 @@ export function MicOnboardingScreen({
         ? 'Retry microphone check'
         : 'Allow microphone access'
 
-  if (phase === 'success') {
+  if (phase === 'warming') {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center px-8 py-12">
-        <div className="flex w-full max-w-max flex-col items-center gap-4 text-center">
-          <div
-            className="flex size-[3.5rem] shrink-0 items-center justify-center rounded-full bg-foreground shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
-            aria-hidden
-          >
-            <MicOnboardingLogoBars />
-          </div>
-          <p className="text-xl font-medium tracking-[-0.02em] text-foreground">
-            Microphone enabled
-          </p>
-          <p className="text-base leading-relaxed text-muted-foreground">
-            You can start dictating anytime.
-          </p>
+      <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-background px-8 py-12">
+        <div
+          className="flex size-[3.5rem] shrink-0 items-center justify-center rounded-full bg-foreground shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
+          aria-hidden
+        >
+          <MicOnboardingLogoBars />
         </div>
+        <p className="text-base text-muted-foreground">Loading</p>
       </div>
     )
   }

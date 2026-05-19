@@ -18,6 +18,12 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    /** Avoid WebView2 disk-cache corruption on localhost (ERR_CACHE_READ_FAILURE). */
+    host: "127.0.0.1",
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      Pragma: "no-cache",
+    },
   },
   envPrefix: ["VITE_", "TAURI_"],
   build: {

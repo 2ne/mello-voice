@@ -132,7 +132,7 @@ describe('warmWavMicCapturePipeline', () => {
     )
     await expect(warmWavMicCapturePipeline()).resolves.toBeUndefined()
     expect(nav.mediaDevices?.getUserMedia).toHaveBeenCalledTimes(1)
-    expect(close).not.toHaveBeenCalled()
+    expect(close).toHaveBeenCalledTimes(1)
   })
 
   it('ignores getUserMedia failures', async () => {

@@ -4,13 +4,14 @@ use std::env;
 use std::ffi::OsString;
 use std::fs;
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use tauri::{
     image::Image,
     menu::{Menu, MenuItem},
     path::BaseDirectory,
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager, State,
+    Emitter, Listener, Manager, State,
 };
 
 /// whisper.cpp CPU/GPU builds ship DLLs next to whisper-cli.exe; bundled under resource `whisper_runtime/`.
@@ -104,6 +105,22 @@ const MAX_PASTE_TEXT_CHARS: usize = 20_000;
 
 struct MicOverlayBoot(Mutex<bool>);
 
+struct DictationPipelineReady(Mutex<bool>);
+
+fn dictation_pipeline_ready(app: &tauri::AppHandle) -> bool {
+    app.state::<DictationPipelineReady>()
+        .0
+        .lock()
+        .map(|g| *g)
+        .unwrap_or(false)
+}
+
+fn set_dictation_pipeline_ready(app: &tauri::AppHandle, ready: bool) {
+    if let Ok(mut guard) = app.state::<DictationPipelineReady>().0.lock() {
+        *guard = ready;
+    }
+}
+
 fn mic_overlay_boot_allowed(app: &tauri::AppHandle) -> bool {
     app.state::<MicOverlayBoot>()
         .0
@@ -119,18 +136,13 @@ fn set_mic_overlay_boot_allowed_inner(app: &tauri::AppHandle, enabled: bool) -> 
             .0
             .lock()
             .map_err(|_| "mic overlay boot lock poisoned".to_string())?;
+        if *guard == enabled {
+            return Ok(());
+        }
         *guard = enabled;
     }
-    if enabled {
-        if let Some(overlay) = app.get_webview_window("overlay") {
-            let _ = overlay.show();
-            let _ = overlay.unminimize();
-            let _ = overlay.emit("overlay-prime", ());
-        }
-        let app = app.clone();
-        tauri::async_runtime::spawn(async move {
-            let _ = transcribe::warm_whisper_runtime(app).await;
-        });
+    if !enabled {
+        set_dictation_pipeline_ready(app, false);
     }
     app.emit("mic-overlay-boot-changed", enabled)
         .map_err(|e| e.to_string())?;
@@ -362,6 +374,48 @@ fn get_mic_overlay_boot_allowed(app: tauri::AppHandle) -> Result<bool, String> {
 }
 
 #[tauri::command]
+fn get_dictation_pipeline_ready(app: tauri::AppHandle) -> Result<bool, String> {
+    Ok(dictation_pipeline_ready(&app))
+}
+
+/// Warms Whisper and the overlay mic capture pipeline. Gates dictation hotkeys until complete.
+#[tauri::command]
+async fn prepare_dictation_pipeline(app: tauri::AppHandle) -> Result<(), String> {
+    if dictation_pipeline_ready(&app) {
+        return Ok(());
+    }
+
+    set_dictation_pipeline_ready(&app, false);
+    set_mic_overlay_boot_allowed_inner(&app, true)?;
+
+    transcribe::warm_whisper_runtime(app.clone()).await?;
+
+    let completed = Arc::new(AtomicBool::new(false));
+    let completed_flag = completed.clone();
+    let listener_id = app.listen("dictation-warm-complete", move |_event| {
+        completed_flag.store(true, Ordering::SeqCst);
+    });
+
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let _ = overlay.emit("dictation-warm-request", ());
+    }
+
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(45);
+    while !completed.load(Ordering::SeqCst) {
+        if tokio::time::Instant::now() >= deadline {
+            log::warn!("dictation overlay mic warm timed out after 45s");
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+
+    app.unlisten(listener_id);
+    set_dictation_pipeline_ready(&app, true);
+    let _ = app.emit("dictation-pipeline-ready", true);
+    Ok(())
+}
+
+#[tauri::command]
 fn runtime_os() -> &'static str {
     std::env::consts::OS
 }
@@ -529,8 +583,8 @@ async fn relay_dictation_hotkey(app: tauri::AppHandle, state: String) -> Result<
         let normalized = state.trim().to_ascii_lowercase();
         let is_pressed =
             normalized == "pressed" || normalized == "press" || normalized == "down";
-        if !mic_overlay_boot_allowed(&app) {
-            // Gate is disabled while mic onboarding/recovery is required.
+        if !mic_overlay_boot_allowed(&app) || !dictation_pipeline_ready(&app) {
+            // Gate is disabled while mic onboarding/recovery is required, or pipeline is warming.
             // Do not route hotkey presses into the overlay to avoid repeated recovery loops.
             if is_pressed {
                 if let Some(main) = app.get_webview_window("main") {
@@ -638,6 +692,8 @@ pub fn run() {
             show_overlay_window,
             set_mic_overlay_boot_allowed,
             get_mic_overlay_boot_allowed,
+            prepare_dictation_pipeline,
+            get_dictation_pipeline_ready,
             raise_mic_recovery_to_main,
             open_mic_privacy_settings,
             reset_webview_mic_permission,
@@ -672,6 +728,7 @@ pub fn run() {
             let initial_history = load_history(&app_handle).unwrap_or_default();
             app.manage(HistoryStore(Mutex::new(initial_history)));
             app.manage(MicOverlayBoot(Mutex::new(false)));
+            app.manage(DictationPipelineReady(Mutex::new(false)));
 
             // Build tray menu
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
@@ -718,15 +775,6 @@ pub fn run() {
             if let Some(overlay) = app.get_webview_window("overlay") {
                 let _ = overlay.hide();
             }
-
-            let prime_app = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_millis(350)).await;
-                let _ = transcribe::warm_whisper_runtime(prime_app.clone()).await;
-                if let Some(overlay) = prime_app.get_webview_window("overlay") {
-                    let _ = overlay.emit("overlay-prime", ());
-                }
-            });
 
             Ok(())
         })

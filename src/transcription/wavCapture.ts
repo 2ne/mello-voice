@@ -37,17 +37,18 @@ let state: CaptureState = { kind: 'idle' }
 
 let warmCapturePromise: Promise<void> | null = null
 
-/** Left open after warmup so the first real capture reuses AudioContext + worklet module load. */
-let primedCapture: {
-  context: AudioContext
-  workletReady: boolean
-} | null = null
+/** Mic stream left open after warmup so the first capture reuses the same live device handle (Windows). */
+let primedMicStream: MediaStream | null = null
 
-function disposePrimedCapture(): void {
-  if (!primedCapture) return
-  const ctx = primedCapture.context
-  primedCapture = null
-  void ctx.close().catch(() => {})
+function disposePrimedMicStream(): void {
+  primedMicStream?.getTracks().forEach((t) => t.stop())
+  primedMicStream = null
+}
+
+function primedMicStreamIsUsable(stream: MediaStream | null): boolean {
+  if (!stream) return false
+  const tracks = stream.getAudioTracks()
+  return tracks.length > 0 && tracks.every((t) => t.readyState === 'live')
 }
 
 export type MicPermissionState = 'granted' | 'prompt' | 'denied' | 'unknown'
@@ -201,27 +202,40 @@ async function warmWavMicCapturePipelineInner(): Promise<void> {
   if (state.kind === 'capturing') return
   if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return
 
+  disposePrimedMicStream()
+
   let stream: MediaStream | null = null
+  let context: AudioContext | null = null
   try {
     stream = await navigator.mediaDevices.getUserMedia(MIC_CAPTURE_CONSTRAINTS)
-    const context = new AudioContext({ latencyHint: 'interactive', sampleRate: undefined })
+    context = new AudioContext({ latencyHint: 'interactive', sampleRate: undefined })
     if (context.state === 'suspended') {
       await context.resume()
     }
-    let workletReady = false
     try {
       await preloadWorkletModule(context)
-      workletReady = true
     } catch {
       /** ScriptProcessor path does not need the worklet; ignore load failures here. */
     }
-    stream.getTracks().forEach((t) => t.stop())
+    await context.close()
+    context = null
+    primedMicStream = stream
     stream = null
-    disposePrimedCapture()
-    primedCapture = { context, workletReady }
   } catch {
     /** First dictation will surface permission / device errors. */
     stream?.getTracks().forEach((t) => t.stop())
+    if (context) {
+      await context.close().catch(() => {})
+    }
+  }
+}
+
+/** Keep dictation alive when the overlay webview loses focus (e.g. user drags the main window). */
+export function resumeCaptureAudioIfActive(): void {
+  if (state.kind !== 'capturing') return
+  const { context } = state
+  if (context.state === 'suspended') {
+    void context.resume().catch(() => {})
   }
 }
 
@@ -240,14 +254,10 @@ async function startWorkletCapture(params: {
   stream: MediaStream
   chunks: Float32Array[]
   maxRetainSamples: number
-  workletPreloaded?: boolean
 }): Promise<boolean> {
-  const { context, micSource, sinkGain, stream, chunks, maxRetainSamples, workletPreloaded } =
-    params
+  const { context, micSource, sinkGain, stream, chunks, maxRetainSamples } = params
 
-  if (!workletPreloaded) {
-    await preloadWorkletModule(context)
-  }
+  await preloadWorkletModule(context)
   const node = new AudioWorkletNode(context, 'pcm-capture', {
     channelCount: 1,
     numberOfInputs: 1,
@@ -315,30 +325,27 @@ function startScriptProcessorCapture(params: {
 }
 
 export async function startWavMicCapture(): Promise<void> {
+  if (warmCapturePromise) {
+    await warmCapturePromise.catch(() => {})
+  }
+
   if (state.kind !== 'idle') {
     await stopWavMicCapture().catch(() => {})
   }
 
-  const stream = await navigator.mediaDevices.getUserMedia(MIC_CAPTURE_CONSTRAINTS)
-
-  let workletPreloaded = false
-  let context: AudioContext
-  const primed = primedCapture
-  primedCapture = null
-  if (primed && primed.context.state !== 'closed') {
-    context = primed.context
-    workletPreloaded = primed.workletReady
-    if (context.state === 'suspended') {
-      await context.resume()
-    }
+  const warmed = primedMicStream
+  primedMicStream = null
+  let stream: MediaStream
+  if (warmed && primedMicStreamIsUsable(warmed)) {
+    stream = warmed
   } else {
-    if (primed) {
-      void primed.context.close().catch(() => {})
-    }
-    context = new AudioContext({ latencyHint: 'interactive', sampleRate: undefined })
-    if (context.state === 'suspended') {
-      await context.resume()
-    }
+    warmed?.getTracks().forEach((t) => t.stop())
+    stream = await navigator.mediaDevices.getUserMedia(MIC_CAPTURE_CONSTRAINTS)
+  }
+
+  const context = new AudioContext({ latencyHint: 'interactive', sampleRate: undefined })
+  if (context.state === 'suspended') {
+    await context.resume()
   }
   const sampleRate = Math.min(context.sampleRate, 48000)
   const micSource = context.createMediaStreamSource(stream)
@@ -360,7 +367,7 @@ export async function startWavMicCapture(): Promise<void> {
   }
 
   try {
-    await startWorkletCapture({ ...pipe, workletPreloaded })
+    await startWorkletCapture(pipe)
   } catch {
     /** ScriptProcessor fallback (deprecated but universal). */
     startScriptProcessorCapture(pipe)
@@ -395,7 +402,7 @@ export async function stopWavMicCapture(): Promise<Uint8Array> {
     let merged = concatFloatChunks(chunks)
     merged = trimSilentEdges(merged, rate, 0.006, 55)
     await context.close()
-    disposePrimedCapture()
+    disposePrimedMicStream()
 
     if (merged.length < rate * 0.12) {
       return new Uint8Array(0)

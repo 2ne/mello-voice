@@ -12,7 +12,7 @@ const MIC_ORIGINS: &[&str] = &[
     "http://tauri.localhost",
     "https://asset.localhost",
     "http://asset.localhost",
-    "http://localhost:1420",
+    "http://127.0.0.1:1420",
 ];
 
 fn reset_on_webview(platform_webview: tauri::webview::PlatformWebview) -> Result<(), String> {

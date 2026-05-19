@@ -1,11 +1,11 @@
 {
   "name": "mello-voice",
   "private": true,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "scripts": {
     "setup:whisper": "node scripts/setup-whisper-assets.mjs",
-    "dev": "vite",
+    "dev": "vite --force",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",

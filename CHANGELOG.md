@@ -4,6 +4,12 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-05-19
+
+- **Loading screen** after microphone access (logo + **Loading**) while dictation warms up; removed the extra “Microphone enabled” step.
+- **Caps Lock waits until ready** — dictation hotkey is ignored until warmup completes.
+- More reliable **first dictation** on Windows (coordinated transcription + mic warmup).
+
 ## [1.0.4] - 2026-05-19
 
 - Faster, more responsive first dictation after microphone onboarding (background warmup).
@@ -33,7 +39,8 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 - **Double-tap Caps Lock** dictation with local whisper.cpp transcription.
 - Paste into the focused app, optional **Paste and send**, floating dictation bar, history, and light/dark/system themes.
 
-[Unreleased]: https://github.com/2ne/mello-voice/compare/v1.0.4...HEAD
+[Unreleased]: https://github.com/2ne/mello-voice/compare/v1.0.5...HEAD
+[1.0.5]: https://github.com/2ne/mello-voice/releases/tag/v1.0.5
 [1.0.4]: https://github.com/2ne/mello-voice/releases/tag/v1.0.4
 [1.0.3]: https://github.com/2ne/mello-voice/releases/tag/v1.0.3
 [1.0.2]: https://github.com/2ne/mello-voice/releases/tag/v1.0.2
