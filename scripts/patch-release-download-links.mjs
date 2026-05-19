@@ -94,7 +94,7 @@ if (assets.length === 0) {
 }
 
 let body = bodyFile && fs.existsSync(bodyFile)
-  ? fs.readFileSync(bodyFile, 'utf8')
+  ? fs.readFileSync(bodyFile, 'utf8').replace(/^\uFEFF/, '')
   : (release.body ?? '')
 
 body = injectDownloads(body, buildDownloadsSection(assets))
