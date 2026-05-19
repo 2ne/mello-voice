@@ -1,0 +1,30 @@
+name: Repatch release download links
+
+# Re-run when a release exists but "Direct downloads" URLs were wrong.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  repatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Compose user release notes
+        run: node scripts/compose-release-body.mjs "${{ inputs.tag }}" > release-body.md
+
+      - name: Patch download links from GitHub assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/patch-release-download-links.mjs "${{ inputs.tag }}" release-body.md

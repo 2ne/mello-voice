@@ -18,7 +18,7 @@ Pushing **`vX.Y.Z`** runs [`.github/workflows/release.yml`](../../.github/workfl
 
 1. Confirms the tag matches `src-tauri/tauri.conf.json` (and `package.json` / `Cargo.toml`).
 2. Builds **Windows** (`*-setup.exe` + `.msi`) and **macOS** (`.dmg` + `.app.tar.gz`).
-3. Creates/updates the **GitHub Release**, attaches installers (`.exe`, `.msi`, `.dmg`, `.app.tar.gz`), and sets the description from **`releases/vX.Y.Z.md`** plus an auto-generated **Direct downloads** section (clickable links in the notes and GitHub’s **Assets** list).
+3. Creates/updates the **GitHub Release**, attaches installers (`.exe`, `.msi`, `.dmg`, `.app.tar.gz`), sets the description from **`releases/vX.Y.Z.md`**, then patches **Direct downloads** using each asset’s **`browser_download_url`** from GitHub (so links always match the **Assets** list).
 
 One-time repo setting (tell the user if releases fail with permissions errors): **Settings → Actions → General → Workflow permissions → Read and write**.
 
@@ -99,5 +99,6 @@ Not part of a normal release. For manual Windows troubleshooting see [mello-voic
 |--------|-----|
 | Tag ≠ app version | Tag must be `v` + `tauri.conf.json` version exactly. |
 | Missing `releases/vX.Y.Z.md` | Add the file before tagging; CI will fail without it. |
+| Download links 404 in release notes | Re-run **Repatch release download links** workflow for that tag, or ship a new patch with the fixed `release.yml`. |
 | Resource not accessible by integration | Enable Actions **read/write** permissions (above). |
 | Windows `app.exe` access denied (local build) | `taskkill /IM app.exe /F` — CI runners do not hit this. |

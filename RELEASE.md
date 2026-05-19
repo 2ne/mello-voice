@@ -14,7 +14,9 @@ The agent will run tests, write `releases/v1.0.1.md` in the same tone as `releas
 
 ## What CI does (automatic)
 
-On tag `v*`: build **Windows** + **macOS** installers → GitHub Release with notes from `releases/vX.Y.Z.md`.
+On tag `v*`: build **Windows** + **macOS** installers → GitHub Release with notes from `releases/vX.Y.Z.md`, then inject download links from the uploaded assets (exact URLs GitHub serves).
+
+**Broken download links on an existing release?** Actions → **Repatch release download links** → run for that tag (e.g. `v1.0.1`).
 
 **One-time:** GitHub **Settings → Actions → Workflow permissions → Read and write**.
 

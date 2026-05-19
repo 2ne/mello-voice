@@ -108,10 +108,15 @@ jobs:
       - name: List release assets
         run: find release-assets -type f | sort
 
-      - name: Compose release notes
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: node scripts/compose-release-body.mjs "${{ github.ref_name }}" release-assets > release-body.md
+      - name: Flatten installers for upload
+        run: |
+          set -euo pipefail
+          mkdir -p release-upload
+          find release-assets -type f -exec cp -f {} release-upload/ \;
+          ls -la release-upload
+
+      - name: Compose release notes (user content)
+        run: node scripts/compose-release-body.mjs "${{ github.ref_name }}" > release-body.md
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
@@ -121,4 +126,10 @@ jobs:
           draft: false
           prerelease: false
           body_path: release-body.md
-          files: release-assets/**/*
+          files: release-upload/*
+
+      - name: Patch download links from uploaded assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/patch-release-download-links.mjs "${{ github.ref_name }}" release-body.md
