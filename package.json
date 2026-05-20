@@ -1,7 +1,7 @@
 {
   "name": "mello-voice",
   "private": true,
-  "version": "1.0.5",
+  "version": "1.0.6",
   "type": "module",
   "scripts": {
     "setup:whisper": "node scripts/setup-whisper-assets.mjs",
@@ -32,7 +32,6 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/vite": "^4.3.0",
     "@tauri-apps/api": "^2.10.1",
-    "@tauri-apps/plugin-global-shortcut": "^2.3.1",
     "@tauri-apps/plugin-positioner": "^2.3.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

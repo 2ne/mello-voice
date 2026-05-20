@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useReducer, useEffectEvent, type MouseEvent, type ReactNode } from "react";
+import { useState, useEffect, useCallback, useRef, useReducer, useEffectEvent, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { listen, emit } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { SettingsGearIcon } from "@/components/icons/SettingsGearIcon";
@@ -9,11 +8,18 @@ import { CloseIcon } from "@/components/icons/CloseIcon";
 import { CopyIcon } from "@/components/icons/CopyIcon";
 import { CheckIcon } from "@/components/icons/CheckIcon";
 import { getHistory, clearHistory, type HistoryEntry } from "../history";
-import { DICTATION_GLOBAL_SHORTCUT, DICTATION_SHORTCUT_UI_LABEL, dictationShortcutGestureParts } from "../dictationShortcut";
+import {
+  DEFAULT_DICTATION_SHORTCUT,
+  dictationShortcutFromKeyboardEvent,
+  dictationShortcutGestureParts,
+  isDefaultDictationShortcut,
+  parseDictationShortcut,
+  type DictationShortcutPreference,
+} from "../dictationShortcut";
 import { cn } from "@/lib/utils";
 import { Elevated } from "@/lib/elevated";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, settingsControlTriggerCn } from "@/components/ui/select";
 import { Drawer } from "vaul";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
@@ -69,12 +75,14 @@ interface SettingsPrefs {
   overlayBarEnabled: boolean;
   afterDictationAction: AfterDictationActionOption;
   themePreference: ThemePreference;
+  dictationShortcut: DictationShortcutPreference;
 }
 
 const INITIAL_SETTINGS_PREFS: SettingsPrefs = {
   overlayBarEnabled: true,
   afterDictationAction: DEFAULT_AFTER_DICTATION_ACTION,
   themePreference: "system",
+  dictationShortcut: DEFAULT_DICTATION_SHORTCUT,
 };
 
 function settingsPrefsReducer(state: SettingsPrefs, patch: Partial<SettingsPrefs>): SettingsPrefs {
@@ -114,14 +122,101 @@ function mainUiReducer(state: MainUiState, patch: Partial<MainUiState>): MainUiS
 /** ChatGPT-like row: stacked label/description left, trailing control aligned right. */
 function SettingsSettingRow({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-5">
+    <div className="flex items-center justify-between gap-5 py-5">
       <div className="min-w-0 flex-1">
         <p className="text-base text-foreground">{title}</p>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
-      <div data-settings-control="" className="relative z-[2] flex min-h-9 min-w-[10rem] shrink-0 items-center justify-end">
+      <div data-settings-control="" className="relative z-[2] flex min-h-9 w-[10rem] shrink-0 items-center justify-end">
         {children}
       </div>
+    </div>
+  );
+}
+
+function DictationShortcutInput({
+  value,
+  onChange,
+  onCaptureActiveChange,
+}: {
+  value: DictationShortcutPreference;
+  onChange: (shortcut: DictationShortcutPreference) => void;
+  onCaptureActiveChange: (active: boolean) => void;
+}) {
+  const [isCapturing, setIsCapturing] = useState(false);
+  const hasCustomValue = !isDefaultDictationShortcut(value);
+
+  const setCaptureActive = useCallback(
+    (active: boolean) => {
+      setIsCapturing(active);
+      onCaptureActiveChange(active);
+    },
+    [onCaptureActiveChange],
+  );
+
+  useEffect(() => {
+    return () => onCaptureActiveChange(false);
+  }, [onCaptureActiveChange]);
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Tab") return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.key === "Escape") {
+        setCaptureActive(false);
+        event.currentTarget.blur();
+        return;
+      }
+
+      const next = dictationShortcutFromKeyboardEvent(event);
+      if (next == null) return;
+      onChange(next);
+      setCaptureActive(false);
+      event.currentTarget.blur();
+    },
+    [onChange, setCaptureActive],
+  );
+
+  const resetToDefault = useCallback(() => {
+    onChange(DEFAULT_DICTATION_SHORTCUT);
+    setCaptureActive(false);
+  }, [onChange, setCaptureActive]);
+
+  return (
+    <div className="relative inline-flex min-w-[9.5rem] max-w-[12rem] flex-1 shrink-0">
+      <input
+        aria-label="Dictation shortcut"
+        className={cn(
+          settingsControlTriggerCn("pr-9 caret-transparent"),
+          "placeholder:text-muted-foreground",
+          isCapturing && "text-muted-foreground",
+        )}
+        inputMode="none"
+        placeholder={isCapturing ? "Tap any key" : undefined}
+        readOnly
+        spellCheck={false}
+        value={isCapturing ? "" : value.label}
+        onBlur={() => setCaptureActive(false)}
+        onFocus={() => setCaptureActive(true)}
+        onKeyDown={handleKeyDown}
+      />
+      {hasCustomValue ? (
+        <Tooltip content="Reset to Caps Lock" side="top">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="absolute right-1.5 top-1/2 size-6 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label="Reset shortcut to Caps Lock"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={resetToDefault}
+          >
+            <CloseIcon strokeWidth={1.75} className="size-3.5" />
+          </Button>
+        </Tooltip>
+      ) : null}
     </div>
   );
 }
@@ -235,12 +330,11 @@ function MainWindow() {
   const [runtimeOs, setRuntimeOs] = useState<string | null>(null);
   /** Synchronous mirror of `overlayBarPrefResolved` — lets late boot fetches skip clobbering a fresher event-driven write. */
   const overlayBarPrefResolvedRef = useRef(false);
-  const registeredShortcutRef = useRef<string | null>(null);
   const { phase: micPhase, recoveryKind: micRecoveryKind, busy: micBusy } = micGateState;
   const micPhaseRef = useRef(micPhase);
   /** Raised by overlay recovery. While true, only explicit "Allow microphone access" can clear mic gate. */
   const micRecoveryLockedRef = useRef(false);
-  const { overlayBarEnabled, afterDictationAction, themePreference } = settingsPrefs;
+  const { overlayBarEnabled, afterDictationAction, themePreference, dictationShortcut } = settingsPrefs;
 
   useEffect(() => {
     micPhaseRef.current = micPhase;
@@ -252,6 +346,15 @@ function MainWindow() {
       await invoke("prepare_dictation_pipeline");
     } catch (e) {
       console.warn("prepare_dictation_pipeline:", e);
+    }
+  }, []);
+
+  const isDictationPipelineReady = useCallback(async () => {
+    if (!isTauriRuntime()) return true;
+    try {
+      return await invoke<boolean>("get_dictation_pipeline_ready");
+    } catch {
+      return false;
     }
   }, []);
 
@@ -276,6 +379,10 @@ function MainWindow() {
         const result = await requestMicPermission();
         if (result.ok) {
           micRecoveryLockedRef.current = false;
+          if (await isDictationPipelineReady()) {
+            updateMicGateState({ recoveryKind: null, phase: "ready" });
+            return;
+          }
           updateMicGateState({ recoveryKind: null, phase: "warming" });
           await prepareDictationPipeline();
           updateMicGateState({ phase: "ready" });
@@ -295,11 +402,15 @@ function MainWindow() {
       }
       updateMicGateState({ phase: "needsMic" });
     } else {
+      if (await isDictationPipelineReady()) {
+        updateMicGateState({ recoveryKind: null, phase: "ready" });
+        return;
+      }
       updateMicGateState({ recoveryKind: null, phase: "warming" });
       await prepareDictationPipeline();
       updateMicGateState({ phase: "ready" });
     }
-  }, [prepareDictationPipeline]);
+  }, [isDictationPipelineReady, prepareDictationPipeline]);
 
   const handleOpenMicSettings = useCallback(async () => {
     if (!isTauriRuntime()) return;
@@ -348,10 +459,11 @@ function MainWindow() {
   });
 
   const applyAllSettingsFromIpc = useEffectEvent(async () => {
-    const [overlayBarShowResult, themeResult, afterDictationActionResult] = await Promise.allSettled([
+    const [overlayBarShowResult, themeResult, afterDictationActionResult, dictationShortcutResult] = await Promise.allSettled([
       fetchOverlayBarEnabledWithRetry(() => invoke<boolean>("get_overlay_bar_enabled"), FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS),
       invoke<string>("get_theme"),
       invoke<string>("get_after_dictation_action"),
+      invoke<unknown>("get_dictation_shortcut"),
     ]);
     /** If a fresher `overlay-bar-enabled-changed` arrived during the await, use the in-memory pref instead of the fetched one. */
     const overlayBarShow = overlayBarPrefResolvedRef.current ? overlayBarEnabled : overlayBarShowResult.status === "fulfilled" ? overlayBarShowResult.value : overlayBarEnabled;
@@ -360,12 +472,17 @@ function MainWindow() {
       overlayBarEnabled: overlayBarShow,
       themePreference: themeResult.status === "fulfilled" ? parseThemePreference(themeResult.value) : parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY)),
       afterDictationAction: afterDictationActionResult.status === "fulfilled" ? parseAfterDictationAction(afterDictationActionResult.value) : afterDictationAction,
+      dictationShortcut: dictationShortcutResult.status === "fulfilled" ? parseDictationShortcut(dictationShortcutResult.value) : dictationShortcut,
     });
   });
 
   const onOverlayBarEnabledChanged = useEffectEvent((enabled: boolean) => {
     overlayBarPrefResolvedRef.current = true;
     updateSettingsPrefs({ overlayBarEnabled: enabled });
+  });
+
+  const onDictationShortcutChanged = useEffectEvent((payload: unknown) => {
+    updateSettingsPrefs({ dictationShortcut: parseDictationShortcut(payload) });
   });
 
   const onMicRecoveryRequired = useEffectEvent((payload: unknown) => {
@@ -385,6 +502,13 @@ function MainWindow() {
     updateMainUiState({ settingsTooltipOpen: open });
   }, []);
 
+  const setShortcutCaptureActive = useCallback((active: boolean) => {
+    void invoke("set_dictation_key_listener_suppressed", {
+      suppressed: active,
+      cooldownMs: active ? 0 : 500,
+    }).catch(() => {});
+  }, []);
+
   const onMainWindowVisible = useEffectEvent(() => {
     void refreshHistory();
     void syncMicGate();
@@ -397,6 +521,7 @@ function MainWindow() {
     refreshHistory();
     let unlistenHistory: (() => void) | undefined;
     let unlistenOverlayPref: (() => void) | undefined;
+    let unlistenDictationShortcut: (() => void) | undefined;
     let unlistenMicRecovery: (() => void) | undefined;
     let unlistenMicBlockedHotkey: (() => void) | undefined;
 
@@ -407,6 +532,11 @@ function MainWindow() {
       onOverlayBarEnabledChanged(e.payload);
     }).then((fn) => {
       unlistenOverlayPref = fn;
+    });
+    listen<unknown>("dictation-shortcut-changed", (e) => {
+      onDictationShortcutChanged(e.payload);
+    }).then((fn) => {
+      unlistenDictationShortcut = fn;
     });
     listen<unknown>("mic-recovery-required", (e) => {
       onMicRecoveryRequired(e.payload);
@@ -430,6 +560,7 @@ function MainWindow() {
     return () => {
       unlistenHistory?.();
       unlistenOverlayPref?.();
+      unlistenDictationShortcut?.();
       unlistenMicRecovery?.();
       unlistenMicBlockedHotkey?.();
       window.removeEventListener("storage", onStorage);
@@ -489,6 +620,9 @@ function MainWindow() {
     void invoke<string>("get_after_dictation_action")
       .then((s) => updateSettingsPrefs({ afterDictationAction: parseAfterDictationAction(s) }))
       .catch(() => {});
+    void invoke<unknown>("get_dictation_shortcut")
+      .then((shortcut) => updateSettingsPrefs({ dictationShortcut: parseDictationShortcut(shortcut) }))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -502,29 +636,12 @@ function MainWindow() {
   }, []);
 
   useEffect(() => {
-    const setup = async () => {
-      const previous = registeredShortcutRef.current;
-      if (previous !== null) {
-        await unregister(previous).catch(() => {});
-      }
-      try {
-        await register(DICTATION_GLOBAL_SHORTCUT, (event) => {
-          void invoke("relay_dictation_hotkey", { state: event.state }).catch(() => {});
-        });
-        registeredShortcutRef.current = DICTATION_GLOBAL_SHORTCUT;
-      } catch {
-        registeredShortcutRef.current = null;
-      }
-    };
-    void setup();
-    return () => {
-      const reg = registeredShortcutRef.current;
-      if (reg !== null) {
-        void unregister(reg).catch(() => {});
-        registeredShortcutRef.current = null;
-      }
-    };
-  }, []);
+    void invoke("sync_dictation_key_listener", {
+      accelerator: dictationShortcut.accelerator,
+    }).catch((e) => {
+      console.warn("dictation key listener sync:", e);
+    });
+  }, [dictationShortcut.accelerator]);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -576,6 +693,15 @@ function MainWindow() {
       updateSettingsPrefs({ afterDictationAction: next });
     } catch (e) {
       console.error(e);
+    }
+  }, []);
+
+  const setDictationShortcutPreference = useCallback(async (next: DictationShortcutPreference) => {
+    updateSettingsPrefs({ dictationShortcut: next });
+    try {
+      await invoke("set_dictation_shortcut", { accelerator: next.accelerator, label: next.label });
+    } catch {
+      /* Browser dev without Tauri backend. The registration effect still owns runtime fallback. */
     }
   }, []);
 
@@ -641,7 +767,7 @@ function MainWindow() {
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <Drawer.Title className="text-xl font-medium tracking-[-0.02em] leading-tight text-foreground">Settings</Drawer.Title>
-                      <Drawer.Description className="sr-only">Dictation bar, after-dictation behaviour and appearance for Mello Voice.</Drawer.Description>
+                      <Drawer.Description className="sr-only">Shortcut, dictation bar, after-dictation behaviour and appearance for Mello Voice.</Drawer.Description>
                     </div>
                     <Drawer.Close asChild>
                       <Button type="button" variant="ghost" size="icon" aria-label="Close settings">
@@ -652,6 +778,14 @@ function MainWindow() {
                 </div>
                 <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain">
                   <div className="flex flex-col gap-0 pb-6 px-5 pt-1">
+                    <SettingsSettingRow title="Shortcut Key" description="Choose the key to double-tap for dictation.">
+                      <DictationShortcutInput
+                        value={dictationShortcut}
+                        onChange={(next) => void setDictationShortcutPreference(next)}
+                        onCaptureActiveChange={setShortcutCaptureActive}
+                      />
+                    </SettingsSettingRow>
+                    <Separator className="bg-border/80" />
                     <SettingsSettingRow title="Dictation bar" description="Show the floating bar all the time or only while dictating.">
                       <Select value={dictationBarModeFromEnabled(overlayBarEnabled)} onValueChange={(v) => void setDictationBarPreference(overlayBarEnabledFromMode(parseDictationBarMode(v)))}>
                         <SelectTrigger aria-label="Dictation bar visibility" className="w-full max-w-none">
@@ -755,7 +889,7 @@ function MainWindow() {
                           <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">
                             {dictationGestureHintParts.beforeKey}
                             <kbd className="inline-flex items-center rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-xs leading-none text-foreground">
-                              {DICTATION_SHORTCUT_UI_LABEL}
+                              {dictationShortcut.label}
                             </kbd>
                             {dictationGestureHintParts.afterKey}
                           </p>

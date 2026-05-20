@@ -6,7 +6,7 @@ import { ChevronDownIcon } from "@/components/icons/ChevronDownIcon";
 import { CheckIcon } from "@/components/icons/CheckIcon";
 import { cn } from "@/lib/utils";
 
-/** Shared shell for trailing settings controls (currently consumed only by `SelectTrigger` below). */
+/** Shared shell for trailing settings controls. */
 function settingsControlTriggerCn(className?: string) {
   return cn(
     "group inline-flex h-9 min-w-[9.5rem] max-w-[12rem] flex-1 shrink-0 items-center justify-between gap-2 rounded-xl border border-border bg-transparent px-3 text-left text-base outline-none transition-[background-color,color,box-shadow] duration-80 touch-manipulation",
@@ -104,4 +104,4 @@ function SelectItem({ className, children, ref, ...props }: ComponentProps<typeo
   );
 }
 
-export { Select, SelectValue, SelectTrigger, SelectContent, SelectItem };
+export { Select, SelectValue, SelectTrigger, SelectContent, SelectItem, settingsControlTriggerCn };

@@ -4,6 +4,12 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-05-20
+
+- **Caps Lock and other shortcut keys work normally** — single presses pass through; dictation still toggles on a quick double-tap.
+- **Choose your shortcut key** in Settings (default remains Caps Lock).
+- Shortcut hints in the app follow the key you picked.
+
 ## [1.0.5] - 2026-05-19
 
 - **Loading screen** after microphone access (logo + **Loading**) while dictation warms up; removed the extra “Microphone enabled” step.

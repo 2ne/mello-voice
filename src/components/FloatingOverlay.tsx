@@ -8,6 +8,7 @@ type OverlayState = "idle" | "listening" | "processing" | "error";
 
 interface FloatingOverlayProps {
   state: OverlayState;
+  shortcutLabel: string;
   interimTranscript: string;
   finalTranscript: string;
   error: string | null;
@@ -46,6 +47,7 @@ const LISTENING_EXPANDED_BODY_MIN = "min-h-11"; /* 44px */
 
 function FloatingOverlay({
   state,
+  shortcutLabel,
   interimTranscript,
   finalTranscript,
   error,
@@ -183,7 +185,7 @@ function FloatingOverlay({
                 className={cn(
                   /* Keep the listening label + hint on single lines throughout the chrome's
                    * width animation (28px → 340px / 340px → 28px). Without this, the hint
-                   * `Double-tap Caps Lock to stop` wraps to 3–4 lines at intermediate widths,
+                   * the double-tap stop hint wraps to 3-4 lines at intermediate widths,
                    * overflows the lane's 44px overflow-hidden frame, then unwraps when the
                    * chrome reaches full width — visible as reflowing and white space inside
                    * the pill during the open transition. With nowrap the text just gets
@@ -217,7 +219,7 @@ function FloatingOverlay({
                 </p>
                 {showListeningStopHint ? (
                   <p className="floating-overlay-status-label max-w-full px-1 text-center text-xs font-normal leading-snug tracking-[-0.01em] text-overlay-chrome-fg-muted opacity-90">
-                    {overlayListeningStopHint()}
+                    {overlayListeningStopHint(shortcutLabel)}
                   </p>
                 ) : null}
               </div>

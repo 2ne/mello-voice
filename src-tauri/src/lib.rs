@@ -94,6 +94,7 @@ fn prepend_whisper_dylibs_to_dyld(handle: &tauri::AppHandle) {
 
 mod transcribe;
 mod post_process;
+mod dictation_key_listener;
 
 #[cfg(target_os = "windows")]
 mod mic_permission_windows;
@@ -201,6 +202,21 @@ enum AfterDictationAction {
     PasteAndSend,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+struct DictationShortcutPref {
+    accelerator: String,
+    label: String,
+}
+
+impl Default for DictationShortcutPref {
+    fn default() -> Self {
+        Self {
+            accelerator: "CapsLock".to_string(),
+            label: "Caps Lock".to_string(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct AppPrefs {
     #[serde(default = "default_show_overlay_bar")]
@@ -209,12 +225,14 @@ struct AppPrefs {
     theme: ThemeMode,
     #[serde(default)]
     after_dictation: AfterDictationAction,
+    #[serde(default)]
+    dictation_shortcut: DictationShortcutPref,
     /// Bumped when prefs shape changes; used for one-time migrations.
     #[serde(default)]
     prefs_version: u32,
 }
 
-const PREFS_VERSION: u32 = 3;
+const PREFS_VERSION: u32 = 4;
 
 fn default_show_overlay_bar() -> bool {
     true
@@ -226,6 +244,7 @@ impl Default for AppPrefs {
             show_overlay_bar: true,
             theme: ThemeMode::default(),
             after_dictation: AfterDictationAction::default(),
+            dictation_shortcut: DictationShortcutPref::default(),
             prefs_version: PREFS_VERSION,
         }
     }
@@ -264,6 +283,11 @@ fn load_prefs(app: &tauri::AppHandle) -> AppPrefs {
         prefs.prefs_version = 3;
         dirty = true;
     }
+    if prefs.prefs_version < 4 {
+        prefs.dictation_shortcut = DictationShortcutPref::default();
+        prefs.prefs_version = 4;
+        dirty = true;
+    }
     if dirty {
         let _ = save_prefs(app, &prefs);
     }
@@ -276,6 +300,16 @@ fn save_prefs(app: &tauri::AppHandle, prefs: &AppPrefs) -> Result<(), String> {
     let json = serde_json::to_string_pretty(prefs).map_err(|e| e.to_string())?;
     fs::write(&path, json).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+fn dictation_shortcut_tray_tooltip(label: &str) -> String {
+    format!("Mello Voice: double-tap {label} to toggle dictation.")
+}
+
+fn update_tray_shortcut_tooltip(app: &tauri::AppHandle, label: &str) {
+    if let Some(tray) = app.tray_by_id("main") {
+        let _ = tray.set_tooltip(Some(dictation_shortcut_tray_tooltip(label)));
+    }
 }
 
 #[tauri::command]
@@ -345,6 +379,65 @@ fn set_after_dictation_action(app: tauri::AppHandle, action: String) -> Result<(
     prefs.after_dictation = mode;
     save_prefs(&app, &prefs)?;
     Ok(())
+}
+
+#[tauri::command]
+fn get_dictation_shortcut(app: tauri::AppHandle) -> Result<DictationShortcutPref, String> {
+    Ok(load_prefs(&app).dictation_shortcut)
+}
+
+#[tauri::command]
+fn set_dictation_shortcut(
+    app: tauri::AppHandle,
+    accelerator: String,
+    label: String,
+) -> Result<(), String> {
+    let next = if accelerator.trim().is_empty() || label.trim().is_empty() {
+        DictationShortcutPref::default()
+    } else {
+        DictationShortcutPref {
+            accelerator: accelerator.trim().to_string(),
+            label: label.trim().to_string(),
+        }
+    };
+    let mut prefs = load_prefs(&app);
+    prefs.dictation_shortcut = next.clone();
+    save_prefs(&app, &prefs)?;
+    update_tray_shortcut_tooltip(&app, &next.label);
+    if let Some(listener) = app.try_state::<dictation_key_listener::DictationKeyListener>() {
+        let _ = listener.sync(app.clone(), &next.accelerator);
+    }
+    app.emit("dictation-shortcut-changed", next)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn sync_dictation_key_listener(app: tauri::AppHandle, accelerator: String) -> Result<(), String> {
+    let listener = app.state::<dictation_key_listener::DictationKeyListener>();
+    listener.sync(app.clone(), &accelerator)
+}
+
+#[tauri::command]
+fn set_dictation_key_listener_suppressed(
+    listener: State<'_, dictation_key_listener::DictationKeyListener>,
+    suppressed: bool,
+    cooldown_ms: Option<u64>,
+) -> Result<(), String> {
+    listener.set_suppressed(suppressed, cooldown_ms.unwrap_or(0))
+}
+
+pub(crate) fn emit_dictation_hotkey_from_listener(app: &tauri::AppHandle, state: &str) {
+    if let Some(listener) = app.try_state::<dictation_key_listener::DictationKeyListener>() {
+        if !listener.should_emit() {
+            return;
+        }
+    }
+    let app = app.clone();
+    let state = state.to_string();
+    tauri::async_runtime::spawn(async move {
+        let _ = relay_dictation_hotkey(app, state).await;
+    });
 }
 
 #[tauri::command]
@@ -567,8 +660,8 @@ fn clear_history(app: tauri::AppHandle, history: State<'_, HistoryStore>) -> Res
     Ok(())
 }
 
-/// Wakes the overlay webview before emitting `dictation-hotkey`. The global shortcut handler runs in
-/// the main window; a hidden overlay WebView2 can throttle JS so `listen` misses `Released`,
+/// Wakes the overlay webview before emitting `dictation-hotkey`. The pass-through key listener runs in
+/// a native thread; a hidden overlay WebView2 can throttle JS so `listen` misses `Released`,
 /// leaving dictation stuck until the next session.
 #[tauri::command]
 async fn relay_dictation_hotkey(app: tauri::AppHandle, state: String) -> Result<(), String> {
@@ -702,11 +795,14 @@ pub fn run() {
             set_overlay_bar_enabled,
             get_after_dictation_action,
             set_after_dictation_action,
+            get_dictation_shortcut,
+            set_dictation_shortcut,
+            sync_dictation_key_listener,
+            set_dictation_key_listener_suppressed,
             get_theme,
             set_theme,
             relay_dictation_hotkey,
         ])
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_log::Builder::default().build())
         .setup(|app| {
             // Persist default prefs on first run so dictation bar defaults to visible
@@ -729,16 +825,24 @@ pub fn run() {
             app.manage(HistoryStore(Mutex::new(initial_history)));
             app.manage(MicOverlayBoot(Mutex::new(false)));
             app.manage(DictationPipelineReady(Mutex::new(false)));
+            app.manage(dictation_key_listener::DictationKeyListener::new());
+
+            let initial_shortcut_for_listener = load_prefs(&app_handle).dictation_shortcut;
+            if let Some(listener) = app_handle.try_state::<dictation_key_listener::DictationKeyListener>() {
+                let _ = listener.sync(app_handle.clone(), &initial_shortcut_for_listener.accelerator);
+            }
 
             // Build tray menu
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
 
+            let initial_shortcut = load_prefs(&app_handle).dictation_shortcut;
+
             let _tray = TrayIconBuilder::with_id("main")
                 .icon(universal_tray_icon_image(app.handle()))
                 .menu(&menu)
-                .tooltip("Mello Voice: double-tap Caps Lock to toggle dictation.")
+                .tooltip(dictation_shortcut_tray_tooltip(&initial_shortcut.label))
                 .on_menu_event(move |app, event| {
                     if event.id.as_ref() == "show" {
                         show_main_and_overlay(&app);

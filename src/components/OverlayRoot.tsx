@@ -26,6 +26,7 @@ import {
   fetchOverlayBarEnabledWithRetry,
 } from "../overlayBarPrefFetch";
 import { CAPS_DOUBLE_TAP_WINDOW_MS, evaluateCapsDoubleTap } from "../capsLockDictationGesture";
+import { DEFAULT_DICTATION_SHORTCUT, parseDictationShortcut, type DictationShortcutPreference } from "../dictationShortcut";
 
 const TOP_OFFSET = 10;
 const OVERLAY_WIDTH = 340;
@@ -96,6 +97,7 @@ function OverlayRoot() {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [barEnabled, setBarEnabled] = useState(true);
+  const [dictationShortcut, setDictationShortcut] = useState<DictationShortcutPreference>(DEFAULT_DICTATION_SHORTCUT);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const isProcessingRef = useRef(false);
@@ -350,6 +352,20 @@ function OverlayRoot() {
     });
     return () => unlisten?.();
   }, [applyOverlayVisibility]);
+
+  useEffect(() => {
+    void invoke<unknown>("get_dictation_shortcut")
+      .then((shortcut) => setDictationShortcut(parseDictationShortcut(shortcut)))
+      .catch(() => {});
+
+    let unlisten: (() => void) | undefined;
+    listen<unknown>("dictation-shortcut-changed", (event) => {
+      setDictationShortcut(parseDictationShortcut(event.payload));
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, []);
 
   useEffect(() => {
     if (!isTauriRuntime()) return;
@@ -704,7 +720,7 @@ function OverlayRoot() {
     };
   }, [isExpanded]);
 
-  // Global shortcut is registered on the main window so it still fires while this overlay webview is hidden (WebView2 can stop delivering plugin IPC here).
+  // Pass-through key listener runs in Rust so keys still reach other apps; overlay listens for double-taps.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     listen<{ state: HotkeyState }>("dictation-hotkey", (event) => {
@@ -742,6 +758,7 @@ function OverlayRoot() {
       {sessionChromeVisible ? (
         <FloatingOverlay
           state={displayState}
+          shortcutLabel={dictationShortcut.label}
           interimTranscript={interimTranscript}
           finalTranscript={finalTranscript}
           error={activeError}

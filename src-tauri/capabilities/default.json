@@ -6,8 +6,6 @@
     "core:default",
     "core:app:allow-version",
     "core:window:allow-set-focus",
-    "global-shortcut:allow-register",
-    "global-shortcut:allow-unregister",
     "core:event:allow-listen",
     "core:event:allow-emit",
     "core:window:allow-set-title",
