@@ -1,6 +1,7 @@
 use enigo::{Direction, Enigo, Key, Keyboard};
 use serde::{Deserialize, Serialize};
 use std::env;
+#[cfg(target_os = "windows")]
 use std::ffi::OsString;
 use std::fs;
 use std::path::PathBuf;

@@ -434,7 +434,8 @@ mod windows {
 #[cfg(target_os = "macos")]
 mod macos {
     use super::*;
-    use core_foundation::runloop::{CFRunLoop, CFRunLoopRun, CFRunLoopStop};
+    use core_foundation::base::TCFType;
+    use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop, CFRunLoopRun, CFRunLoopStop};
     use core_graphics::event::{
         CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement, CGEventType,
         EventField,
@@ -506,10 +507,17 @@ mod macos {
             }
         };
 
-        tap.enable();
         let runloop = CFRunLoop::get_current();
         let _ = RUNLOOP.set(Mutex::new(Some(runloop.clone())));
-        tap.mach_port().add_source_to_runloop(&runloop);
+        let loop_source = match tap.mach_port.create_runloop_source(0) {
+            Ok(source) => source,
+            Err(()) => {
+                log::error!("dictation key listener: failed to create runloop source");
+                return;
+            }
+        };
+        runloop.add_source(&loop_source, kCFRunLoopCommonModes);
+        tap.enable();
         if stop_gate.load(Ordering::Relaxed) {
             unsafe {
                 CFRunLoopRun();
