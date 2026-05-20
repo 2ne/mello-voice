@@ -516,7 +516,9 @@ mod macos {
                 return;
             }
         };
-        runloop.add_source(&loop_source, kCFRunLoopCommonModes);
+        unsafe {
+            runloop.add_source(&loop_source, kCFRunLoopCommonModes);
+        }
         tap.enable();
         if stop_gate.load(Ordering::Relaxed) {
             unsafe {
