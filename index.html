@@ -5,6 +5,23 @@
     <link rel="icon" type="image/svg+xml" href="/app-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mello Voice</title>
+    <!-- Apply theme before CSS/React so WebView2 never flashes light chrome on dark system / saved preference. -->
+    <script>
+      (function () {
+        var KEY = "mello-theme-preference";
+        var mode = localStorage.getItem(KEY);
+        if (mode !== "light" && mode !== "dark" && mode !== "system") mode = "system";
+        var dark =
+          mode === "dark"
+            ? true
+            : mode === "light"
+              ? false
+              : window.matchMedia("(prefers-color-scheme: dark)").matches;
+        var root = document.documentElement;
+        if (dark) root.classList.add("dark");
+        root.style.colorScheme = dark ? "dark" : "light";
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

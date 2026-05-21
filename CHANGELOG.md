@@ -4,6 +4,14 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.7] - 2026-05-21
+
+- **Hold to clear history** — press and hold to confirm before wiping transcript history.
+- **Smoother scrolling** in the main window and settings, without layout jump when scrollbars appear.
+- **Dark theme at launch** — no white flash when opening on a dark system theme or saved dark appearance.
+- **Softer light-mode shadows** on raised surfaces.
+- **Desktop-first interaction** — removed web-style focus rings and Tab navigation between controls.
+
 ## [1.0.6] - 2026-05-20
 
 - **Caps Lock and other shortcut keys work normally** — single presses pass through; dictation still toggles on a quick double-tap.

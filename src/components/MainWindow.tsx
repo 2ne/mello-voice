@@ -19,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Elevated } from "@/lib/elevated";
 import { Button } from "@/components/ui/button";
+import { HoldToClearButton } from "@/components/ui/hold-to-clear-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, settingsControlTriggerCn } from "@/components/ui/select";
 import { Drawer } from "vaul";
 import { Separator } from "@/components/ui/separator";
@@ -58,12 +59,14 @@ function parseMicRecoveryReason(payload: unknown): MicRecoveryKind | null {
 const HISTORY_CARD_SHELL = "gap-0 rounded-2xl py-0 outline-none";
 
 const HISTORY_CARD_BODY = "px-4 py-3.5";
+/** Empty card exit before first row appears — keep in sync with `--history-empty-exit-duration`. */
+const HISTORY_EMPTY_EXIT_MS = 220;
 /** Empty-history how-to: numbered circles + vertical connector */
 const HISTORY_TIMELINE_BUBBLE =
   "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border bg-card text-2xs font-medium tabular-nums text-muted-foreground";
 /** Hover/focus affordances for history rows. Named `group/history` so copy reveal does not fire the ghost `Button`'s inner `group-hover` layers (plain `group` on the card would). */
 const HISTORY_CARD_INTERACTIVE =
-  "group/history transition-[background-color,box-shadow,transform] duration-100 ease-snappy hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "group/history transition-[background-color,box-shadow,transform] duration-100 ease-snappy hover:bg-accent/40";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "System" },
@@ -317,6 +320,9 @@ function HistoryItem({ entry, onCopy }: { entry: HistoryEntry; onCopy: (text: st
 
 function MainWindow() {
   const [historyEntries, setHistoryEntries] = useState<HistoryEntry[]>([]);
+  const [emptyMounted, setEmptyMounted] = useState(true);
+  const [emptyExiting, setEmptyExiting] = useState(false);
+  const historyHydratedRef = useRef(false);
   const dictationGestureHintParts = dictationShortcutGestureParts();
   const [mainUiState, updateMainUiState] = useReducer(mainUiReducer, INITIAL_MAIN_UI_STATE);
   /** Controlled so we can reject focus-driven opens after the drawer closes (Radix restores focus → instant tooltip). */
@@ -569,6 +575,34 @@ function MainWindow() {
   }, [refreshHistory]);
 
   useEffect(() => {
+    const isEmpty = historyEntries.length === 0;
+
+    if (!historyHydratedRef.current) {
+      historyHydratedRef.current = true;
+      if (!isEmpty) {
+        setEmptyMounted(false);
+        setEmptyExiting(false);
+        return;
+      }
+    }
+
+    if (isEmpty) {
+      setEmptyExiting(false);
+      setEmptyMounted(true);
+      return;
+    }
+
+    if (!emptyMounted) return;
+
+    setEmptyExiting(true);
+    const timer = window.setTimeout(() => {
+      setEmptyMounted(false);
+      setEmptyExiting(false);
+    }, HISTORY_EMPTY_EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [historyEntries.length, emptyMounted]);
+
+  useEffect(() => {
     void syncMicGate();
   }, [syncMicGate]);
 
@@ -735,8 +769,9 @@ function MainWindow() {
   }
 
   return (
-    <div data-vaul-drawer-wrapper="" className="flex min-h-svh select-none flex-col bg-background text-foreground">
-      <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/80 p-6">
+    <div data-vaul-drawer-wrapper="" className="main-window-enter flex h-svh flex-col overflow-hidden select-none bg-background text-foreground">
+      <ScrollArea className="min-h-0 flex-1">
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border/80 p-6">
         <div className="min-w-0 space-y-1">
           <h1 className="text-2xl font-medium tracking-[-0.025em] text-foreground">Mello Voice</h1>
           <p className="text-base text-muted-foreground">Closing minimises to the tray.</p>
@@ -761,7 +796,7 @@ function MainWindow() {
           <Drawer.Portal>
             <Drawer.Overlay className="fixed inset-0 z-[120] bg-black/35 backdrop-blur-[1px]" />
             <Drawer.Content className="fixed inset-x-0 bottom-0 z-[121] flex max-h-[min(95vh,36rem)] flex-col overflow-hidden rounded-t-[1.25rem]">
-              <Elevated offset={1} className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-t-[1.25rem]">
+              <Elevated offset={1} className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-t-[1.25rem] ring-0 dark:ring-0">
                 <div className="flex shrink-0 flex-col border-b border-border/80 px-5 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2">
                   <Drawer.Handle className="mb-1" />
                   <div className="flex items-center justify-between gap-3">
@@ -776,7 +811,7 @@ function MainWindow() {
                     </Drawer.Close>
                   </div>
                 </div>
-                <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain">
+                <ScrollArea className="min-h-0 flex-1">
                   <div className="flex flex-col gap-0 pb-6 px-5 pt-1">
                     <SettingsSettingRow title="Shortcut Key" description="Choose the key to double-tap for dictation.">
                       <DictationShortcutInput
@@ -836,14 +871,14 @@ function MainWindow() {
                     <Separator className="bg-border/80" />
                     {appVersionLabel ? <p className="mt-6 text-center text-xs text-muted-foreground tabular-nums">Version {appVersionLabel}</p> : null}
                   </div>
-                </div>
+                </ScrollArea>
               </Elevated>
             </Drawer.Content>
           </Drawer.Portal>
         </Drawer.Root>
       </header>
 
-      <section className="flex min-h-0 flex-1 flex-col pt-6">
+      <section className="pt-6">
         <div className="flex min-h-8 items-center justify-between gap-3 px-6">
           <h2 className="min-w-0 text-base text-muted-foreground">
             <span className="inline-flex items-baseline gap-1.5">
@@ -852,69 +887,68 @@ function MainWindow() {
             </span>
           </h2>
           <div className="flex shrink-0 justify-end">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className={cn("hover:text-destructive active:text-destructive", historyEntries.length === 0 && "invisible pointer-events-none")}
-              onClick={handleClear}
-              tabIndex={historyEntries.length === 0 ? -1 : 0}
+            <HoldToClearButton
+              onClear={handleClear}
+              className={cn(historyEntries.length === 0 && "invisible pointer-events-none")}
+              disabled={historyEntries.length === 0}
+              tabIndex={-1}
               aria-hidden={historyEntries.length === 0}
-            >
-              Clear all
-            </Button>
+            />
           </div>
         </div>
-        <ScrollArea className="min-h-0 flex-1">
-          <ul className="flex flex-col gap-2.5 p-6 pt-2">
-            {historyEntries.length === 0 ? (
-              <li className="min-w-0">
-                <Card size="sm" className={HISTORY_CARD_SHELL}>
-                  <CardContent className={HISTORY_CARD_BODY}>
-                    <div className="space-y-3 text-base leading-relaxed">
-                      <p className="text-base text-foreground font-medium">No transcriptions yet</p>
-                      <ol className="m-0 list-none space-y-0 p-0 text-muted-foreground">
-                        <li className="flex gap-3">
-                          <div className="flex w-6 shrink-0 flex-col items-center">
-                            <div className={HISTORY_TIMELINE_BUBBLE}>1</div>
-                            <div className="mt-0 w-px min-h-2.5 flex-1 bg-border" aria-hidden />
-                          </div>
-                          <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">Click where you want text to go.</p>
-                        </li>
-                        <li className="flex gap-3">
-                          <div className="flex w-6 shrink-0 flex-col items-center">
-                            <div className={HISTORY_TIMELINE_BUBBLE}>2</div>
-                            <div className="mt-0 w-px min-h-2.5 flex-1 bg-border" aria-hidden />
-                          </div>
-                          <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">
-                            {dictationGestureHintParts.beforeKey}
-                            <kbd className="inline-flex items-center rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-xs leading-none text-foreground">
-                              {dictationShortcut.label}
-                            </kbd>
-                            {dictationGestureHintParts.afterKey}
-                          </p>
-                        </li>
-                        <li className="flex gap-3">
-                          <div className="flex w-6 shrink-0 flex-col items-center">
-                            <div className={HISTORY_TIMELINE_BUBBLE}>3</div>
-                          </div>
-                          <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">Your words are pasted into the focused field.</p>
-                        </li>
-                      </ol>
-                    </div>
-                  </CardContent>
-                </Card>
-              </li>
-            ) : (
-              historyEntries.map((entry) => (
-                <li key={entry.id} className="min-w-0">
-                  <HistoryItem entry={entry} onCopy={handleCopy} />
-                </li>
-              ))
-            )}
-          </ul>
-        </ScrollArea>
+        <ul className="history-panel flex flex-col gap-2.5 p-6 pt-2">
+          {emptyMounted ? (
+            <li
+              className={cn(
+                "history-empty-state min-w-0",
+                emptyExiting && "history-empty-state--exit"
+              )}
+            >
+              <Card size="sm" className={HISTORY_CARD_SHELL}>
+                <CardContent className={HISTORY_CARD_BODY}>
+                  <div className="space-y-3 text-base leading-relaxed">
+                    <p className="text-base text-foreground font-medium">No transcriptions yet</p>
+                    <ol className="m-0 list-none space-y-0 p-0 text-muted-foreground">
+                      <li className="flex gap-3">
+                        <div className="flex w-6 shrink-0 flex-col items-center">
+                          <div className={HISTORY_TIMELINE_BUBBLE}>1</div>
+                          <div className="mt-0 w-px min-h-2.5 flex-1 bg-border" aria-hidden />
+                        </div>
+                        <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">Click where you want text to go.</p>
+                      </li>
+                      <li className="flex gap-3">
+                        <div className="flex w-6 shrink-0 flex-col items-center">
+                          <div className={HISTORY_TIMELINE_BUBBLE}>2</div>
+                          <div className="mt-0 w-px min-h-2.5 flex-1 bg-border" aria-hidden />
+                        </div>
+                        <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">
+                          {dictationGestureHintParts.beforeKey}
+                          <kbd className="inline-flex items-center rounded-md border border-border bg-muted/50 px-1.5 py-0.5 font-mono text-xs leading-none text-foreground">
+                            {dictationShortcut.label}
+                          </kbd>
+                          {dictationGestureHintParts.afterKey}
+                        </p>
+                      </li>
+                      <li className="flex gap-3">
+                        <div className="flex w-6 shrink-0 flex-col items-center">
+                          <div className={HISTORY_TIMELINE_BUBBLE}>3</div>
+                        </div>
+                        <p className="min-w-0 flex-1 pt-0.5 leading-relaxed">Your words are pasted into the focused field.</p>
+                      </li>
+                    </ol>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+          ) : null}
+          {historyEntries.map((entry) => (
+            <li key={entry.id} className="history-entry-enter min-w-0">
+              <HistoryItem entry={entry} onCopy={handleCopy} />
+            </li>
+          ))}
+        </ul>
       </section>
+      </ScrollArea>
     </div>
   );
 }

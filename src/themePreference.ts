@@ -16,12 +16,24 @@ export function parseThemePreference(raw: string | null): ThemePreference {
   return "system";
 }
 
+/** Resolve whether the UI should render in dark mode for a stored preference. */
+export function resolveThemeIsDark(
+  mode: ThemePreference,
+  prefersDark: boolean = typeof window !== "undefined" &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches,
+): boolean {
+  if (mode === "dark") return true;
+  if (mode === "light") return false;
+  return prefersDark;
+}
+
 /** Toggle `dark` on `<html>` from preference. Safe to call from any window after user picks a theme (same-window emit may not deliver). */
 export function syncDocumentTheme(mode: ThemePreference): void {
   withoutCssTransition(() => {
     appliedPreference = mode;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const dark = mode === "dark" ? true : mode === "light" ? false : mq.matches;
-    document.documentElement.classList.toggle("dark", dark);
+    const dark = resolveThemeIsDark(mode);
+    const root = document.documentElement;
+    root.classList.toggle("dark", dark);
+    root.style.colorScheme = dark ? "dark" : "light";
   });
 }

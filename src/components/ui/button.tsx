@@ -25,7 +25,6 @@ const buttonVariants = cva(
     "touch-manipulation transition-transform duration-80",
     "active:scale-[0.975]",
     "disabled:opacity-50 disabled:pointer-events-none",
-    "focus-visible:ring-1 focus-visible:ring-primary",
   ],
   {
     variants: {

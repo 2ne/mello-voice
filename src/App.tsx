@@ -76,13 +76,13 @@ function App() {
   }, [isOverlay])
 
   useEffect(() => {
-    Object.assign(document.documentElement.style, { overflow: isOverlay ? 'hidden' : '' })
-    Object.assign(document.body.style, { overflow: isOverlay ? 'hidden' : '' })
+    Object.assign(document.documentElement.style, { overflow: 'hidden' })
+    Object.assign(document.body.style, { overflow: 'hidden' })
     return () => {
       Object.assign(document.documentElement.style, { overflow: '' })
       Object.assign(document.body.style, { overflow: '' })
     }
-  }, [isOverlay])
+  }, [])
 
   // WebView2 shows a system context menu (Reload, DevTools, etc.) unless default is prevented.
   // Capture phase runs before host behaviour; keyboard shortcuts below catch reload keys as well.
@@ -91,6 +91,15 @@ function App() {
     const blockHostMenu = (e: Event) => e.preventDefault()
     document.addEventListener('contextmenu', blockHostMenu, { capture: true })
     return () => document.removeEventListener('contextmenu', blockHostMenu, { capture: true })
+  }, [])
+
+  // Desktop shell — mouse-first UI; no Tab navigation between controls.
+  useEffect(() => {
+    const blockTabNavigation = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') e.preventDefault()
+    }
+    document.addEventListener('keydown', blockTabNavigation, { capture: true })
+    return () => document.removeEventListener('keydown', blockTabNavigation, { capture: true })
   }, [])
 
   // Full reload drops the JS runtime while Rust may still resolve invoke callbacks → "Couldn't find callback id".

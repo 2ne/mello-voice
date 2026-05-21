@@ -12,7 +12,6 @@ function settingsControlTriggerCn(className?: string) {
     "group inline-flex h-9 min-w-[9.5rem] max-w-[12rem] flex-1 shrink-0 items-center justify-between gap-2 rounded-xl border border-border bg-transparent px-3 text-left text-base outline-none transition-[background-color,color,box-shadow] duration-80 touch-manipulation",
     "disabled:pointer-events-none disabled:opacity-50",
     "hover:bg-foreground/[0.04] dark:hover:bg-foreground/[0.06]",
-    "focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-transparent dark:focus-visible:ring-offset-transparent",
     className,
   );
 }
