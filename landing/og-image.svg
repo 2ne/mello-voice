@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="title" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".52" stop-color="#eee"/>
+      <stop offset="1" stop-color="#9d9d9d"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".48" r=".48">
+      <stop offset="0" stop-color="#2b2b2b"/>
+      <stop offset=".58" stop-color="#0c0c0c"/>
+      <stop offset="1" stop-color="#050505"/>
+    </radialGradient>
+    <pattern id="dots" width="18" height="18" patternUnits="userSpaceOnUse">
+      <circle cx="9" cy="9" r="1.2" fill="#f2f2f2" opacity=".36"/>
+    </pattern>
+    <mask id="logo">
+      <rect width="1200" height="630" fill="#000"/>
+      <rect x="554" y="88" width="92" height="454" rx="46" fill="#fff"/>
+      <rect x="390" y="180" width="72" height="272" rx="36" fill="#fff"/>
+      <rect x="738" y="180" width="72" height="272" rx="36" fill="#fff"/>
+    </mask>
+  </defs>
+  <rect width="1200" height="630" fill="#050505"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <g mask="url(#logo)" opacity=".72">
+    <rect width="1200" height="630" fill="url(#dots)"/>
+    <rect width="1200" height="630" fill="#fff" opacity=".035"/>
+  </g>
+  <text x="600" y="330" text-anchor="middle" fill="url(#title)" font-family="Inter, Arial, sans-serif" font-size="112" font-weight="700" letter-spacing="-4">Mello Voice</text>
+  <text x="600" y="392" text-anchor="middle" fill="#aaa" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="500">Private voice typing. Runs locally.</text>
+</svg>

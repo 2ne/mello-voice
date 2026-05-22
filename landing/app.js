@@ -7,10 +7,12 @@ const downloadLabel = document.querySelector("#download-label");
 const downloadCaption = document.querySelector("#download-caption");
 const windowsIcon = document.querySelector(".platform-icon-windows");
 const macIcon = document.querySelector(".platform-icon-macos");
+const heroContent = document.querySelector(".hero-content");
 
 updateDownloadIntent(platform);
 resolveLatestDownload(platform);
 startDemo();
+startHeroScroll();
 startWebgl();
 
 function detectPlatform() {
@@ -84,12 +86,11 @@ async function resolveLatestDownload(targetPlatform) {
 function startDemo() {
   const recordButton = document.querySelector("#demo-record");
   const overlay = document.querySelector(".demo-overlay");
-  const status = document.querySelector("#demo-status");
   const transcript = document.querySelector("#demo-transcript");
   const output = document.querySelector("#demo-output");
   const interimOutput = document.querySelector("#demo-interim");
 
-  if (!recordButton || !overlay || !status || !transcript || !output || !interimOutput) return;
+  if (!recordButton || !overlay || !transcript || !output || !interimOutput) return;
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const initialText = "Click record and say a sentence. Your words will appear here.";
@@ -100,8 +101,7 @@ function startDemo() {
 
   if (!SpeechRecognition) {
     overlay.dataset.state = "unsupported";
-    status.textContent = "Browser not supported";
-    transcript.textContent = "Try this preview in Chrome or Edge. The Mello app does not rely on this browser API.";
+    transcript.textContent = "Use Chrome or Edge to try live recording.";
     recordButton.disabled = true;
     recordButton.setAttribute("aria-label", "Live dictation preview unavailable");
     return;
@@ -111,16 +111,14 @@ function startDemo() {
     isListening = true;
     overlay.dataset.state = "recording";
     recordButton.setAttribute("aria-label", "Stop live dictation preview");
-    status.textContent = "Listening";
-    transcript.textContent = "Speak now. Click again to stop.";
+    transcript.textContent = "Listening. Click again to stop.";
     if (output.textContent === initialText) output.textContent = "";
   }
 
-  function setIdle(message = "Browser speech preview. Mello itself runs locally.") {
+  function setIdle(message = "Click here to start recording.") {
     isListening = false;
     overlay.dataset.state = "idle";
     recordButton.setAttribute("aria-label", "Start live dictation preview");
-    status.textContent = finalText ? "Captured" : "Ready";
     transcript.textContent = message;
     interimOutput.textContent = "";
     if (!finalText && !output.textContent.trim()) output.textContent = initialText;
@@ -169,7 +167,7 @@ function startDemo() {
 
     recognition.onend = () => {
       const message = pendingIdleMessage || (finalText
-        ? "Captured in the browser preview. The desktop app transcribes locally."
+        ? "Captured. Click to record again."
         : "No speech captured yet. Click record and say a short sentence.");
       setIdle(message);
     };
@@ -188,6 +186,32 @@ function startDemo() {
     }
     startRecognition();
   });
+}
+
+function startHeroScroll() {
+  if (!heroContent) return;
+
+  let ticking = false;
+
+  function updateHero() {
+    const progress = Math.min(Math.max(window.scrollY / Math.max(window.innerHeight * 0.78, 1), 0), 1);
+    const fade = 1 - smoothStep(0.18, 0.86, progress);
+    const lift = progress * -28;
+    heroContent.style.opacity = fade.toFixed(3);
+    heroContent.style.transform = `translate3d(0, ${lift.toFixed(2)}px, 0)`;
+    heroContent.style.pointerEvents = fade < 0.08 ? "none" : "";
+    ticking = false;
+  }
+
+  function requestUpdate() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(updateHero);
+  }
+
+  updateHero();
+  window.addEventListener("scroll", requestUpdate, { passive: true });
+  window.addEventListener("resize", requestUpdate);
 }
 
 function startWebgl() {
@@ -218,6 +242,7 @@ function startWebgl() {
     uniform vec2 resolution;
     uniform vec2 pointer;
     uniform float time;
+    uniform float scrollProgress;
 
     mat3 rotateX(float angle) {
       float s = sin(angle);
@@ -238,8 +263,9 @@ function startWebgl() {
 
     float logoSdf(vec2 p) {
       float center = roundedBox(p, vec2(0.092, 0.52), 0.092);
-      float left = roundedBox(p - vec2(-0.32, 0.0), vec2(0.077, 0.305), 0.077);
-      float right = roundedBox(p - vec2(0.32, 0.0), vec2(0.077, 0.305), 0.077);
+      float sideSpread = mix(0.32, 0.52, smoothstep(0.08, 0.86, scrollProgress));
+      float left = roundedBox(p - vec2(-sideSpread, 0.0), vec2(0.077, 0.305), 0.077);
+      float right = roundedBox(p - vec2(sideSpread, 0.0), vec2(0.077, 0.305), 0.077);
       return min(center, min(left, right));
     }
 
@@ -254,7 +280,8 @@ function startWebgl() {
 
     float barSurfaceShade(vec2 q) {
       float centerChoice = step(0.16, abs(q.x));
-      float barCenter = centerChoice * sign(q.x) * 0.32;
+      float sideSpread = mix(0.32, 0.52, smoothstep(0.08, 0.86, scrollProgress));
+      float barCenter = centerChoice * sign(q.x) * sideSpread;
       float halfWidth = mix(0.092, 0.077, centerChoice);
       float lateral = clamp(abs(q.x - barCenter) / halfWidth, 0.0, 1.0);
       float roundness = sqrt(max(0.0, 1.0 - lateral * lateral));
@@ -318,7 +345,10 @@ function startWebgl() {
       vec3 normal = rotation * vec3(0.0, 0.0, 1.0);
       vec3 light = normalize(vec3(-0.25 + pointer.x * 0.22, 0.34 - pointer.y * 0.12, 0.9));
 
-      vec2 sceneUv = uv * 0.94 + vec2(0.0, 0.02);
+      float heroScale = mix(0.94, 1.06, scrollProgress);
+      float heroLift = mix(0.02, -0.12, scrollProgress);
+      float heroFade = 1.0 - smoothstep(0.16, 0.82, scrollProgress);
+      vec2 sceneUv = uv * heroScale + vec2(0.0, heroLift);
       vec2 front = localPoint(sceneUv, rotation, inverseRotation, 0.0);
       vec2 back = localPoint(sceneUv, rotation, inverseRotation, -0.16);
       vec2 glow = localPoint(sceneUv, rotation, inverseRotation, -0.08);
@@ -334,7 +364,7 @@ function startWebgl() {
       vec3 silver = vec3(0.72);
       vec3 color = graphite + silver * ((frontDots * (0.84 + premiumSheen * 0.22) + backDots) * lighting + softCore);
 
-      float alpha = fade * clamp(frontDots * 0.74 + backDots * 0.12 + softCore * 0.36, 0.0, 0.62);
+      float alpha = fade * heroFade * clamp(frontDots * 0.78 + backDots * 0.12 + softCore * 0.36, 0.0, 0.68);
       gl_FragColor = vec4(color, alpha);
     }
   `;
@@ -354,12 +384,15 @@ function startWebgl() {
   const resolution = gl.getUniformLocation(program, "resolution");
   const pointer = gl.getUniformLocation(program, "pointer");
   const time = gl.getUniformLocation(program, "time");
+  const scrollProgress = gl.getUniformLocation(program, "scrollProgress");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let start = performance.now();
   let targetPointerX = 0;
   let targetPointerY = 0;
   let pointerX = 0;
   let pointerY = 0;
+  let targetScrollProgress = 0;
+  let currentScrollProgress = 0;
 
   function resize() {
     const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
@@ -379,9 +412,17 @@ function startWebgl() {
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
     pointerX += (targetPointerX - pointerX) * 0.065;
     pointerY += (targetPointerY - pointerY) * 0.065;
+    targetScrollProgress = Math.min(Math.max(window.scrollY / Math.max(window.innerHeight * 0.95, 1), 0), 1);
+    currentScrollProgress += (targetScrollProgress - currentScrollProgress) * 0.08;
+    const canvasFade = 1 - smoothStep(0.28, 0.92, currentScrollProgress);
+    const canvasScale = 1;
+    const canvasLift = currentScrollProgress * -6;
+    canvas.style.opacity = canvasFade.toFixed(3);
+    canvas.style.transform = `translate3d(0, ${canvasLift.toFixed(2)}vh, 0) scale(${canvasScale.toFixed(4)})`;
     gl.uniform2f(resolution, canvas.width, canvas.height);
     gl.uniform2f(pointer, pointerX, pointerY);
     gl.uniform1f(time, (now - start) * 0.001);
+    gl.uniform1f(scrollProgress, currentScrollProgress);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
     if (!reducedMotion) requestAnimationFrame(render);
@@ -405,6 +446,11 @@ function startWebgl() {
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) resetPointer();
   });
+}
+
+function smoothStep(edge0, edge1, value) {
+  const t = Math.min(Math.max((value - edge0) / (edge1 - edge0), 0), 1);
+  return t * t * (3 - 2 * t);
 }
 
 function createProgram(gl, vertexSource, fragmentSource) {

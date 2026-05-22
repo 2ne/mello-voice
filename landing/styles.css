@@ -79,6 +79,7 @@ body::after {
   width: 100%;
   height: 100%;
   pointer-events: none;
+  transform-origin: center;
   user-select: none;
 }
 
@@ -100,6 +101,13 @@ body::after {
   align-items: center;
   justify-content: center;
   text-align: center;
+}
+
+.hero-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  will-change: opacity, transform;
 }
 
 h1 {
@@ -270,7 +278,7 @@ h2 {
 .demo-window-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 1rem;
   padding: 1rem 1.15rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.075);
@@ -288,13 +296,6 @@ h2 {
   background: rgba(244, 244, 244, 0.24);
 }
 
-.window-title {
-  color: var(--faint);
-  font-size: 0.74rem;
-  font-weight: 560;
-  letter-spacing: 0;
-}
-
 .demo-document {
   min-height: clamp(13rem, 25vw, 17.5rem);
   padding: clamp(1.45rem, 3vw, 2.5rem);
@@ -306,8 +307,6 @@ h2 {
 .document-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
   margin: 0 0 1.1rem;
   color: var(--faint);
   font-size: 0.8rem;
@@ -416,15 +415,9 @@ h2 {
   min-width: 0;
 }
 
-#demo-status {
-  margin: 0;
-  color: var(--faint);
-  font-size: 0.74rem;
-}
-
 #demo-transcript {
   min-height: 1.45rem;
-  margin: 0.12rem 0 0;
+  margin: 0;
   overflow: hidden;
   color: rgba(244, 244, 244, 0.86);
   font-size: 0.98rem;
@@ -494,6 +487,58 @@ h2 {
   letter-spacing: -0.01em;
 }
 
+.site-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-top: clamp(4rem, 8vw, 7rem);
+  padding-block: 1.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--faint);
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.footer-logo {
+  width: 2.1rem;
+  height: 2.1rem;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.footer-logo svg {
+  width: 1.45rem;
+  height: 1.45rem;
+  fill: rgba(244, 244, 244, 0.82);
+}
+
+.footer-brand p,
+.site-footer > p {
+  margin: 0;
+}
+
+.footer-brand p {
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 620;
+}
+
+.footer-brand span,
+.site-footer > p {
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
 @media (max-width: 560px) {
   .page-shell {
     padding-inline: 18px;
@@ -536,6 +581,11 @@ h2 {
 
   #demo-transcript {
     white-space: normal;
+  }
+
+  .site-footer {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
