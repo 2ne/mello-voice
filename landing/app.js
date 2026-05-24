@@ -16,6 +16,7 @@ bindFinalDownload();
 resolveLatestDownload(platform);
 startDemo();
 startHeroScroll();
+startSpeechFlow();
 startWebgl();
 
 function detectPlatform() {
@@ -488,6 +489,215 @@ function createProgram(gl, vertexSource, fragmentSource) {
   }
 
   return program;
+}
+
+function startSpeechFlow() {
+  const flow = document.querySelector("[data-speech-flow]");
+  if (!flow) return;
+
+  const roughExamples = [...flow.querySelectorAll(".rewrite-stack-rough .rewrite-example")];
+  const cleanExamples = [...flow.querySelectorAll(".rewrite-stack-clean .rewrite-example")];
+
+  const pairs = roughExamples.map((rough, index) => {
+    const clean = cleanExamples[index];
+    if (!clean) return null;
+
+    if (!clean.dataset.cleanText) {
+      clean.dataset.cleanText = clean.textContent.trim();
+    }
+
+    wrapRewriteWords(rough);
+    return { rough, clean };
+  }).filter(Boolean);
+
+  if (!pairs.length) return;
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    showStaticSpeechFlow(pairs);
+    return;
+  }
+
+  runSpeechFlowLoop(pairs);
+}
+
+function showStaticSpeechFlow(pairs) {
+  const { rough, clean } = pairs[0];
+
+  pairs.forEach(({ rough: r, clean: c }) => {
+    r.classList.remove("is-active");
+    c.classList.remove("is-active", "is-typing");
+    c.textContent = "";
+  });
+
+  rough.classList.add("is-active");
+  rough.querySelectorAll(".speech-word").forEach((word) => {
+    word.classList.add("is-visible");
+  });
+
+  clean.textContent = clean.dataset.cleanText || "";
+  clean.classList.add("is-active");
+}
+
+async function runSpeechFlowLoop(pairs) {
+  let index = 0;
+
+  while (true) {
+    resetSpeechFlowPairs(pairs);
+
+    const { rough, clean } = pairs[index];
+    rough.classList.add("is-active");
+    clean.classList.add("is-active");
+    showCleanListening(clean);
+
+    await streamRoughExample(rough);
+    await typeCleanExample(clean);
+    await speechDelay(1500);
+
+    index = (index + 1) % pairs.length;
+  }
+}
+
+function resetSpeechFlowPairs(pairs) {
+  pairs.forEach(({ rough, clean }) => {
+    rough.classList.remove("is-active");
+    clean.classList.remove("is-active", "is-typing", "is-listening");
+    clean.replaceChildren();
+
+    if (rough.dataset.speechOriginal) {
+      rough.innerHTML = rough.dataset.speechOriginal;
+      delete rough.dataset.speechWrapped;
+      wrapRewriteWords(rough);
+    } else {
+      rough.querySelectorAll(".speech-word").forEach((word) => {
+        word.classList.remove("is-visible", "is-latest");
+      });
+    }
+
+    rough.querySelector(".speech-caret")?.remove();
+  });
+}
+
+async function streamRoughExample(example) {
+  const words = [...example.querySelectorAll(".speech-word")];
+  const caret = createSpeechCaret();
+
+  for (const word of words) {
+    example.querySelector(".speech-word.is-latest")?.classList.remove("is-latest");
+
+    word.classList.add("is-visible");
+    if (!word.classList.contains("speech-word-filler")) {
+      word.classList.add("is-latest");
+    }
+
+    word.after(caret);
+
+    if (word.classList.contains("speech-word-filler")) {
+      await speechDelay(speechRandomMs(90, 150));
+      continue;
+    }
+
+    await speechDelay(speechRandomMs(130, 210));
+  }
+
+  await speechDelay(420);
+  caret.remove();
+}
+
+function showCleanListening(example) {
+  example.classList.add("is-listening");
+  example.classList.remove("is-typing");
+  example.replaceChildren();
+
+  const placeholder = document.createElement("span");
+  placeholder.className = "speech-listening-placeholder";
+  placeholder.textContent = "Listening…";
+  example.appendChild(placeholder);
+}
+
+async function typeCleanExample(example) {
+  const text = example.dataset.cleanText || "";
+  example.classList.remove("is-listening");
+  example.classList.add("is-typing");
+  example.replaceChildren();
+
+  const cursor = document.createElement("span");
+  cursor.className = "speech-type-cursor";
+  cursor.setAttribute("aria-hidden", "true");
+  example.appendChild(cursor);
+
+  for (const char of text) {
+    cursor.before(document.createTextNode(char));
+
+    if (char === " ") {
+      await speechDelay(16);
+    } else if (char === "." || char === ",") {
+      await speechDelay(120);
+    } else {
+      await speechDelay(speechRandomMs(24, 42));
+    }
+  }
+
+  await speechDelay(500);
+}
+
+function createSpeechCaret() {
+  const caret = document.createElement("span");
+  caret.className = "speech-caret";
+  caret.setAttribute("aria-hidden", "true");
+  return caret;
+}
+
+function speechDelay(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+function speechRandomMs(min, max) {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
+function wrapRewriteWords(example, { clean = false } = {}) {
+  if (clean || example.dataset.speechWrapped === "true") return;
+
+  if (!example.dataset.speechOriginal) {
+    example.dataset.speechOriginal = example.innerHTML;
+  }
+
+  example.dataset.speechWrapped = "true";
+
+  let wordIndex = 0;
+  const fragment = document.createDocumentFragment();
+
+  for (const node of [...example.childNodes]) {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const element = node;
+      if (element.classList.contains("cut-word")) {
+        element.classList.add("speech-word", "speech-word-filler");
+        element.style.setProperty("--word-i", String(wordIndex++));
+        fragment.appendChild(element);
+        continue;
+      }
+    }
+
+    if (node.nodeType !== Node.TEXT_NODE) continue;
+
+    for (const part of node.textContent.split(/(\s+)/)) {
+      if (!part) continue;
+      if (!part.trim()) {
+        fragment.appendChild(document.createTextNode(part));
+        continue;
+      }
+
+      const span = document.createElement("span");
+      span.className = "speech-word";
+      span.textContent = part;
+      span.style.setProperty("--word-i", String(wordIndex++));
+      fragment.appendChild(span);
+    }
+  }
+
+  example.replaceChildren(fragment);
 }
 
 function compileShader(gl, type, source) {

@@ -85,30 +85,83 @@
               <p id="demo-output">Click record and say a sentence. Your words will appear here.</p>
               <p id="demo-interim" aria-live="polite"></p>
             </div>
-          </div>
 
-          <div class="demo-overlay" data-state="idle">
-            <button id="demo-record" class="demo-record-button" type="button" aria-label="Start live dictation preview">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
-                <path d="M19 11a7 7 0 0 1-14 0"></path>
-                <path d="M12 18v3"></path>
-              </svg>
-            </button>
-            <div class="demo-overlay-body">
-              <p id="demo-transcript">Click here to start recording.</p>
+            <div class="demo-overlay" data-state="idle">
+              <button id="demo-record" class="demo-record-button" type="button" aria-label="Start live dictation preview">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
+                  <path d="M19 11a7 7 0 0 1-14 0"></path>
+                  <path d="M12 18v3"></path>
+                </svg>
+              </button>
+              <div class="demo-overlay-body">
+                <p id="demo-transcript">Click here to start recording.</p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       <section class="statement-section" aria-labelledby="speed-title">
-        <p class="section-kicker">Why Mello</p>
-        <h2 id="speed-title">The fastest way to get words down.</h2>
-        <p>
-          Mello is designed for the moment you are already typing. Hit your shortcut,
-          speak naturally, and keep moving without changing apps or setting up an account.
-        </p>
+        <div class="statement-copy">
+          <p class="section-kicker">Why Mello</p>
+          <h2 id="speed-title">The fastest way to get words down.</h2>
+          <p>
+            Mello is designed for the moment you are already typing. Hit your shortcut,
+            speak naturally, and keep moving without changing apps or setting up an account.
+          </p>
+        </div>
+
+        <div class="speech-flow" data-speech-flow aria-hidden="true">
+          <div class="rewrite-panel rewrite-panel-rough">
+            <div class="rewrite-panel-head">
+              <span class="rewrite-label">As you speak</span>
+              <span class="rewrite-panel-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
+                  <path d="M19 11a7 7 0 0 1-14 0"></path>
+                  <path d="M12 18v3"></path>
+                </svg>
+              </span>
+            </div>
+            <div class="rewrite-stack rewrite-stack-rough">
+              <p class="rewrite-example">
+                <span class="cut-word">um</span> send the notes from today <span class="cut-word">...</span> before lunch
+              </p>
+              <p class="rewrite-example">
+                update the deck with the new pricing <span class="cut-word">uh</span> for Monday
+              </p>
+              <p class="rewrite-example">
+                can you add the meeting notes to Notion <span class="cut-word">erm</span> after this
+              </p>
+            </div>
+          </div>
+
+          <div class="speech-flow-arrow" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h12"></path>
+              <path d="M13 7l5 5-5 5"></path>
+            </svg>
+          </div>
+
+          <div class="rewrite-panel rewrite-panel-clean">
+            <div class="rewrite-panel-head">
+              <span class="rewrite-label">Ready to paste</span>
+              <span class="rewrite-panel-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="10" y="5" width="4" height="14" rx="2"></rect>
+                  <rect x="5" y="9" width="3.5" height="8" rx="1.75"></rect>
+                  <rect x="15.5" y="9" width="3.5" height="8" rx="1.75"></rect>
+                </svg>
+              </span>
+            </div>
+            <div class="rewrite-stack rewrite-stack-clean">
+              <p class="rewrite-example">Send the notes from today before lunch.</p>
+              <p class="rewrite-example">Update the deck with the new pricing for Monday.</p>
+              <p class="rewrite-example">Can you add the meeting notes to Notion after this.</p>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="workflow-section" aria-labelledby="workflow-title">
