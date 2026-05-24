@@ -27,5 +27,5 @@
     <rect width="1200" height="630" fill="#fff" opacity=".035"/>
   </g>
   <text x="600" y="330" text-anchor="middle" fill="url(#title)" font-family="Inter, Arial, sans-serif" font-size="112" font-weight="700" letter-spacing="-4">Mello Voice</text>
-  <text x="600" y="392" text-anchor="middle" fill="#aaa" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="500">Private voice typing. Runs locally.</text>
+  <text x="600" y="392" text-anchor="middle" fill="#aaa" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="500">Private voice typing for Mac and Windows.</text>
 </svg>

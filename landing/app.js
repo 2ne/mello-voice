@@ -5,11 +5,14 @@ const platform = detectPlatform();
 const downloadLink = document.querySelector("#download-link");
 const downloadLabel = document.querySelector("#download-label");
 const downloadCaption = document.querySelector("#download-caption");
-const windowsIcon = document.querySelector(".platform-icon-windows");
-const macIcon = document.querySelector(".platform-icon-macos");
+const finalDownload = document.querySelector("#final-download");
+const finalDownloadLabel = document.querySelector("#final-download-label");
+const windowsIcons = document.querySelectorAll(".platform-icon-windows");
+const macIcons = document.querySelectorAll(".platform-icon-macos");
 const heroContent = document.querySelector(".hero-content");
 
 updateDownloadIntent(platform);
+bindFinalDownload();
 resolveLatestDownload(platform);
 startDemo();
 startHeroScroll();
@@ -34,23 +37,38 @@ function updateDownloadIntent(targetPlatform) {
   const isMac = targetPlatform === "mac";
   const isWindows = targetPlatform === "windows";
 
-  macIcon.hidden = !isMac;
-  windowsIcon.hidden = isMac;
+  macIcons.forEach((icon) => {
+    icon.hidden = !isMac;
+  });
+  windowsIcons.forEach((icon) => {
+    icon.hidden = isMac;
+  });
 
   if (isMac) {
     downloadLabel.textContent = "Download for macOS";
+    if (finalDownloadLabel) finalDownloadLabel.textContent = "Download for macOS";
     if (downloadCaption) downloadCaption.textContent = "Latest macOS disk image from GitHub Releases.";
     return;
   }
 
   if (isWindows) {
     downloadLabel.textContent = "Download for Windows";
+    if (finalDownloadLabel) finalDownloadLabel.textContent = "Download for Windows";
     if (downloadCaption) downloadCaption.textContent = "Recommended installer for Windows 10 and 11.";
     return;
   }
 
   downloadLabel.textContent = "Download latest release";
+  if (finalDownloadLabel) finalDownloadLabel.textContent = "Download latest release";
   if (downloadCaption) downloadCaption.textContent = "Choose the Windows or macOS installer from GitHub.";
+}
+
+function bindFinalDownload() {
+  if (!finalDownload || !downloadLink) return;
+
+  finalDownload.addEventListener("click", () => {
+    downloadLink.click();
+  });
 }
 
 async function resolveLatestDownload(targetPlatform) {
@@ -168,7 +186,7 @@ function startDemo() {
     recognition.onend = () => {
       const message = pendingIdleMessage || (finalText
         ? "Captured. Click to record again."
-        : "No speech captured yet. Click record and say a short sentence.");
+        : "No speech captured yet. Click record and try again.");
       setIdle(message);
     };
 
