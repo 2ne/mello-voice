@@ -305,7 +305,7 @@ function startWebgl() {
       float lateral = clamp(abs(q.x - barCenter) / halfWidth, 0.0, 1.0);
       float roundness = sqrt(max(0.0, 1.0 - lateral * lateral));
       float vertical = smoothstep(0.58, 0.2, abs(q.y));
-      return 0.44 + roundness * 0.42 + vertical * 0.14;
+      return 0.47 + roundness * 0.43 + vertical * 0.15;
     }
 
     float jitteredDots(vec2 coord, float scale, float seed) {
@@ -317,7 +317,7 @@ function startWebgl() {
       float radius = mix(0.024, 0.046, rnd.x);
       float dotShape = 1.0 - smoothstep(radius, radius + 0.014, length(local - center));
       float keep = step(0.1, rnd.y);
-      return dotShape * keep * (0.62 + rnd.y * 0.38);
+      return dotShape * keep * (0.66 + rnd.y * 0.38);
     }
 
     vec2 localPoint(vec2 uv, mat3 rotation, mat3 inverseRotation, float planeDepth) {
@@ -348,7 +348,7 @@ function startWebgl() {
       float dotsB = jitteredDots(warped * 1.017 + vec2(0.19, -0.11), scale * 0.73, seed + 23.0) * 0.38;
       float edge = 1.0 - smoothstep(0.015, 0.13, abs(sdf));
       float surface = barSurfaceShade(q);
-      float shimmer = 0.78 + 0.16 * sin(time * 0.38 + seed + q.x * 5.0 + q.y * 2.0);
+      float shimmer = 0.81 + 0.17 * sin(time * 0.38 + seed + q.x * 5.0 + q.y * 2.0);
       return (dotsA + dotsB) * mask * (surface + edge * 0.28) * shimmer;
     }
 
@@ -373,17 +373,17 @@ function startWebgl() {
       vec2 glow = localPoint(sceneUv, rotation, inverseRotation, -0.08);
 
       float frontDots = dottedLogo(front, 192.0, 0.0);
-      float backDots = dottedLogo(back, 192.0, 19.0) * 0.1;
-      float softCore = softLogo(glow) * 0.038;
-      float lighting = 0.56 + 0.44 * max(dot(normal, light), 0.0);
+      float backDots = dottedLogo(back, 192.0, 19.0) * 0.12;
+      float softCore = softLogo(glow) * 0.044;
+      float lighting = 0.57 + 0.45 * max(dot(normal, light), 0.0);
       float premiumSheen = smoothstep(-0.55, 0.8, front.y - front.x * 0.22) * smoothstep(0.95, -0.15, front.y);
       float fade = smoothstep(1.55, 0.08, length(uv));
 
-      vec3 graphite = vec3(0.012);
-      vec3 silver = vec3(0.72);
-      vec3 color = graphite + silver * ((frontDots * (0.84 + premiumSheen * 0.22) + backDots) * lighting + softCore);
+      vec3 graphite = vec3(0.015);
+      vec3 silver = vec3(0.76);
+      vec3 color = graphite + silver * ((frontDots * (0.88 + premiumSheen * 0.24) + backDots) * lighting + softCore);
 
-      float alpha = fade * heroFade * clamp(frontDots * 0.78 + backDots * 0.12 + softCore * 0.36, 0.0, 0.68);
+      float alpha = fade * heroFade * clamp(frontDots * 0.82 + backDots * 0.13 + softCore * 0.38, 0.0, 0.72);
       gl_FragColor = vec4(color, alpha);
     }
   `;
@@ -449,21 +449,105 @@ function startWebgl() {
 
   requestAnimationFrame(render);
   window.addEventListener("resize", resize);
-  window.addEventListener("pointermove", (event) => {
-    targetPointerX = (event.clientX / window.innerWidth - 0.5) * 2;
-    targetPointerY = (event.clientY / window.innerHeight - 0.5) * 2;
+  bindCanvasPointerInput({
+    reducedMotion,
+    setTarget(x, y) {
+      targetPointerX = x;
+      targetPointerY = y;
+    },
+    resetTarget() {
+      targetPointerX = 0;
+      targetPointerY = 0;
+    },
   });
+}
 
-  function resetPointer() {
-    targetPointerX = 0;
-    targetPointerY = 0;
+function bindCanvasPointerInput({ reducedMotion, setTarget, resetTarget }) {
+  if (reducedMotion) return;
+
+  if (prefersGyroscopeInput()) {
+    bindGyroscopePointerInput(setTarget);
+    return;
   }
 
-  window.addEventListener("pointerleave", resetPointer);
-  window.addEventListener("blur", resetPointer);
-  document.documentElement.addEventListener("mouseleave", resetPointer);
+  window.addEventListener("pointermove", (event) => {
+    setTarget(
+      (event.clientX / window.innerWidth - 0.5) * 2,
+      (event.clientY / window.innerHeight - 0.5) * 2,
+    );
+  });
+
+  window.addEventListener("pointerleave", resetTarget);
+  window.addEventListener("blur", resetTarget);
+  document.documentElement.addEventListener("mouseleave", resetTarget);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) resetPointer();
+    if (document.hidden) resetTarget();
+  });
+}
+
+function prefersGyroscopeInput() {
+  return (
+    "DeviceOrientationEvent" in window &&
+    window.matchMedia("(hover: none) and (pointer: coarse)").matches
+  );
+}
+
+function bindGyroscopePointerInput(setTarget) {
+  let listening = false;
+  let baselineBeta = null;
+  let baselineGamma = null;
+
+  function handleOrientation(event) {
+    const { beta, gamma } = event;
+    if (beta == null || gamma == null) return;
+
+    if (baselineBeta == null || baselineGamma == null) {
+      baselineBeta = beta;
+      baselineGamma = gamma;
+    }
+
+    const gammaSpan = 32;
+    const betaSpan = 24;
+    const pointerX = Math.min(Math.max((gamma - baselineGamma) / gammaSpan, -1), 1);
+    const pointerY = Math.min(Math.max((beta - baselineBeta) / betaSpan, -1), 1);
+    setTarget(pointerX, pointerY);
+  }
+
+  async function startListening() {
+    if (listening) return;
+
+    const OrientationEvent = window.DeviceOrientationEvent;
+    if (typeof OrientationEvent?.requestPermission === "function") {
+      try {
+        const state = await OrientationEvent.requestPermission();
+        if (state !== "granted") return;
+      } catch {
+        return;
+      }
+    }
+
+    listening = true;
+    window.addEventListener("deviceorientation", handleOrientation, true);
+  }
+
+  function prime() {
+    document.removeEventListener("touchstart", prime);
+    document.removeEventListener("click", prime);
+    startListening();
+  }
+
+  if (typeof window.DeviceOrientationEvent?.requestPermission === "function") {
+    document.addEventListener("touchstart", prime, { passive: true });
+    document.addEventListener("click", prime);
+  } else {
+    startListening();
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      baselineBeta = null;
+      baselineGamma = null;
+    }
   });
 }
 
