@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { overlayListeningStopHint } from "@/dictationShortcut";
+import { useEffect, useRef } from "react";
 
 const overlayIdleBarBase =
   "w-[0.1875rem] shrink-0 rounded-full animate-[mello-logo-bar-breathe_1.28s_var(--ease-opacity-breathe)_infinite] motion-reduce:animate-none motion-reduce:opacity-100";
@@ -9,9 +10,181 @@ type OverlayState = "idle" | "listening" | "processing" | "error";
 interface FloatingOverlayProps {
   state: OverlayState;
   shortcutLabel: string;
+  audioLevel?: number;
   interimTranscript: string;
   finalTranscript: string;
   error: string | null;
+}
+
+const AUDIO_METER_SAMPLE_MS = 48;
+const AUDIO_METER_SPEED_PX_PER_MS = 0.096;
+const AUDIO_METER_EDGE_BUFFER_PX = 24;
+const AUDIO_METER_BAR_WIDTH = 3;
+const AUDIO_METER_MIN_BAR_HEIGHT = 3;
+const AUDIO_METER_MAX_BAR_HEIGHT = 35;
+
+type AudioMeterSample = {
+  level: number;
+  time: number;
+};
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function audioBarHeight(level: number): number {
+  const normalized = clamp01(level);
+  const eased = Math.pow(normalized, 0.55);
+  return Math.round(
+    AUDIO_METER_MIN_BAR_HEIGHT +
+      eased * (AUDIO_METER_MAX_BAR_HEIGHT - AUDIO_METER_MIN_BAR_HEIGHT),
+  );
+}
+
+function fillRoundedBar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const radius = Math.min(width, height) / 2;
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function syncAudioMeterCanvas(canvas: HTMLCanvasElement) {
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const width = Math.max(1, Math.round(rect.width * dpr));
+  const height = Math.max(1, Math.round(rect.height * dpr));
+
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, width: rect.width, height: rect.height };
+}
+
+function seedAudioMeterSilence(samples: AudioMeterSample[], now: number, width: number) {
+  const maxAgeMs = (width + AUDIO_METER_EDGE_BUFFER_PX) / AUDIO_METER_SPEED_PX_PER_MS;
+  for (let time = now - maxAgeMs; time <= now; time += AUDIO_METER_SAMPLE_MS) {
+    samples.push({ level: 0, time });
+  }
+}
+
+function drawAudioMeterFrame(
+  canvas: HTMLCanvasElement,
+  samples: AudioMeterSample[],
+  now: number,
+) {
+  const metrics = syncAudioMeterCanvas(canvas);
+  if (!metrics) return;
+
+  const { ctx, width, height } = metrics;
+  if (samples.length === 0) {
+    seedAudioMeterSilence(samples, now, width);
+  }
+
+  const maxAgeMs = (width + AUDIO_METER_EDGE_BUFFER_PX) / AUDIO_METER_SPEED_PX_PER_MS;
+  const firstLiveSample = samples.findIndex((sample) => now - sample.time <= maxAgeMs);
+  if (firstLiveSample > 0) {
+    samples.splice(0, firstLiveSample);
+  }
+
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = getComputedStyle(canvas).color;
+
+  for (const sample of samples) {
+    const x = width - (now - sample.time) * AUDIO_METER_SPEED_PX_PER_MS;
+    if (x < -AUDIO_METER_BAR_WIDTH || x > width + AUDIO_METER_BAR_WIDTH) continue;
+
+    const normalized = clamp01(sample.level);
+    const barHeight = audioBarHeight(normalized);
+    const y = (height - barHeight) / 2;
+    ctx.globalAlpha = normalized <= 0 ? 0.22 : 0.34 + normalized * 0.4;
+    fillRoundedBar(ctx, x, y, AUDIO_METER_BAR_WIDTH, barHeight);
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+function AudioMeter({ level }: { level: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const latestLevelRef = useRef(0);
+  const smoothedLevelRef = useRef(0);
+  const samplesRef = useRef<AudioMeterSample[]>([]);
+  const lastSampleAtRef = useRef(0);
+
+  useEffect(() => {
+    latestLevelRef.current = clamp01(level);
+  }, [level]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let animationFrame = 0;
+    const resizeObserver = new ResizeObserver(() => {
+      syncAudioMeterCanvas(canvas);
+    });
+    resizeObserver.observe(canvas);
+
+    const pushMeterSamples = (now: number) => {
+      if (lastSampleAtRef.current === 0) {
+        lastSampleAtRef.current = now;
+      }
+
+      while (now - lastSampleAtRef.current >= AUDIO_METER_SAMPLE_MS) {
+        lastSampleAtRef.current += AUDIO_METER_SAMPLE_MS;
+        const target = latestLevelRef.current;
+        const current = smoothedLevelRef.current;
+        const mix = target > current ? 0.58 : 0.3;
+        const next = current + (target - current) * mix;
+        smoothedLevelRef.current = next < 0.01 ? 0 : next;
+        samplesRef.current.push({
+          level: smoothedLevelRef.current,
+          time: lastSampleAtRef.current,
+        });
+      }
+    };
+
+    const render = (now: number) => {
+      pushMeterSamples(now);
+      drawAudioMeterFrame(canvas, samplesRef.current, now);
+      animationFrame = window.requestAnimationFrame(render);
+    };
+
+    animationFrame = window.requestAnimationFrame(render);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  return (
+    <div
+      className="floating-overlay-audio-meter -mx-5 h-11 w-[calc(100%+2.5rem)] min-w-0 overflow-hidden"
+      role="img"
+      aria-label="Listening"
+    >
+      <canvas ref={canvasRef} className="block h-full w-full text-overlay-chrome-fg" aria-hidden />
+    </div>
+  );
 }
 
 function getStateLabel(state: OverlayState): string {
@@ -48,6 +221,7 @@ const LISTENING_EXPANDED_BODY_MIN = "min-h-11"; /* 44px */
 function FloatingOverlay({
   state,
   shortcutLabel,
+  audioLevel = 0,
   interimTranscript,
   finalTranscript,
   error,
@@ -86,9 +260,9 @@ function FloatingOverlay({
   /** Echo empty-history hint while mic is live but Whisper has not emitted text yet. */
   const showListeningStopHint =
     state === "listening" && !hasError && trimmedFinal.length === 0 && trimmedInterim.length === 0;
+  const showListeningMeter = showListeningStopHint;
 
-  /** Pulse for whole listening capture — quiet “Listening…” and live transcript */
-  const listeningPulse = state === "listening";
+  const listeningLayout = state === "listening";
 
   const flowingBodyClasses = cn(
     "floating-overlay-body relative z-[1] w-full min-w-0 shrink px-0.5 text-left text-base font-medium leading-snug tracking-[-0.01em]",
@@ -101,13 +275,12 @@ function FloatingOverlay({
       className={cn(
         "floating-overlay floating-overlay-chrome pointer-events-auto relative mx-auto flex w-full cursor-grab select-none overflow-hidden shadow-none ring-0 outline-none active:cursor-grabbing",
         "bg-overlay-chrome-bg text-overlay-chrome-fg",
-        listeningPulse && "floating-overlay-chrome-pulse floating-overlay-chrome-listening-breathe",
         isMiniLayout &&
           "size-7 min-h-7 flex-col items-center justify-center rounded-full p-0",
         !isMiniLayout &&
           cn(
             "w-full flex-col items-stretch justify-center rounded-[28px] px-5",
-            listeningPulse ? "min-h-[52px] py-1.5" : "min-h-[56px] py-3",
+            listeningLayout ? "min-h-[52px] py-1.5" : "min-h-[56px] py-3",
           ),
       )}
     >
@@ -175,6 +348,8 @@ function FloatingOverlay({
                   )}
                 />
               </div>
+            ) : showListeningMeter ? (
+              <AudioMeter level={audioLevel} />
             ) : (
               <div
                 aria-live={

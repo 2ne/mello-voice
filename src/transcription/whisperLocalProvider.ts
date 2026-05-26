@@ -29,8 +29,10 @@ export async function whisperTranscribeWavBase64(
     throw new Error('wav too large')
   }
   return invoke<string>('transcribe_wav', {
-    audioWavBase64: uint8ToBase64(wav),
-    timeoutSecs: timeoutSecs ?? null,
+    payload: {
+      audioWavBase64: uint8ToBase64(wav),
+      timeoutSecs: timeoutSecs ?? null,
+    },
   })
 }
 

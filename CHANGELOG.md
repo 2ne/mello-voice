@@ -4,6 +4,15 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.8] - 2026-05-26
+
+- **Live audio meter** in the floating dictation bar while you speak.
+- **Double-tap to stop** hint shows your chosen shortcut key during dictation.
+- **More reliable quiet speech** — less aggressive trimming before local Whisper runs.
+- **Keeps listening when you switch focus** — active dictation survives dragging the main window or clicking elsewhere.
+- **Smoother bar animation** when the listening pill opens and closes.
+- **Whisper-only transcription** — finished text always comes from local Whisper; no browser speech preview in the overlay.
+
 ## [1.0.7] - 2026-05-21
 
 - **Hold to clear history** — press and hold to confirm before wiping transcript history.
@@ -53,7 +62,10 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 - **Double-tap Caps Lock** dictation with local whisper.cpp transcription.
 - Paste into the focused app, optional **Paste and send**, floating dictation bar, history, and light/dark/system themes.
 
-[Unreleased]: https://github.com/2ne/mello-voice/compare/v1.0.5...HEAD
+[Unreleased]: https://github.com/2ne/mello-voice/compare/v1.0.8...HEAD
+[1.0.8]: https://github.com/2ne/mello-voice/releases/tag/v1.0.8
+[1.0.7]: https://github.com/2ne/mello-voice/releases/tag/v1.0.7
+[1.0.6]: https://github.com/2ne/mello-voice/releases/tag/v1.0.6
 [1.0.5]: https://github.com/2ne/mello-voice/releases/tag/v1.0.5
 [1.0.4]: https://github.com/2ne/mello-voice/releases/tag/v1.0.4
 [1.0.3]: https://github.com/2ne/mello-voice/releases/tag/v1.0.3

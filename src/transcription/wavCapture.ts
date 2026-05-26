@@ -6,6 +6,12 @@ import {
 
 /** Retain at most ~8 minutes of raw PCM at 48 kHz (reasonable cap for long sessions). */
 const RAW_RETAIN_SECONDS = 480
+const MIN_CAPTURE_SECONDS = 0.12
+const TRIM_SPEECH_THRESHOLD_ABS = 0.003
+const TRIM_PAD_MS = 120
+const SHORT_TRIM_FALLBACK_SECONDS = 0.35
+const SILENCE_FLOOR_ABS = 0.001
+const LEVEL_EMIT_INTERVAL_MS = 45
 const MIC_CAPTURE_CONSTRAINTS: MediaStreamConstraints = {
   audio: {
     channelCount: 1,
@@ -17,6 +23,10 @@ const MIC_CAPTURE_CONSTRAINTS: MediaStreamConstraints = {
 }
 
 type CaptureBackend = 'worklet' | 'script'
+
+export interface CaptureLevelSnapshot {
+  level: number
+}
 
 type CaptureState =
   | { kind: 'idle' }
@@ -36,6 +46,8 @@ type CaptureState =
 let state: CaptureState = { kind: 'idle' }
 
 let warmCapturePromise: Promise<void> | null = null
+let lastLevelEmitAt = 0
+const levelListeners = new Set<(snapshot: CaptureLevelSnapshot) => void>()
 
 /** Mic stream left open after warmup so the first capture reuses the same live device handle (Windows). */
 let primedMicStream: MediaStream | null = null
@@ -174,6 +186,83 @@ function totalChunkSamples(chunks: readonly Float32Array[]): number {
   return n
 }
 
+function peakAbs(samples: Float32Array): number {
+  let peak = 0
+  for (const sample of samples) {
+    const abs = Math.abs(sample)
+    if (abs > peak) peak = abs
+  }
+  return peak
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value))
+}
+
+function captureLevel(samples: Float32Array): number {
+  if (samples.length === 0) return 0
+  let sumSq = 0
+  let peak = 0
+  for (const sample of samples) {
+    sumSq += sample * sample
+    const abs = Math.abs(sample)
+    if (abs > peak) peak = abs
+  }
+  const rms = Math.sqrt(sumSq / samples.length)
+  const level = Math.max(rms * 14, peak * 1.8)
+  return level < 0.012 ? 0 : clamp01(level)
+}
+
+function emitCaptureLevel(samples: Float32Array): void {
+  if (levelListeners.size === 0) return
+  const now = performance.now()
+  if (now - lastLevelEmitAt < LEVEL_EMIT_INTERVAL_MS) return
+  lastLevelEmitAt = now
+  const snapshot = { level: captureLevel(samples) }
+  for (const listener of levelListeners) {
+    listener(snapshot)
+  }
+}
+
+function emitCaptureSilence(): void {
+  if (levelListeners.size === 0) return
+  const snapshot = { level: 0 }
+  for (const listener of levelListeners) {
+    listener(snapshot)
+  }
+}
+
+export function subscribeCaptureLevels(
+  listener: (snapshot: CaptureLevelSnapshot) => void,
+): () => void {
+  levelListeners.add(listener)
+  return () => {
+    levelListeners.delete(listener)
+  }
+}
+
+export function prepareSamplesForWhisper(samples: Float32Array, sampleRate: number): Float32Array {
+  const minSamples = Math.floor(sampleRate * MIN_CAPTURE_SECONDS)
+  if (samples.length < minSamples) {
+    return new Float32Array(0)
+  }
+  if (peakAbs(samples) < SILENCE_FLOOR_ABS) {
+    return new Float32Array(0)
+  }
+
+  const trimmed = trimSilentEdges(samples, sampleRate, TRIM_SPEECH_THRESHOLD_ABS, TRIM_PAD_MS)
+  if (trimmed.length < minSamples) {
+    return samples
+  }
+
+  const shortTrimFallbackSamples = Math.floor(sampleRate * SHORT_TRIM_FALLBACK_SECONDS)
+  if (trimmed.length < shortTrimFallbackSamples && samples.length >= shortTrimFallbackSamples) {
+    return samples
+  }
+
+  return trimmed
+}
+
 function trimChunksToMaxDuration(chunks: Float32Array[], maxSamples: number): void {
   let total = totalChunkSamples(chunks)
   while (chunks.length > 0 && total > maxSamples) {
@@ -270,6 +359,7 @@ async function startWorkletCapture(params: {
     if (data instanceof Float32Array) {
       chunks.push(Float32Array.from(data))
       trimChunksToMaxDuration(chunks, maxRetainSamples)
+      emitCaptureLevel(data)
     }
   }
 
@@ -306,6 +396,7 @@ function startScriptProcessorCapture(params: {
     const ch0 = ev.inputBuffer.getChannelData(0)
     chunks.push(Float32Array.from(ch0))
     trimChunksToMaxDuration(chunks, maxRetainSamples)
+    emitCaptureLevel(ch0)
   }
 
   micSource.connect(processor)
@@ -376,6 +467,7 @@ export async function startWavMicCapture(): Promise<void> {
 
 export async function stopWavMicCapture(): Promise<Uint8Array> {
   if (state.kind !== 'capturing') {
+    emitCaptureSilence()
     return new Uint8Array(0)
   }
 
@@ -399,17 +491,17 @@ export async function stopWavMicCapture(): Promise<Uint8Array> {
 
     const rate = Math.min(context.sampleRate, 48000)
 
-    let merged = concatFloatChunks(chunks)
-    merged = trimSilentEdges(merged, rate, 0.006, 55)
+    const merged = prepareSamplesForWhisper(concatFloatChunks(chunks), rate)
     await context.close()
     disposePrimedMicStream()
 
-    if (merged.length < rate * 0.12) {
+    if (merged.length < rate * MIN_CAPTURE_SECONDS) {
       return new Uint8Array(0)
     }
     const wav = floatsToMonoWavPcm(merged, rate)
     return wav
   } finally {
     state = { kind: 'idle' }
+    emitCaptureSilence()
   }
 }

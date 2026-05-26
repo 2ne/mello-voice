@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ensureMicPermission,
   mapMicError,
+  prepareSamplesForWhisper,
   requestMicPermission,
   warmWavMicCapturePipeline,
 } from './wavCapture'
@@ -88,6 +89,31 @@ describe('mapMicError', () => {
 
   it('returns unknown for other errors', () => {
     expect(mapMicError(new Error('blocked'))).toBe('unknown')
+  })
+})
+
+describe('prepareSamplesForWhisper', () => {
+  it('returns empty for very short audio', () => {
+    expect(prepareSamplesForWhisper(new Float32Array(100), 48_000).length).toBe(0)
+  })
+
+  it('returns empty for near-digital silence', () => {
+    const samples = new Float32Array(48_000).fill(0.0002)
+    expect(prepareSamplesForWhisper(samples, 48_000).length).toBe(0)
+  })
+
+  it('keeps quiet speech that would be too aggressively trimmed', () => {
+    const samples = new Float32Array(48_000)
+    samples.fill(0.0015, 12_000, 18_000)
+    expect(prepareSamplesForWhisper(samples, 48_000).length).toBe(samples.length)
+  })
+
+  it('trims clear speech while preserving useful padding', () => {
+    const samples = new Float32Array(48_000)
+    samples.fill(0.02, 20_000, 28_000)
+    const prepared = prepareSamplesForWhisper(samples, 48_000)
+    expect(prepared.length).toBeLessThan(samples.length)
+    expect(prepared.length).toBeGreaterThan(8_000)
   })
 })
 

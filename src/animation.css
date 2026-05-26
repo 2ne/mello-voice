@@ -9,28 +9,6 @@
   }
 }
 
-/* Overlay pill — pulse wash on the chrome layer only */
-@keyframes overlay-chrome-pulse-wash {
-  0%,
-  100% {
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-/* Whole-bar opacity while listening */
-@keyframes overlay-chrome-listening-opacity-breathe {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.9;
-  }
-}
-
 /* Listening row — idle→listening mount; keyframes avoid relying on @starting-style in embedded WebViews */
 @keyframes overlay-listening-label-enter {
   from {

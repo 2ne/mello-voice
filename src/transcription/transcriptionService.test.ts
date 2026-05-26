@@ -1,6 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  assembleTranscript,
   buildFinalDictationText,
   finalizeDictationPipeline,
   transcribeWithWhisperPreferLocal,
@@ -25,6 +24,10 @@ beforeEach(() => {
   vi.mocked(whisperLocalProvider.polishFinalTranscript).mockReset()
 })
 
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
 describe('transcribeWithWhisperPreferLocal', () => {
   it('returns null for undersized wav without invoking', async () => {
     expect(await transcribeWithWhisperPreferLocal(wavTiny())).toBeNull()
@@ -42,48 +45,10 @@ describe('transcribeWithWhisperPreferLocal', () => {
   })
 
   it('returns null on invoke failure', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     vi.mocked(whisperLocalProvider.whisperTranscribeWavBase64).mockRejectedValue(new Error('ipc'))
     expect(await transcribeWithWhisperPreferLocal(wavOk())).toBeNull()
-  })
-})
-
-describe('assembleTranscript', () => {
-  it('uses whisper when web is empty', () => {
-    expect(
-      assembleTranscript({
-        whisperPreferred: '  whisper out  ',
-        webSpeechFallback: '',
-      }),
-    ).toBe('whisper out')
-  })
-
-  it('uses web when whisper is empty', () => {
-    expect(
-      assembleTranscript({
-        whisperPreferred: null,
-        webSpeechFallback: ' browser text ',
-      }),
-    ).toBe('browser text')
-  })
-
-  it('merges when both present', () => {
-    const w = 'the quick brown fox jumps over'
-    const s = 'the quick brown fox'
-    expect(
-      assembleTranscript({
-        whisperPreferred: w,
-        webSpeechFallback: s,
-      }),
-    ).toBe(w)
-  })
-
-  it('returns empty when both empty', () => {
-    expect(
-      assembleTranscript({
-        whisperPreferred: '',
-        webSpeechFallback: '',
-      }),
-    ).toBe('')
+    expect(warnSpy).toHaveBeenCalledWith('Local Whisper transcription failed:', expect.any(Error))
   })
 })
 
@@ -106,24 +71,15 @@ describe('finalizeDictationPipeline', () => {
 })
 
 describe('buildFinalDictationText', () => {
-  it('returns empty and skips polish when both transcript sources are empty', async () => {
-    expect(
-      await buildFinalDictationText({
-        whisperPreferred: '',
-        webSpeechFallback: '   ',
-      }),
-    ).toBe('')
+  it('returns empty and skips polish when Whisper is empty', async () => {
+    expect(await buildFinalDictationText('   ')).toBe('')
+    expect(await buildFinalDictationText(null)).toBe('')
     expect(whisperLocalProvider.polishFinalTranscript).not.toHaveBeenCalled()
   })
 
-  it('runs polish pipeline when a non-empty stitched transcript exists', async () => {
-    vi.mocked(whisperLocalProvider.polishFinalTranscript).mockResolvedValue('Polished merged text.')
-    expect(
-      await buildFinalDictationText({
-        whisperPreferred: ' merged source ',
-        webSpeechFallback: '',
-      }),
-    ).toBe('Polished merged text.')
-    expect(whisperLocalProvider.polishFinalTranscript).toHaveBeenCalledWith('merged source')
+  it('runs polish pipeline when Whisper has a non-empty transcript', async () => {
+    vi.mocked(whisperLocalProvider.polishFinalTranscript).mockResolvedValue('Polished text.')
+    expect(await buildFinalDictationText(' raw source ')).toBe('Polished text.')
+    expect(whisperLocalProvider.polishFinalTranscript).toHaveBeenCalledWith('raw source')
   })
 })

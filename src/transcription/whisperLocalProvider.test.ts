@@ -25,8 +25,10 @@ describe('whisperTranscribeWavBase64', () => {
     const wav = new Uint8Array(128).fill(1)
     await expect(whisperTranscribeWavBase64(wav, 42)).resolves.toBe('hello')
     expect(invoke).toHaveBeenCalledWith('transcribe_wav', {
-      audioWavBase64: expect.any(String),
-      timeoutSecs: 42,
+      payload: {
+        audioWavBase64: expect.any(String),
+        timeoutSecs: 42,
+      },
     })
   })
 })

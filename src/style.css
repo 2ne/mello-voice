@@ -475,30 +475,22 @@ html.overlay-window .floating-overlay-listening-fade-in {
   }
 }
 
-/* Listening / transcribing — pulse only a tint layer so label opacity stays solid */
-html.overlay-window .floating-overlay-chrome-pulse::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: 0;
-  background-color: color-mix(in oklab, var(--overlay-chrome-fg) 16%, transparent);
-  opacity: 0;
-  animation-name: overlay-chrome-pulse-wash;
-  animation-duration: 1s;
-  animation-timing-function: linear(0, 0.12 22%, 0.48 42%, 0.52 58%, 0.88 78%, 1);
-  animation-iteration-count: infinite;
-}
-
-html.overlay-window .floating-overlay-chrome-pulse > * {
-  position: relative;
-  z-index: 1;
-}
-
-/* Whole-bar opacity breathe while listening — visible on “Listening…” and with live text */
-html.overlay-window .floating-overlay-chrome-listening-breathe {
-  animation: overlay-chrome-listening-opacity-breathe 1s var(--ease-opacity-breathe) infinite;
+/* Listening waveform — fade into the rounded pill edges */
+html.overlay-window .floating-overlay-audio-meter {
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    black 14%,
+    black 86%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    black 14%,
+    black 86%,
+    transparent 100%
+  );
 }
 
 /* =============================================================================

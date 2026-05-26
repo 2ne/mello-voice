@@ -6,12 +6,12 @@ import { emit, listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
 import FloatingOverlay from "./FloatingOverlay";
 import { shouldShowSessionChrome } from "./overlaySessionState";
-import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import {
   getMicPermissionState,
   mapMicError,
   startWavMicCapture,
   stopWavMicCapture,
+  subscribeCaptureLevels,
   warmWavMicCapturePipeline,
   resumeCaptureAudioIfActive,
 } from "../transcription/wavCapture";
@@ -100,21 +100,14 @@ function OverlayRoot() {
   const [dictationShortcut, setDictationShortcut] = useState<DictationShortcutPreference>(DEFAULT_DICTATION_SHORTCUT);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
   const isProcessingRef = useRef(false);
 
   const capsTapWindowRef = useRef<number[]>([]);
   const capsLastAcceptedPressRef = useRef(-Infinity);
   const capsStaleTimerRef = useRef<number | null>(null);
 
-  const {
-    interimTranscript,
-    finalTranscript,
-    startListening,
-    stopAndWaitForFinal,
-    clearTranscript,
-  } = useSpeechRecognition();
-
-  /** Only session/mic errors belong in the pill — Web Speech is Whisper fallback and flakes on first WebView2 start. */
+  /** Only session/mic errors belong in the pill. */
   const activeError = sessionError;
 
   useEffect(() => {
@@ -132,6 +125,12 @@ function OverlayRoot() {
   useEffect(() => {
     isProcessingRef.current = isProcessing;
   }, [isProcessing]);
+
+  useEffect(() => {
+    return subscribeCaptureLevels(({ level }) => {
+      setAudioLevel(level);
+    });
+  }, []);
 
   const clearCapsStaleTimer = useCallback(() => {
     if (capsStaleTimerRef.current != null) {
@@ -523,8 +522,6 @@ function OverlayRoot() {
     sessionChromeVisible,
     displayState,
     idleCircleVisible,
-    interimTranscript,
-    finalTranscript,
     activeError,
     computeTargetSize,
     applyWindowSize,
@@ -566,6 +563,7 @@ function OverlayRoot() {
 
     setIsExpanded(false);
     isListeningRef.current = false;
+    setAudioLevel(0);
     setIsProcessing(true);
     const wavPromise = stopWavMicCapture().catch((e) => {
       console.warn("stop WAV capture:", e);
@@ -573,14 +571,8 @@ function OverlayRoot() {
     });
     try {
       const wav = await wavPromise;
-      const whisperPromise = transcribeWithWhisperPreferLocal(wav);
-      const [whisperText, fallbackSpeech] = await Promise.all([whisperPromise, stopAndWaitForFinal()]);
-      clearTranscript();
-
-      const text = await buildFinalDictationText({
-        whisperPreferred: whisperText,
-        webSpeechFallback: fallbackSpeech,
-      });
+      const whisperText = await transcribeWithWhisperPreferLocal(wav);
+      const text = await buildFinalDictationText(whisperText);
 
       if (text) {
         await addToHistory(text);
@@ -596,7 +588,7 @@ function OverlayRoot() {
       setIsProcessing(false);
       hideOverlayWhenBarPreferOff();
     }
-  }, [resetCapsGestureState, clearTranscript, hideOverlayWhenBarPreferOff, stopAndWaitForFinal]);
+  }, [resetCapsGestureState, hideOverlayWhenBarPreferOff]);
 
   const runStartDictationPipeline = useCallback(async () => {
     let pref = barEnabledRef.current;
@@ -611,7 +603,7 @@ function OverlayRoot() {
     barEnabledRef.current = pref;
 
     setSessionError(null);
-    clearTranscript();
+    setAudioLevel(0);
 
     try {
       await getCurrentWindow().show();
@@ -637,13 +629,10 @@ function OverlayRoot() {
       hideOverlayWhenBarPreferOff();
       return;
     }
-    /** Let the WAV graph open the mic before Web Speech shares the device (avoids first-run `network` noise). */
-    await new Promise((r) => setTimeout(r, 150));
-    startListening();
     isListeningRef.current = true;
 
     resetCapsGestureState();
-  }, [hideOverlayWhenBarPreferOff, resetCapsGestureState, startListening, clearTranscript]);
+  }, [hideOverlayWhenBarPreferOff, resetCapsGestureState]);
 
   const handleShortcut = useCallback(
     async (event: { state: HotkeyState }) => {
@@ -759,8 +748,9 @@ function OverlayRoot() {
         <FloatingOverlay
           state={displayState}
           shortcutLabel={dictationShortcut.label}
-          interimTranscript={interimTranscript}
-          finalTranscript={finalTranscript}
+          audioLevel={audioLevel}
+          interimTranscript=""
+          finalTranscript=""
           error={activeError}
         />
       ) : null}
