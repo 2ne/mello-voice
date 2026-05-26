@@ -96,6 +96,7 @@ async fn transcribe_desktop_inner(app: AppHandle, payload: TranscribePayload) ->
     }
 
     let n_threads = whisper_thread_count();
+    configure_whisper_blas_env();
 
     let wav_arg = path_to_os_string(&wav_path)?;
     let model_arg = path_to_os_string(&model_path)?;
@@ -170,11 +171,22 @@ fn clamp_timeout(sec: Option<u64>) -> u64 {
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn configure_whisper_blas_env() {
+    // OpenBLAS can spawn its own thread pool; without caps, whisper `-t N` plus BLAS
+    // oversubscribes logical CPUs and can freeze the whole machine on first warmup.
+    for key in ["OPENBLAS_NUM_THREADS", "OMP_NUM_THREADS", "MKL_NUM_THREADS"] {
+        if env::var_os(key).is_none() {
+            let _ = env::set_var(key, "1");
+        }
+    }
+}
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn whisper_thread_count() -> u32 {
     std::thread::available_parallelism()
         .map(|n| n.get() as u32)
         .unwrap_or(4)
-        .clamp(1, 16)
+        .clamp(1, 4)
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -320,6 +332,12 @@ mod tests {
         let wav = minimal_silence_wav(16_000, 200);
         assert!(wav.starts_with(b"RIFF"));
         assert!(wav.len() >= 44);
+    }
+
+    #[test]
+    fn whisper_thread_count_is_capped() {
+        let n = whisper_thread_count();
+        assert!((1..=4).contains(&n));
     }
 
     #[test]
