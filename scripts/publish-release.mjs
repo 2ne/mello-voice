@@ -42,10 +42,11 @@ if (!fs.existsSync(notesPath)) {
 /** @param {string} dir @param {(name: string) => boolean} match */
 function findOne(dir, match) {
   if (!fs.existsSync(dir)) return null
-  for (const name of fs.readdirSync(dir)) {
-    if (match(name)) return path.join(dir, name)
-  }
-  return null
+  const matches = fs.readdirSync(dir).filter(match)
+  if (matches.length === 0) return null
+  const versionMatch = matches.find((name) => name.includes(`_${version}_`) || name.includes(`_${version}.`))
+  const chosen = versionMatch ?? matches.sort((a, b) => b.localeCompare(a))[0]
+  return path.join(dir, chosen)
 }
 
 const setupExe = findOne(
@@ -66,7 +67,7 @@ const bodyFile = path.join(ROOT, '.release-body.tmp.md')
 fs.writeFileSync(bodyFile, fs.readFileSync(notesPath, 'utf8'))
 
 function gh(args) {
-  const result = spawnSync('gh', args, { cwd: ROOT, encoding: 'utf8', shell: process.platform === 'win32' })
+  const result = spawnSync('gh', args, { cwd: ROOT, encoding: 'utf8' })
   if (result.stdout) process.stdout.write(result.stdout)
   if (result.stderr) process.stderr.write(result.stderr)
   return result.status ?? 1
@@ -102,13 +103,11 @@ if (status !== 0) {
 const repoResult = spawnSync('gh', ['repo', 'view', '--json', 'nameWithOwner', '-q', '.nameWithOwner'], {
   cwd: ROOT,
   encoding: 'utf8',
-  shell: process.platform === 'win32',
 })
 const repo = repoResult.stdout?.trim()
 const tokenResult = spawnSync('gh', ['auth', 'token'], {
   cwd: ROOT,
   encoding: 'utf8',
-  shell: process.platform === 'win32',
 })
 const token = tokenResult.stdout?.trim()
 
