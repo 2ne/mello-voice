@@ -63,7 +63,7 @@ This is **in addition to** `npm run verify` when that rule applies—verificatio
 
 ## Releases (agent-owned)
 
-When the user wants to **ship** a version, read **`.cursor/skills/mello-voice-release/SKILL.md`** and run the full flow: **`npm run verify`**, **`npm run release:prepare`**, write **`releases/vX.Y.Z.md`** (tone: **`releases/v1.0.0.md`**), update **`CHANGELOG.md`**, commit, **`git tag vX.Y.Z`**, push commit + tag. CI builds **Windows + macOS** installers and publishes the GitHub Release from that notes file. Human-oriented summary: **`RELEASE.md`**.
+When the user wants to **ship** a version, read **`.cursor/skills/mello-voice-release/SKILL.md`** and run the full flow: **`npm run verify`**, **`npm run release:prepare`**, write **`releases/vX.Y.Z.md`** (tone: **`releases/v1.0.0.md`**), update **`CHANGELOG.md`**, commit, **`git tag vX.Y.Z`**, push commit + tag, **`npm run setup:whisper`**, **`npm run tauri build`**, then **`npm run release:publish -- vX.Y.Z`**. **Windows installers only** — no macOS release builds. Human-oriented summary: **`RELEASE.md`**.
 
 ## Windows release (installers for users)
 

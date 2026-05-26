@@ -1,10 +1,10 @@
 /**
- * Print user-facing release notes for a version (CI: before download links are patched).
+ * Print user-facing release notes for a version.
  *
  * Usage: node scripts/compose-release-body.mjs v1.0.1
  *
  * Download links are added after upload by scripts/patch-release-download-links.mjs
- * using each asset's browser_download_url from the GitHub API.
+ * (via npm run release:publish) using each asset's browser_download_url from the GitHub API.
  */
 import fs from 'node:fs'
 import path from 'node:path'

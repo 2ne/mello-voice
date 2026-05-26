@@ -2,15 +2,14 @@
 name: mello-voice-windows-release
 description: >-
   Local Windows installer builds (NSIS setup.exe + WiX MSI) and end-user install expectations.
-  For publishing a version to GitHub (tag, release notes, CI Windows+macOS artifacts), use
-  mello-voice-release instead. Use when the user asks how to build installers locally,
-  distribute manually, SmartScreen/WebView2/mic prerequisites, or signing — not for a normal ship.
+  Used as part of mello-voice-release for every ship. Use when the user asks how to build
+  installers locally, distribute manually, SmartScreen/WebView2/mic prerequisites, or signing.
 disable-model-invocation: true
 ---
 
 # Mello Voice — Windows release & distribution
 
-**GitHub Releases (tag → CI → installers + notes):** use **[mello-voice-release](../mello-voice-release/SKILL.md)**. This skill is for **local builds** and **end-user install** details.
+**Normal ship:** **[mello-voice-release](../mello-voice-release/SKILL.md)** runs this build and publishes via **`npm run release:publish`**. This skill covers **build details** and **end-user install** expectations.
 
 ## What you ship to other people
 
@@ -49,6 +48,8 @@ Dev vs release:
 - **`npm run tauri dev`** — daily use; no installers.
 - **`npm run tauri build`** — production installers under `bundle/`.
 
+After a successful build, **`npm run release:publish -- vX.Y.Z`** uploads both installers to the GitHub Release for that tag.
+
 ## End-user install & expectations
 
 - **Windows 10/11 x64**, **Microsoft Edge WebView2** (usually preinstalled).
@@ -58,12 +59,12 @@ Dev vs release:
 
 ## Sharing artifacts
 
-- Normal path: **mello-voice-release** skill (CI uploads to GitHub Releases).
+- Normal path: **mello-voice-release** skill → GitHub Release with `.exe` + `.msi`.
 - Manual fallback: upload `*-setup.exe` or `.msi` yourself; use the **Install** section from `releases/TEMPLATE.md` for notes wording.
 
 ## Code signing (not automated in repo)
 
-Authenticode signing is separate from `TAURI_SIGNING_PRIVATE_KEY` (updater). For commercial distribution, plan OV/EV cert + `signtool` in CI; see team notes / external docs.
+Authenticode signing is separate from `TAURI_SIGNING_PRIVATE_KEY` (updater). For commercial distribution, plan OV/EV cert + `signtool`; not wired into the release script today.
 
 ## Related paths
 

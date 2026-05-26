@@ -1,10 +1,11 @@
 /**
- * After softprops uploads release assets, rewrite the GitHub Release body so
+ * After installers are uploaded, rewrite the GitHub Release body so
  * "Direct downloads" uses each asset's browser_download_url (exact names GitHub stored).
  *
  * Usage: node scripts/patch-release-download-links.mjs <vX.Y.Z> [body-file]
  *
- * Requires: GITHUB_TOKEN or GH_TOKEN, GITHUB_REPOSITORY (owner/repo)
+ * Normally invoked by scripts/publish-release.mjs. Requires: GITHUB_TOKEN or GH_TOKEN,
+ * GITHUB_REPOSITORY (owner/repo)
  */
 import fs from 'node:fs'
 import path from 'node:path'

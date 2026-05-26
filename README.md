@@ -133,4 +133,4 @@ mello-voice/
 └── scripts/setup-whisper-assets.mjs
 ```
 
-**Shipping a version (GitHub Release, Windows + macOS installers):** ask the agent to release — see **`RELEASE.md`**, **`AGENTS.md`**, and **`.cursor/skills/mello-voice-release/SKILL.md`**. Local Windows build troubleshooting: **`.cursor/skills/mello-voice-windows-release/SKILL.md`**.
+**Shipping a version (GitHub Release, Windows installers):** ask the agent to release — see **`RELEASE.md`**, **`AGENTS.md`**, and **`.cursor/skills/mello-voice-release/SKILL.md`**. Local Windows build troubleshooting: **`.cursor/skills/mello-voice-windows-release/SKILL.md`**.

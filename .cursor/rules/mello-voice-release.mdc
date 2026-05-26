@@ -1,5 +1,5 @@
 ---
-description: Agent-owned GitHub releases — bump version, user-facing notes, tag, push for Windows/macOS CI
+description: Agent-owned GitHub releases — bump version, user-facing notes, local Windows build, tag, publish
 globs:
 alwaysApply: true
 ---
@@ -10,7 +10,7 @@ When the user wants to **release**, **ship**, **publish**, **tag**, **bump the a
 
 1. Read and follow **`.cursor/skills/mello-voice-release/SKILL.md`** completely.
 2. **You** write **`releases/vX.Y.Z.md`** in the same tone as **`releases/v1.0.0.md`** (user-facing; not commit dumps).
-3. **You** run **`npm run verify`**, commit, create **`git tag vX.Y.Z`**, and **push the commit and tag** when they want it published — do not hand them a manual checklist unless push/CI is blocked.
-4. GitHub Actions builds **Windows + macOS** installers and publishes the Release from that notes file.
+3. **You** run **`npm run verify`**, commit, create **`git tag vX.Y.Z`**, push commit + tag, **`npm run setup:whisper`**, **`npm run tauri build`**, then **`npm run release:publish -- vX.Y.Z`**.
+4. **Windows installers only** — no macOS release builds.
 
 Do not use GitHub’s auto-generated commit list as the release body. Do not ask the user to run `tauri build` or upload assets for a normal release.
