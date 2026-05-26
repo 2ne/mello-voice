@@ -4,6 +4,11 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.9] - 2026-05-26
+
+- **Safer first launch** — caps Whisper and math-library threads so local transcription warmup no longer overwhelms every CPU core.
+- **Recommended if 1.0.8 felt stuck or frozen** on first open after microphone access.
+
 ## [1.0.8] - 2026-05-26
 
 - **Live audio meter** in the floating dictation bar while you speak.
@@ -62,7 +67,8 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 - **Double-tap Caps Lock** dictation with local whisper.cpp transcription.
 - Paste into the focused app, optional **Paste and send**, floating dictation bar, history, and light/dark/system themes.
 
-[Unreleased]: https://github.com/2ne/mello-voice/compare/v1.0.8...HEAD
+[Unreleased]: https://github.com/2ne/mello-voice/compare/v1.0.9...HEAD
+[1.0.9]: https://github.com/2ne/mello-voice/releases/tag/v1.0.9
 [1.0.8]: https://github.com/2ne/mello-voice/releases/tag/v1.0.8
 [1.0.7]: https://github.com/2ne/mello-voice/releases/tag/v1.0.7
 [1.0.6]: https://github.com/2ne/mello-voice/releases/tag/v1.0.6
