@@ -4,6 +4,10 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.10] - 2026-05-27
+
+- **Full-width audio meter** in the floating dictation bar — the live waveform runs edge to edge with a soft fade into the rounded corners.
+
 ## [1.0.9] - 2026-05-26
 
 - **Safer first launch** — caps Whisper and math-library threads so local transcription warmup no longer overwhelms every CPU core.

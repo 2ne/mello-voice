@@ -122,7 +122,7 @@ function drawAudioMeterFrame(
   ctx.globalAlpha = 1;
 }
 
-function AudioMeter({ level }: { level: number }) {
+function AudioMeter({ level, className }: { level: number; className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const latestLevelRef = useRef(0);
   const smoothedLevelRef = useRef(0);
@@ -178,7 +178,10 @@ function AudioMeter({ level }: { level: number }) {
 
   return (
     <div
-      className="floating-overlay-audio-meter -mx-5 h-11 w-[calc(100%+2.5rem)] min-w-0 overflow-hidden"
+      className={cn(
+        "floating-overlay-audio-meter h-11 w-full min-w-0 overflow-hidden",
+        className,
+      )}
       role="img"
       aria-label="Listening"
     >
@@ -284,6 +287,12 @@ function FloatingOverlay({
           ),
       )}
     >
+      {showListeningMeter ? (
+        <AudioMeter
+          level={audioLevel}
+          className="pointer-events-none absolute inset-x-0 top-1/2 z-[2] -translate-y-1/2"
+        />
+      ) : null}
       {transcriptPrimary ? (
         <div
           aria-live="polite"
@@ -349,7 +358,7 @@ function FloatingOverlay({
                 />
               </div>
             ) : showListeningMeter ? (
-              <AudioMeter level={audioLevel} />
+              <div className="h-11 w-full shrink-0" aria-hidden />
             ) : (
               <div
                 aria-live={
