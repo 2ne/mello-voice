@@ -93,7 +93,7 @@ function settingsPrefsReducer(state: SettingsPrefs, patch: Partial<SettingsPrefs
 }
 
 interface MicGateState {
-  phase: "checking" | "needsMic" | "warming" | "ready";
+  phase: "checking" | "needsMic" | "ready";
   recoveryKind: MicRecoveryKind | null;
   busy: boolean;
 }
@@ -340,6 +340,7 @@ function MainWindow() {
   const micPhaseRef = useRef(micPhase);
   /** Raised by overlay recovery. While true, only explicit "Allow microphone access" can clear mic gate. */
   const micRecoveryLockedRef = useRef(false);
+  const pipelineWarmStartedRef = useRef(false);
   const { overlayBarEnabled, afterDictationAction, themePreference, dictationShortcut } = settingsPrefs;
 
   useEffect(() => {
@@ -364,8 +365,17 @@ function MainWindow() {
     }
   }, []);
 
+  const beginPipelineWarm = useCallback(() => {
+    if (!isTauriRuntime()) return;
+    if (pipelineWarmStartedRef.current) return;
+    pipelineWarmStartedRef.current = true;
+    void prepareDictationPipeline().catch((e) => {
+      console.warn("prepare_dictation_pipeline:", e);
+      pipelineWarmStartedRef.current = false;
+    });
+  }, [prepareDictationPipeline]);
+
   const syncMicGate = useCallback(async () => {
-    if (micPhaseRef.current === "warming") return;
     const devOnboarding =
       import.meta.env.DEV &&
       typeof localStorage !== "undefined" &&
@@ -389,9 +399,8 @@ function MainWindow() {
             updateMicGateState({ recoveryKind: null, phase: "ready" });
             return;
           }
-          updateMicGateState({ recoveryKind: null, phase: "warming" });
-          await prepareDictationPipeline();
-          updateMicGateState({ phase: "ready" });
+          updateMicGateState({ recoveryKind: null, phase: "ready" });
+          window.setTimeout(() => beginPipelineWarm(), 0);
           return;
         }
       }
@@ -412,11 +421,10 @@ function MainWindow() {
         updateMicGateState({ recoveryKind: null, phase: "ready" });
         return;
       }
-      updateMicGateState({ recoveryKind: null, phase: "warming" });
-      await prepareDictationPipeline();
-      updateMicGateState({ phase: "ready" });
+      updateMicGateState({ recoveryKind: null, phase: "ready" });
+      window.setTimeout(() => beginPipelineWarm(), 0);
     }
-  }, [isDictationPipelineReady, prepareDictationPipeline]);
+  }, [beginPipelineWarm, isDictationPipelineReady]);
 
   const handleOpenMicSettings = useCallback(async () => {
     if (!isTauriRuntime()) return;
@@ -440,14 +448,13 @@ function MainWindow() {
     const result = await requestMicPermission();
     if (result.ok) {
       micRecoveryLockedRef.current = false;
-      updateMicGateState({ busy: false, recoveryKind: null, phase: "warming" });
-      await prepareDictationPipeline();
-      updateMicGateState({ phase: "ready" });
+      updateMicGateState({ busy: false, recoveryKind: null, phase: "ready" });
+      window.setTimeout(() => beginPipelineWarm(), 0);
     } else {
       micRecoveryLockedRef.current = true;
       updateMicGateState({ busy: false, recoveryKind: result.mapped, phase: "needsMic" });
     }
-  }, [micRecoveryKind, runtimeOs, prepareDictationPipeline]);
+  }, [beginPipelineWarm, micRecoveryKind, runtimeOs]);
 
   const refreshHistory = useCallback(async () => {
     const entries = await getHistory();
@@ -493,6 +500,7 @@ function MainWindow() {
 
   const onMicRecoveryRequired = useEffectEvent((payload: unknown) => {
     micRecoveryLockedRef.current = true;
+    pipelineWarmStartedRef.current = false;
     updateMicGateState({ recoveryKind: parseMicRecoveryReason(payload), phase: "needsMic" });
   });
 
@@ -751,7 +759,7 @@ function MainWindow() {
     await emit("theme-changed", next).catch(() => {});
   }, []);
 
-  if (micPhase === "checking" || micPhase === "warming") {
+  if (micPhase === "checking") {
     return <MicOnboardingScreen phase="warming" recovery={null} busy={false} onAllowClick={handleMicAllow} />;
   }
 

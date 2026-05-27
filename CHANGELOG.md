@@ -4,6 +4,11 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.12] - 2026-05-27
+
+- **Opens right away** — the main window appears immediately instead of waiting on a long Loading screen.
+- **Warmup in the background** — mic and model setup finish quietly after you are already in the app; dictation is ready once the quick setup step completes.
+
 ## [1.0.11] - 2026-05-27
 
 - **Lighter launch** — the floating dictation bar loads only when needed, so startup uses less memory.

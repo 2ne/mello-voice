@@ -474,6 +474,8 @@ fn get_dictation_pipeline_ready(app: tauri::AppHandle) -> Result<bool, String> {
     Ok(dictation_pipeline_ready(&app))
 }
 
+static PIPELINE_WARMING: AtomicBool = AtomicBool::new(false);
+
 /// Warms Whisper and the overlay mic capture pipeline. Gates dictation hotkeys until complete.
 #[tauri::command]
 async fn prepare_dictation_pipeline(app: tauri::AppHandle) -> Result<(), String> {
@@ -481,12 +483,28 @@ async fn prepare_dictation_pipeline(app: tauri::AppHandle) -> Result<(), String>
         return Ok(());
     }
 
+    if PIPELINE_WARMING.swap(true, Ordering::SeqCst) {
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(60);
+        while !dictation_pipeline_ready(&app) {
+            if tokio::time::Instant::now() >= deadline {
+                return Err("dictation pipeline warm timed out".into());
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        return Ok(());
+    }
+
+    struct PipelineWarmGuard;
+    impl Drop for PipelineWarmGuard {
+        fn drop(&mut self) {
+            PIPELINE_WARMING.store(false, Ordering::SeqCst);
+        }
+    }
+    let _warm_guard = PipelineWarmGuard;
+
     set_dictation_pipeline_ready(&app, false);
     set_mic_overlay_boot_allowed_inner(&app, true)?;
 
-    transcribe::warm_whisper_runtime(app.clone()).await?;
-
-    // Create overlay after Whisper warm so boot stays responsive on one webview.
     let overlay = ensure_overlay_window(&app).ok();
 
     let completed = Arc::new(AtomicBool::new(false));
@@ -513,6 +531,16 @@ async fn prepare_dictation_pipeline(app: tauri::AppHandle) -> Result<(), String>
     app.unlisten(listener_id);
     set_dictation_pipeline_ready(&app, true);
     let _ = app.emit("dictation-pipeline-ready", true);
+
+    // Whisper model load is slow (~15–20s). Run after the UI/mic path is ready so launch
+    // is not blocked; first dictation may still pay cold-start if this has not finished.
+    let app_whisper = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = transcribe::warm_whisper_runtime(app_whisper).await {
+            log::warn!("background whisper warm: {e}");
+        }
+    });
+
     Ok(())
 }
 
