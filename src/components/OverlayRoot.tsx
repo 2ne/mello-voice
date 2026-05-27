@@ -106,6 +106,18 @@ function OverlayRoot() {
   const capsTapWindowRef = useRef<number[]>([]);
   const capsLastAcceptedPressRef = useRef(-Infinity);
   const capsStaleTimerRef = useRef<number | null>(null);
+  /** Maps OS key timestamps (from Rust) onto `performance.now()` for double-tap detection. */
+  const pressClockOffsetRef = useRef<number | null>(null);
+
+  const hotkeyPressToPerfNow = useCallback((pressMs: number | undefined): number => {
+    if (pressMs == null || !Number.isFinite(pressMs)) {
+      return performance.now();
+    }
+    if (pressClockOffsetRef.current == null) {
+      pressClockOffsetRef.current = performance.now() - pressMs;
+    }
+    return pressClockOffsetRef.current + pressMs;
+  }, []);
 
   /** Only session/mic errors belong in the pill. */
   const activeError = sessionError;
@@ -378,6 +390,7 @@ function OverlayRoot() {
       await emit("dictation-warm-complete", {}).catch(() => {});
     }).then((fn) => {
       unlistenWarm = fn;
+      void emit("overlay-runtime-ready", {}).catch(() => {});
     });
     return () => unlistenWarm?.();
   }, []);
@@ -635,7 +648,7 @@ function OverlayRoot() {
   }, [hideOverlayWhenBarPreferOff, resetCapsGestureState]);
 
   const handleShortcut = useCallback(
-    async (event: { state: HotkeyState }) => {
+    async (event: { state: HotkeyState; pressMs?: number }) => {
       const normalizedState = event.state.trim().toLowerCase();
       const isPressedEvent =
         normalizedState === "pressed" || normalizedState === "press" || normalizedState === "down";
@@ -646,7 +659,7 @@ function OverlayRoot() {
       if (isReleasedEvent) {
         return;
       }
-      const nowCaps = performance.now();
+      const nowCaps = hotkeyPressToPerfNow(event.pressMs);
       if (isProcessingRef.current) {
         return;
       }
@@ -678,6 +691,7 @@ function OverlayRoot() {
     },
     [
       clearCapsStaleTimer,
+      hotkeyPressToPerfNow,
       runStartDictationPipeline,
       runStopDictationPipeline,
       scheduleCapsWindowStaleClear,
@@ -712,8 +726,8 @@ function OverlayRoot() {
   // Pass-through key listener runs in Rust so keys still reach other apps; overlay listens for double-taps.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
-    listen<{ state: HotkeyState }>("dictation-hotkey", (event) => {
-      void handleShortcut({ state: event.payload.state });
+    listen<{ state: HotkeyState; pressMs?: number }>("dictation-hotkey", (event) => {
+      void handleShortcut({ state: event.payload.state, pressMs: event.payload.pressMs });
     }).then((fn) => {
       unlisten = fn;
     });

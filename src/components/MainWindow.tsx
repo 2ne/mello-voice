@@ -340,7 +340,6 @@ function MainWindow() {
   const micPhaseRef = useRef(micPhase);
   /** Raised by overlay recovery. While true, only explicit "Allow microphone access" can clear mic gate. */
   const micRecoveryLockedRef = useRef(false);
-  const pipelineWarmStartedRef = useRef(false);
   const { overlayBarEnabled, afterDictationAction, themePreference, dictationShortcut } = settingsPrefs;
 
   useEffect(() => {
@@ -349,11 +348,7 @@ function MainWindow() {
 
   const prepareDictationPipeline = useCallback(async () => {
     if (!isTauriRuntime()) return;
-    try {
-      await invoke("prepare_dictation_pipeline");
-    } catch (e) {
-      console.warn("prepare_dictation_pipeline:", e);
-    }
+    await invoke("prepare_dictation_pipeline");
   }, []);
 
   const isDictationPipelineReady = useCallback(async () => {
@@ -367,11 +362,8 @@ function MainWindow() {
 
   const beginPipelineWarm = useCallback(() => {
     if (!isTauriRuntime()) return;
-    if (pipelineWarmStartedRef.current) return;
-    pipelineWarmStartedRef.current = true;
     void prepareDictationPipeline().catch((e) => {
       console.warn("prepare_dictation_pipeline:", e);
-      pipelineWarmStartedRef.current = false;
     });
   }, [prepareDictationPipeline]);
 
@@ -399,8 +391,13 @@ function MainWindow() {
             updateMicGateState({ recoveryKind: null, phase: "ready" });
             return;
           }
+          try {
+            await invoke("set_mic_overlay_boot_allowed", { enabled: true });
+          } catch {
+            /* ignore */
+          }
           updateMicGateState({ recoveryKind: null, phase: "ready" });
-          window.setTimeout(() => beginPipelineWarm(), 0);
+          beginPipelineWarm();
           return;
         }
       }
@@ -421,8 +418,13 @@ function MainWindow() {
         updateMicGateState({ recoveryKind: null, phase: "ready" });
         return;
       }
+      try {
+        await invoke("set_mic_overlay_boot_allowed", { enabled: true });
+      } catch {
+        /* ignore */
+      }
       updateMicGateState({ recoveryKind: null, phase: "ready" });
-      window.setTimeout(() => beginPipelineWarm(), 0);
+      beginPipelineWarm();
     }
   }, [beginPipelineWarm, isDictationPipelineReady]);
 
@@ -449,7 +451,12 @@ function MainWindow() {
     if (result.ok) {
       micRecoveryLockedRef.current = false;
       updateMicGateState({ busy: false, recoveryKind: null, phase: "ready" });
-      window.setTimeout(() => beginPipelineWarm(), 0);
+      try {
+        await invoke("set_mic_overlay_boot_allowed", { enabled: true });
+      } catch {
+        /* ignore */
+      }
+      beginPipelineWarm();
     } else {
       micRecoveryLockedRef.current = true;
       updateMicGateState({ busy: false, recoveryKind: result.mapped, phase: "needsMic" });
@@ -500,12 +507,15 @@ function MainWindow() {
 
   const onMicRecoveryRequired = useEffectEvent((payload: unknown) => {
     micRecoveryLockedRef.current = true;
-    pipelineWarmStartedRef.current = false;
     updateMicGateState({ recoveryKind: parseMicRecoveryReason(payload), phase: "needsMic" });
   });
 
   const onMicHotkeyWhileBlocked = useEffectEvent(() => {
     void syncMicGate();
+  });
+
+  const onPipelineWarmingHotkey = useEffectEvent(() => {
+    beginPipelineWarm();
   });
 
   const setSettingsOpen = useCallback((open: boolean) => {
@@ -538,6 +548,7 @@ function MainWindow() {
     let unlistenDictationShortcut: (() => void) | undefined;
     let unlistenMicRecovery: (() => void) | undefined;
     let unlistenMicBlockedHotkey: (() => void) | undefined;
+    let unlistenPipelineWarming: (() => void) | undefined;
 
     listen("history-updated", () => void refreshHistory()).then((fn) => {
       unlistenHistory = fn;
@@ -562,6 +573,11 @@ function MainWindow() {
     }).then((fn) => {
       unlistenMicBlockedHotkey = fn;
     });
+    listen("dictation-pipeline-warming", () => {
+      onPipelineWarmingHotkey();
+    }).then((fn) => {
+      unlistenPipelineWarming = fn;
+    });
 
     const onStorage = () => void refreshHistory();
     window.addEventListener("storage", onStorage);
@@ -577,6 +593,7 @@ function MainWindow() {
       unlistenDictationShortcut?.();
       unlistenMicRecovery?.();
       unlistenMicBlockedHotkey?.();
+      unlistenPipelineWarming?.();
       window.removeEventListener("storage", onStorage);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };

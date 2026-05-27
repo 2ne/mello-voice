@@ -420,6 +420,7 @@ mod windows {
                         crate::emit_dictation_hotkey_from_listener(
                             app,
                             if is_down { "Pressed" } else { "Released" },
+                            kb.time as u64,
                         );
                     }
                 }
@@ -492,7 +493,11 @@ mod macos {
                         _ => return Some(event.clone()),
                     };
                     if let Some(app) = APP_HANDLE.get() {
-                        crate::emit_dictation_hotkey_from_listener(app, state);
+                        let press_ms = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_millis() as u64)
+                            .unwrap_or(0);
+                        crate::emit_dictation_hotkey_from_listener(app, state, press_ms);
                     }
                 }
                 Some(event.clone())

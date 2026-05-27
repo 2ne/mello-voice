@@ -4,6 +4,12 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.13] - 2026-05-27
+
+- **Double-tap works on the first try** — your dictation shortcut starts listening right away, even seconds after opening the app.
+- **No more “focus only” shortcut** — Mello routes the key to dictation instead of stealing focus to the main window.
+- **More reliable startup** — the overlay and mic path preload in the background so the first session is ready when you are.
+
 ## [1.0.12] - 2026-05-27
 
 - **Opens right away** — the main window appears immediately instead of waiting on a long Loading screen.

@@ -110,6 +110,82 @@ struct MicOverlayBoot(Mutex<bool>);
 
 struct DictationPipelineReady(Mutex<bool>);
 
+static OVERLAY_RUNTIME_READY: AtomicBool = AtomicBool::new(false);
+
+struct PendingDictationHotkey {
+    state: String,
+    press_ms: u64,
+}
+
+static PENDING_DICTATION_HOTKEYS: Mutex<Vec<PendingDictationHotkey>> = Mutex::new(Vec::new());
+
+const MAX_PENDING_DICTATION_HOTKEYS: usize = 8;
+
+fn overlay_runtime_ready() -> bool {
+    OVERLAY_RUNTIME_READY.load(Ordering::SeqCst)
+}
+
+fn set_overlay_runtime_ready(ready: bool) {
+    OVERLAY_RUNTIME_READY.store(ready, Ordering::SeqCst);
+}
+
+async fn wait_overlay_runtime_ready(max_wait: std::time::Duration) {
+    let deadline = tokio::time::Instant::now() + max_wait;
+    while !overlay_runtime_ready() && tokio::time::Instant::now() < deadline {
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+}
+
+fn preload_overlay_webview(app: &tauri::AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let existed = app.get_webview_window("overlay").is_some();
+        match ensure_overlay_window(&app) {
+            Ok(_) => {
+                if !existed {
+                    set_overlay_runtime_ready(false);
+                }
+            }
+            Err(e) => log::warn!("overlay preload failed: {e}"),
+        }
+    });
+}
+
+fn enqueue_pending_dictation_hotkey(state: String, press_ms: u64) {
+    let Ok(mut guard) = PENDING_DICTATION_HOTKEYS.lock() else {
+        return;
+    };
+    if guard.len() >= MAX_PENDING_DICTATION_HOTKEYS {
+        guard.remove(0);
+    }
+    guard.push(PendingDictationHotkey { state, press_ms });
+}
+
+fn flush_pending_dictation_hotkeys(app: &tauri::AppHandle) {
+    let batch: Vec<PendingDictationHotkey> = PENDING_DICTATION_HOTKEYS
+        .lock()
+        .ok()
+        .map(|mut guard| guard.drain(..).collect())
+        .unwrap_or_default();
+    if batch.is_empty() {
+        return;
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let Ok(overlay) = ensure_overlay_window(&app) else {
+            return;
+        };
+        let _ = overlay.show();
+        let _ = overlay.unminimize();
+        for item in batch {
+            let _ = overlay.emit(
+                "dictation-hotkey",
+                serde_json::json!({ "state": item.state, "pressMs": item.press_ms }),
+            );
+        }
+    });
+}
+
 fn dictation_pipeline_ready(app: &tauri::AppHandle) -> bool {
     app.state::<DictationPipelineReady>()
         .0
@@ -146,6 +222,8 @@ fn set_mic_overlay_boot_allowed_inner(app: &tauri::AppHandle, enabled: bool) -> 
     }
     if !enabled {
         set_dictation_pipeline_ready(app, false);
+    } else {
+        preload_overlay_webview(app);
     }
     app.emit("mic-overlay-boot-changed", enabled)
         .map_err(|e| e.to_string())?;
@@ -432,7 +510,11 @@ fn set_dictation_key_listener_suppressed(
     listener.set_suppressed(suppressed, cooldown_ms.unwrap_or(0))
 }
 
-pub(crate) fn emit_dictation_hotkey_from_listener(app: &tauri::AppHandle, state: &str) {
+pub(crate) fn emit_dictation_hotkey_from_listener(
+    app: &tauri::AppHandle,
+    state: &str,
+    press_ms: u64,
+) {
     if let Some(listener) = app.try_state::<dictation_key_listener::DictationKeyListener>() {
         if !listener.should_emit() {
             return;
@@ -441,7 +523,7 @@ pub(crate) fn emit_dictation_hotkey_from_listener(app: &tauri::AppHandle, state:
     let app = app.clone();
     let state = state.to_string();
     tauri::async_runtime::spawn(async move {
-        let _ = relay_dictation_hotkey(app, state).await;
+        let _ = relay_dictation_hotkey(app, state, press_ms).await;
     });
 }
 
@@ -476,6 +558,37 @@ fn get_dictation_pipeline_ready(app: tauri::AppHandle) -> Result<bool, String> {
 
 static PIPELINE_WARMING: AtomicBool = AtomicBool::new(false);
 
+/// Retries `dictation-warm-request` until the overlay confirms or the deadline passes.
+/// The overlay webview loads React lazily; a single emit often races the warm listener.
+async fn warm_overlay_mic_capture(app: &tauri::AppHandle, overlay: &tauri::WebviewWindow) -> bool {
+    let completed = Arc::new(AtomicBool::new(false));
+    let completed_flag = completed.clone();
+    let listener_id = app.listen("dictation-warm-complete", move |_event| {
+        completed_flag.store(true, Ordering::SeqCst);
+    });
+
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(45);
+    let mut attempt: u32 = 0;
+    while !completed.load(Ordering::SeqCst) && tokio::time::Instant::now() < deadline {
+        attempt += 1;
+        if let Err(e) = overlay.emit("dictation-warm-request", ()) {
+            log::warn!("dictation-warm-request emit failed (attempt {attempt}): {e}");
+        }
+        let attempt_deadline =
+            tokio::time::Instant::now() + std::time::Duration::from_millis(2_000);
+        while !completed.load(Ordering::SeqCst) && tokio::time::Instant::now() < attempt_deadline {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        if completed.load(Ordering::SeqCst) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
+
+    app.unlisten(listener_id);
+    completed.load(Ordering::SeqCst)
+}
+
 /// Warms Whisper and the overlay mic capture pipeline. Gates dictation hotkeys until complete.
 #[tauri::command]
 async fn prepare_dictation_pipeline(app: tauri::AppHandle) -> Result<(), String> {
@@ -505,30 +618,23 @@ async fn prepare_dictation_pipeline(app: tauri::AppHandle) -> Result<(), String>
     set_dictation_pipeline_ready(&app, false);
     set_mic_overlay_boot_allowed_inner(&app, true)?;
 
-    let overlay = ensure_overlay_window(&app).ok();
-
-    let completed = Arc::new(AtomicBool::new(false));
-    let completed_flag = completed.clone();
-    let listener_id = app.listen("dictation-warm-complete", move |_event| {
-        completed_flag.store(true, Ordering::SeqCst);
-    });
+    let overlay = match ensure_overlay_window(&app) {
+        Ok(window) => Some(window),
+        Err(e) => {
+            log::warn!("overlay window build failed: {e}");
+            None
+        }
+    };
 
     if let Some(overlay) = overlay.or_else(|| app.get_webview_window("overlay")) {
-        let _ = overlay.emit("dictation-warm-request", ());
+        wait_overlay_runtime_ready(std::time::Duration::from_secs(15)).await;
+        if !warm_overlay_mic_capture(&app, &overlay).await {
+            log::warn!("dictation overlay mic warm did not confirm before timeout");
+        }
     } else {
         log::warn!("overlay window unavailable; skipping mic capture warm");
     }
 
-    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(45);
-    while !completed.load(Ordering::SeqCst) {
-        if tokio::time::Instant::now() >= deadline {
-            log::warn!("dictation overlay mic warm timed out after 45s");
-            break;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-    }
-
-    app.unlisten(listener_id);
     set_dictation_pipeline_ready(&app, true);
     let _ = app.emit("dictation-pipeline-ready", true);
 
@@ -701,10 +807,14 @@ fn clear_history(app: tauri::AppHandle, history: State<'_, HistoryStore>) -> Res
 /// a native thread; a hidden overlay WebView2 can throttle JS so `listen` misses `Released`,
 /// leaving dictation stuck until the next session.
 #[tauri::command]
-async fn relay_dictation_hotkey(app: tauri::AppHandle, state: String) -> Result<(), String> {
+async fn relay_dictation_hotkey(
+    app: tauri::AppHandle,
+    state: String,
+    press_ms: u64,
+) -> Result<(), String> {
     #[cfg(any(target_os = "android", target_os = "ios"))]
     {
-        let _ = (app, state);
+        let _ = (app, state, press_ms);
         return Ok(());
     }
 
@@ -713,31 +823,43 @@ async fn relay_dictation_hotkey(app: tauri::AppHandle, state: String) -> Result<
         let normalized = state.trim().to_ascii_lowercase();
         let is_pressed =
             normalized == "pressed" || normalized == "press" || normalized == "down";
-        if !mic_overlay_boot_allowed(&app) || !dictation_pipeline_ready(&app) {
-            // Gate is disabled while mic onboarding/recovery is required, or pipeline is warming.
-            // Do not route hotkey presses into the overlay to avoid repeated recovery loops.
-        if is_pressed {
-            if let Some(main) = app.get_webview_window("main") {
-                let _ = main.unminimize();
-                let _ = main.show();
-                let _ = main.set_focus();
+        if !mic_overlay_boot_allowed(&app) {
+            // Mic onboarding / recovery — do not route hotkeys into the overlay.
+            if is_pressed {
+                if let Some(main) = app.get_webview_window("main") {
+                    let _ = main.unminimize();
+                    let _ = main.show();
+                    let _ = main.set_focus();
+                }
+                let _ = app.emit("mic-hotkey-while-blocked", serde_json::json!({}));
             }
-            let _ = app.emit("mic-hotkey-while-blocked", serde_json::json!({}));
+            return Ok(());
         }
-        return Ok(());
+
+        if !dictation_pipeline_ready(&app) {
+            let app_warm = app.clone();
+            tauri::async_runtime::spawn(async move {
+                let _ = prepare_dictation_pipeline(app_warm).await;
+            });
+        }
+
+        if !overlay_runtime_ready() {
+            enqueue_pending_dictation_hotkey(state, press_ms);
+            preload_overlay_webview(&app);
+            return Ok(());
+        }
+
+        let overlay = ensure_overlay_window(&app)?;
+        let _ = overlay.show();
+        let _ = overlay.unminimize();
+        overlay
+            .emit(
+                "dictation-hotkey",
+                serde_json::json!({ "state": state, "pressMs": press_ms }),
+            )
+            .map_err(|e| e.to_string())?;
+        Ok(())
     }
-    let overlay = ensure_overlay_window(&app)?;
-    let _ = overlay.show();
-    let _ = overlay.unminimize();
-    tokio::time::sleep(std::time::Duration::from_millis(24)).await;
-    overlay
-        .emit(
-            "dictation-hotkey",
-            serde_json::json!({ "state": state }),
-        )
-        .map_err(|e| e.to_string())?;
-    Ok(())
-}
 }
 
 fn release_post_dictation_modifiers(enigo: &mut Enigo) {
@@ -858,6 +980,12 @@ pub fn run() {
             app.manage(DictationPipelineReady(Mutex::new(false)));
             app.manage(overlay_window::OverlayWindowLock(Mutex::new(())));
             app.manage(dictation_key_listener::DictationKeyListener::new());
+
+            let app_for_hotkey_flush = app_handle.clone();
+            app.listen("overlay-runtime-ready", move |_event| {
+                set_overlay_runtime_ready(true);
+                flush_pending_dictation_hotkeys(&app_for_hotkey_flush);
+            });
 
             let initial_shortcut_for_listener = load_prefs(&app_handle).dictation_shortcut;
             if let Some(listener) = app_handle.try_state::<dictation_key_listener::DictationKeyListener>() {
