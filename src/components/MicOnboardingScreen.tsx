@@ -35,7 +35,7 @@ export function MicOnboardingScreen({
 
   if (phase === 'warming') {
     return (
-      <div className="mic-onboarding-enter flex min-h-svh flex-col items-center justify-center gap-4 bg-background px-8 py-12">
+      <div className="flex min-h-svh flex-col items-center justify-center gap-4 bg-background px-8 py-12">
         <div
           className="flex size-[3.5rem] shrink-0 items-center justify-center rounded-full bg-foreground shadow-sm ring-1 ring-black/[0.06] dark:ring-white/[0.08]"
           aria-hidden

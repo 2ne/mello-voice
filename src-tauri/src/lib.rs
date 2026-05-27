@@ -96,6 +96,7 @@ fn prepend_whisper_dylibs_to_dyld(handle: &tauri::AppHandle) {
 mod transcribe;
 mod post_process;
 mod dictation_key_listener;
+mod overlay_window;
 
 #[cfg(target_os = "windows")]
 mod mic_permission_windows;
@@ -151,10 +152,13 @@ fn set_mic_overlay_boot_allowed_inner(app: &tauri::AppHandle, enabled: bool) -> 
     Ok(())
 }
 
+use overlay_window::ensure_overlay_window;
+
 /// Show and focus the main window. The dictation overlay is shown only when the user preference allows it
 /// (restored from the main window when it becomes visible).
 fn show_main_and_overlay(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
@@ -183,7 +187,9 @@ fn universal_tray_icon_image(app: &tauri::AppHandle) -> Image<'static> {
         }
     }
 
-    panic!("tray icon: expected bundled icons/32x32.png or runtime dark tray PNG");
+    log::error!("tray icon: bundled/runtime PNG not found; using embedded fallback");
+    Image::from_bytes(include_bytes!("../icons/32x32.png"))
+        .expect("embedded tray icon bytes invalid")
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -346,14 +352,12 @@ fn set_overlay_bar_enabled(app: tauri::AppHandle, enabled: bool) -> Result<(), S
     let mut prefs = load_prefs(&app);
     prefs.show_overlay_bar = enabled;
     save_prefs(&app, &prefs)?;
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        if enabled {
-            if mic_overlay_boot_allowed(&app) {
-                overlay.show().map_err(|e| e.to_string())?;
-            }
-        } else {
-            overlay.hide().map_err(|e| e.to_string())?;
+    if enabled && mic_overlay_boot_allowed(&app) {
+        if let Ok(overlay) = ensure_overlay_window(&app) {
+            overlay.show().map_err(|e| e.to_string())?;
         }
+    } else if let Some(overlay) = app.get_webview_window("overlay") {
+        overlay.hide().map_err(|e| e.to_string())?;
     }
     // Notify both windows in one place — frontend no longer fans this out, so the Rust command is the single emitter.
     app.emit("overlay-bar-enabled-changed", enabled)
@@ -451,10 +455,8 @@ fn show_overlay_window(app: tauri::AppHandle) -> Result<(), String> {
     if !mic_overlay_boot_allowed(&app) {
         return Ok(());
     }
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        overlay.show().map_err(|e| e.to_string())?;
-    }
-    Ok(())
+    let overlay = ensure_overlay_window(&app)?;
+    overlay.show().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -484,14 +486,19 @@ async fn prepare_dictation_pipeline(app: tauri::AppHandle) -> Result<(), String>
 
     transcribe::warm_whisper_runtime(app.clone()).await?;
 
+    // Create overlay after Whisper warm so boot stays responsive on one webview.
+    let overlay = ensure_overlay_window(&app).ok();
+
     let completed = Arc::new(AtomicBool::new(false));
     let completed_flag = completed.clone();
     let listener_id = app.listen("dictation-warm-complete", move |_event| {
         completed_flag.store(true, Ordering::SeqCst);
     });
 
-    if let Some(overlay) = app.get_webview_window("overlay") {
+    if let Some(overlay) = overlay.or_else(|| app.get_webview_window("overlay")) {
         let _ = overlay.emit("dictation-warm-request", ());
+    } else {
+        log::warn!("overlay window unavailable; skipping mic capture warm");
     }
 
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(45);
@@ -563,6 +570,7 @@ fn raise_mic_recovery_to_main(app: tauri::AppHandle, reason: Option<String>) -> 
         let _ = overlay.hide();
     }
     if let Some(main) = app.get_webview_window("main") {
+        let _ = main.unminimize();
         let _ = main.show();
         let _ = main.set_focus();
     }
@@ -680,35 +688,28 @@ async fn relay_dictation_hotkey(app: tauri::AppHandle, state: String) -> Result<
         if !mic_overlay_boot_allowed(&app) || !dictation_pipeline_ready(&app) {
             // Gate is disabled while mic onboarding/recovery is required, or pipeline is warming.
             // Do not route hotkey presses into the overlay to avoid repeated recovery loops.
-            if is_pressed {
-                if let Some(main) = app.get_webview_window("main") {
-                    let _ = main.show();
-                    let _ = main.set_focus();
-                }
-                let _ = app.emit("mic-hotkey-while-blocked", serde_json::json!({}));
+        if is_pressed {
+            if let Some(main) = app.get_webview_window("main") {
+                let _ = main.unminimize();
+                let _ = main.show();
+                let _ = main.set_focus();
             }
-            return Ok(());
+            let _ = app.emit("mic-hotkey-while-blocked", serde_json::json!({}));
         }
-        if let Some(overlay) = app.get_webview_window("overlay") {
-            let _ = overlay.show();
-            let _ = overlay.unminimize();
-            tokio::time::sleep(std::time::Duration::from_millis(24)).await;
-            overlay
-                .emit(
-                    "dictation-hotkey",
-                    serde_json::json!({ "state": state }),
-                )
-                .map_err(|e| e.to_string())?;
-            return Ok(());
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(24)).await;
-        app.emit(
+        return Ok(());
+    }
+    let overlay = ensure_overlay_window(&app)?;
+    let _ = overlay.show();
+    let _ = overlay.unminimize();
+    tokio::time::sleep(std::time::Duration::from_millis(24)).await;
+    overlay
+        .emit(
             "dictation-hotkey",
             serde_json::json!({ "state": state }),
         )
         .map_err(|e| e.to_string())?;
-        Ok(())
-    }
+    Ok(())
+}
 }
 
 fn release_post_dictation_modifiers(enigo: &mut Enigo) {
@@ -771,6 +772,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            log::info!("Mello Voice already running — focusing existing window");
             show_main_and_overlay(app);
         }))
         .plugin(tauri_plugin_positioner::init())
@@ -826,6 +828,7 @@ pub fn run() {
             app.manage(HistoryStore(Mutex::new(initial_history)));
             app.manage(MicOverlayBoot(Mutex::new(false)));
             app.manage(DictationPipelineReady(Mutex::new(false)));
+            app.manage(overlay_window::OverlayWindowLock(Mutex::new(())));
             app.manage(dictation_key_listener::DictationKeyListener::new());
 
             let initial_shortcut_for_listener = load_prefs(&app_handle).dictation_shortcut;
@@ -875,10 +878,6 @@ pub fn run() {
                         }
                     }
                 });
-            }
-
-            if let Some(overlay) = app.get_webview_window("overlay") {
-                let _ = overlay.hide();
             }
 
             Ok(())

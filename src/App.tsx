@@ -1,9 +1,8 @@
-import { useEffect } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import MainWindow from './components/MainWindow'
-import OverlayRoot from './components/OverlayRoot'
 import {
   parseThemePreference,
   syncDocumentTheme,
@@ -11,11 +10,14 @@ import {
   THEME_STORAGE_KEY,
 } from './themePreference'
 
+/** Overlay-only chunk — main window stays eager so boot never waits on a second JS fetch. */
+const OverlayRoot = lazy(() => import('./components/OverlayRoot'))
+
 function isTauriRuntime(): boolean {
   return (
     typeof window !== 'undefined' &&
     ((window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ != null ||
-      (import.meta.env.TAURI_PLATFORM != null && import.meta.env.TAURI_PLATFORM !== ''))
+      (import.meta.env.TAURI_PLATFORM != null && String(import.meta.env.TAURI_PLATFORM) !== ''))
   )
 }
 
@@ -118,7 +120,15 @@ function App() {
     return () => window.removeEventListener('keydown', blockReloadShortcuts, { capture: true })
   }, [])
 
-  return isOverlay ? <OverlayRoot /> : <MainWindow />
+  if (isOverlay) {
+    return (
+      <Suspense fallback={null}>
+        <OverlayRoot />
+      </Suspense>
+    )
+  }
+
+  return <MainWindow />
 }
 
 export default App

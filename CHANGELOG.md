@@ -4,6 +4,12 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.11] - 2026-05-27
+
+- **Lighter launch** — the floating dictation bar loads only when needed, so startup uses less memory.
+- **Clearer loading** — the Loading screen shows immediately during local transcription warmup.
+- **Smarter relaunch** — opening Mello again while it is already in the tray focuses the existing window instead of flashing closed.
+
 ## [1.0.10] - 2026-05-27
 
 - **Full-width audio meter** in the floating dictation bar — the live waveform runs edge to edge with a soft fade into the rounded corners.

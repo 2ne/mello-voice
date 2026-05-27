@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Mello Voice",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "identifier": "com.mellovoice.app",
   "build": {
     "frontendDist": "../dist",
@@ -22,21 +22,6 @@
         "resizable": true,
         "fullscreen": false,
         "theme": null
-      },
-      {
-        "label": "overlay",
-        "title": "Voice Overlay",
-        "width": 340,
-        "height": 80,
-        "resizable": false,
-        "fullscreen": false,
-        "visible": false,
-        "alwaysOnTop": true,
-        "focusable": false,
-        "decorations": false,
-        "transparent": true,
-        "shadow": false,
-        "skipTaskbar": true
       }
     ],
     "security": {
