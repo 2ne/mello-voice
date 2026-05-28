@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Mello Voice",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "identifier": "com.mellovoice.app",
   "build": {
     "frontendDist": "../dist",
@@ -17,8 +17,8 @@
         "title": "Mello Voice",
         "width": 420,
         "minWidth": 420,
-        "height": 550,
-        "minHeight": 550,
+        "height": 640,
+        "minHeight": 580,
         "resizable": true,
         "fullscreen": false,
         "theme": null

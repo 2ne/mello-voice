@@ -4,6 +4,12 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.14] - 2026-05-28
+
+- **Pick your microphone** — in Settings, choose which input to use for dictation (or keep System default). Mello remembers your choice across sessions.
+- **Smoother settings scrolling** — the settings sheet uses the same scroll style as the main window.
+- **A bit more room** — the main window opens slightly taller so settings and history are easier to read.
+
 ## [1.0.13] - 2026-05-27
 
 - **Double-tap works on the first try** — your dictation shortcut starts listening right away, even seconds after opening the app.

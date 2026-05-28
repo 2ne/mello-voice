@@ -4,6 +4,7 @@ import {
   mapMicError,
   prepareSamplesForWhisper,
   requestMicPermission,
+  setPreferredMicrophoneDeviceId,
   warmWavMicCapturePipeline,
 } from './wavCapture'
 
@@ -47,6 +48,7 @@ function mockNavigator(config: {
 
 beforeEach(() => {
   vi.unstubAllGlobals()
+  setPreferredMicrophoneDeviceId('')
 })
 
 describe('ensureMicPermission', () => {
@@ -118,6 +120,18 @@ describe('prepareSamplesForWhisper', () => {
 })
 
 describe('requestMicPermission', () => {
+  it('passes exact deviceId when a preferred microphone is set', async () => {
+    const nav = mockNavigator({ permissionState: 'granted' })
+    setPreferredMicrophoneDeviceId('mic-usb-1')
+    await expect(requestMicPermission()).resolves.toEqual({ ok: true })
+    expect(nav.mediaDevices?.getUserMedia).toHaveBeenCalledWith({
+      audio: expect.objectContaining({
+        deviceId: { exact: 'mic-usb-1' },
+        channelCount: 1,
+      }),
+      video: false,
+    })
+  })
   it('returns ok true when granted and capture probe succeeds', async () => {
     const nav = mockNavigator({ permissionState: 'granted' })
     await expect(requestMicPermission()).resolves.toEqual({ ok: true })

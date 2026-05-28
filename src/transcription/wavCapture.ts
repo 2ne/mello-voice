@@ -3,6 +3,10 @@ import {
   floatsToMonoWavPcm,
   trimSilentEdges,
 } from './wavEncoder'
+import {
+  DEFAULT_MICROPHONE_DEVICE_ID,
+  parseMicrophoneDeviceId,
+} from '../microphoneDevicePreference'
 
 /** Retain at most ~8 minutes of raw PCM at 48 kHz (reasonable cap for long sessions). */
 const RAW_RETAIN_SECONDS = 480
@@ -12,14 +16,31 @@ const TRIM_PAD_MS = 120
 const SHORT_TRIM_FALLBACK_SECONDS = 0.35
 const SILENCE_FLOOR_ABS = 0.001
 const LEVEL_EMIT_INTERVAL_MS = 45
-const MIC_CAPTURE_CONSTRAINTS: MediaStreamConstraints = {
-  audio: {
+let preferredMicrophoneDeviceId = DEFAULT_MICROPHONE_DEVICE_ID
+
+export function getPreferredMicrophoneDeviceId(): string {
+  return preferredMicrophoneDeviceId
+}
+
+/** Apply stored preference and drop any primed stream so the next capture uses the new device. */
+export function setPreferredMicrophoneDeviceId(deviceId: string): void {
+  const next = parseMicrophoneDeviceId(deviceId)
+  if (next === preferredMicrophoneDeviceId) return
+  preferredMicrophoneDeviceId = next
+  disposePrimedMicStream()
+}
+
+function micCaptureConstraints(): MediaStreamConstraints {
+  const audio: MediaTrackConstraints = {
     channelCount: 1,
     echoCancellation: false,
     noiseSuppression: true,
     autoGainControl: true,
-  },
-  video: false,
+  }
+  if (preferredMicrophoneDeviceId) {
+    audio.deviceId = { exact: preferredMicrophoneDeviceId }
+  }
+  return { audio, video: false }
 }
 
 type CaptureBackend = 'worklet' | 'script'
@@ -161,7 +182,7 @@ export async function requestMicPermission(): Promise<RequestMicPermissionResult
   try {
     // Probe actual capture availability even when Permissions API says "granted".
     // System-level microphone toggles can still make getUserMedia fail.
-    const stream = await navigator.mediaDevices.getUserMedia(MIC_CAPTURE_CONSTRAINTS)
+    const stream = await navigator.mediaDevices.getUserMedia(micCaptureConstraints())
     stream.getTracks().forEach((t) => t.stop())
     return { ok: true }
   } catch (e) {
@@ -296,7 +317,7 @@ async function warmWavMicCapturePipelineInner(): Promise<void> {
   let stream: MediaStream | null = null
   let context: AudioContext | null = null
   try {
-    stream = await navigator.mediaDevices.getUserMedia(MIC_CAPTURE_CONSTRAINTS)
+    stream = await navigator.mediaDevices.getUserMedia(micCaptureConstraints())
     context = new AudioContext({ latencyHint: 'interactive', sampleRate: undefined })
     if (context.state === 'suspended') {
       await context.resume()
@@ -431,7 +452,7 @@ export async function startWavMicCapture(): Promise<void> {
     stream = warmed
   } else {
     warmed?.getTracks().forEach((t) => t.stop())
-    stream = await navigator.mediaDevices.getUserMedia(MIC_CAPTURE_CONSTRAINTS)
+    stream = await navigator.mediaDevices.getUserMedia(micCaptureConstraints())
   }
 
   const context = new AudioContext({ latencyHint: 'interactive', sampleRate: undefined })

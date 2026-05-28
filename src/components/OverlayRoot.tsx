@@ -9,12 +9,14 @@ import { shouldShowSessionChrome } from "./overlaySessionState";
 import {
   getMicPermissionState,
   mapMicError,
+  setPreferredMicrophoneDeviceId,
   startWavMicCapture,
   stopWavMicCapture,
   subscribeCaptureLevels,
   warmWavMicCapturePipeline,
   resumeCaptureAudioIfActive,
 } from "../transcription/wavCapture";
+import { parseMicrophoneDeviceId } from "../microphoneDevicePreference";
 import {
   buildFinalDictationText,
   transcribeWithWhisperPreferLocal,
@@ -372,6 +374,20 @@ function OverlayRoot() {
     let unlisten: (() => void) | undefined;
     listen<unknown>("dictation-shortcut-changed", (event) => {
       setDictationShortcut(parseDictationShortcut(event.payload));
+    }).then((fn) => {
+      unlisten = fn;
+    });
+    return () => unlisten?.();
+  }, []);
+
+  useEffect(() => {
+    void invoke<string>("get_microphone_device_id")
+      .then((deviceId) => setPreferredMicrophoneDeviceId(parseMicrophoneDeviceId(deviceId)))
+      .catch(() => {});
+
+    let unlisten: (() => void) | undefined;
+    listen<string>("microphone-device-changed", (event) => {
+      setPreferredMicrophoneDeviceId(parseMicrophoneDeviceId(event.payload));
     }).then((fn) => {
       unlisten = fn;
     });

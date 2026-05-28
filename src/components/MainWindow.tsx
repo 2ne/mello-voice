@@ -20,7 +20,15 @@ import { cn } from "@/lib/utils";
 import { Elevated } from "@/lib/elevated";
 import { Button } from "@/components/ui/button";
 import { HoldToClearButton } from "@/components/ui/hold-to-clear-button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, settingsControlTriggerCn } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  SETTINGS_CONTROL_WIDTH_CLASS,
+  settingsControlTriggerCn,
+} from "@/components/ui/select";
 import { Drawer } from "vaul";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,8 +40,11 @@ import { FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS, fetchOverlayBarEnabledW
 import {
   getMicPermissionState,
   requestMicPermission,
+  setPreferredMicrophoneDeviceId,
   type MicRecoveryKind,
 } from "../transcription/wavCapture";
+import { parseMicrophoneDeviceId } from "../microphoneDevicePreference";
+import { MicrophoneInputSelect } from "@/components/MicrophoneInputSelect";
 import { MicOnboardingScreen } from "@/components/MicOnboardingScreen";
 import { HistoryTimestamp } from "@/components/HistoryTimestamp";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -79,6 +90,7 @@ interface SettingsPrefs {
   afterDictationAction: AfterDictationActionOption;
   themePreference: ThemePreference;
   dictationShortcut: DictationShortcutPreference;
+  microphoneDeviceId: string;
 }
 
 const INITIAL_SETTINGS_PREFS: SettingsPrefs = {
@@ -86,6 +98,7 @@ const INITIAL_SETTINGS_PREFS: SettingsPrefs = {
   afterDictationAction: DEFAULT_AFTER_DICTATION_ACTION,
   themePreference: "system",
   dictationShortcut: DEFAULT_DICTATION_SHORTCUT,
+  microphoneDeviceId: "",
 };
 
 function settingsPrefsReducer(state: SettingsPrefs, patch: Partial<SettingsPrefs>): SettingsPrefs {
@@ -130,7 +143,7 @@ function SettingsSettingRow({ title, description, children }: { title: string; d
         <p className="text-base text-foreground">{title}</p>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
-      <div data-settings-control="" className="relative z-[2] flex min-h-9 w-[10rem] shrink-0 items-center justify-end">
+      <div data-settings-control="" className={cn("relative z-[2] flex min-h-9 shrink-0 items-center justify-end", SETTINGS_CONTROL_WIDTH_CLASS)}>
         {children}
       </div>
     </div>
@@ -188,7 +201,7 @@ function DictationShortcutInput({
   }, [onChange, setCaptureActive]);
 
   return (
-    <div className="relative inline-flex min-w-[9.5rem] max-w-[12rem] flex-1 shrink-0">
+    <div className={cn("relative inline-flex shrink-0", SETTINGS_CONTROL_WIDTH_CLASS)}>
       <input
         aria-label="Dictation shortcut"
         className={cn(
@@ -340,7 +353,7 @@ function MainWindow() {
   const micPhaseRef = useRef(micPhase);
   /** Raised by overlay recovery. While true, only explicit "Allow microphone access" can clear mic gate. */
   const micRecoveryLockedRef = useRef(false);
-  const { overlayBarEnabled, afterDictationAction, themePreference, dictationShortcut } = settingsPrefs;
+  const { overlayBarEnabled, afterDictationAction, themePreference, dictationShortcut, microphoneDeviceId } = settingsPrefs;
 
   useEffect(() => {
     micPhaseRef.current = micPhase;
@@ -479,20 +492,28 @@ function MainWindow() {
   });
 
   const applyAllSettingsFromIpc = useEffectEvent(async () => {
-    const [overlayBarShowResult, themeResult, afterDictationActionResult, dictationShortcutResult] = await Promise.allSettled([
+    const [overlayBarShowResult, themeResult, afterDictationActionResult, dictationShortcutResult, microphoneDeviceResult] =
+      await Promise.allSettled([
       fetchOverlayBarEnabledWithRetry(() => invoke<boolean>("get_overlay_bar_enabled"), FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS),
       invoke<string>("get_theme"),
       invoke<string>("get_after_dictation_action"),
       invoke<unknown>("get_dictation_shortcut"),
+      invoke<string>("get_microphone_device_id"),
     ]);
     /** If a fresher `overlay-bar-enabled-changed` arrived during the await, use the in-memory pref instead of the fetched one. */
     const overlayBarShow = overlayBarPrefResolvedRef.current ? overlayBarEnabled : overlayBarShowResult.status === "fulfilled" ? overlayBarShowResult.value : overlayBarEnabled;
     overlayBarPrefResolvedRef.current = true;
+    const nextMicDeviceId =
+      microphoneDeviceResult.status === "fulfilled"
+        ? parseMicrophoneDeviceId(microphoneDeviceResult.value)
+        : microphoneDeviceId;
+    setPreferredMicrophoneDeviceId(nextMicDeviceId);
     updateSettingsPrefs({
       overlayBarEnabled: overlayBarShow,
       themePreference: themeResult.status === "fulfilled" ? parseThemePreference(themeResult.value) : parseThemePreference(localStorage.getItem(THEME_STORAGE_KEY)),
       afterDictationAction: afterDictationActionResult.status === "fulfilled" ? parseAfterDictationAction(afterDictationActionResult.value) : afterDictationAction,
       dictationShortcut: dictationShortcutResult.status === "fulfilled" ? parseDictationShortcut(dictationShortcutResult.value) : dictationShortcut,
+      microphoneDeviceId: nextMicDeviceId,
     });
   });
 
@@ -503,6 +524,12 @@ function MainWindow() {
 
   const onDictationShortcutChanged = useEffectEvent((payload: unknown) => {
     updateSettingsPrefs({ dictationShortcut: parseDictationShortcut(payload) });
+  });
+
+  const onMicrophoneDeviceChanged = useEffectEvent((deviceId: string) => {
+    const parsed = parseMicrophoneDeviceId(deviceId);
+    setPreferredMicrophoneDeviceId(parsed);
+    updateSettingsPrefs({ microphoneDeviceId: parsed });
   });
 
   const onMicRecoveryRequired = useEffectEvent((payload: unknown) => {
@@ -546,6 +573,7 @@ function MainWindow() {
     let unlistenHistory: (() => void) | undefined;
     let unlistenOverlayPref: (() => void) | undefined;
     let unlistenDictationShortcut: (() => void) | undefined;
+    let unlistenMicrophoneDevice: (() => void) | undefined;
     let unlistenMicRecovery: (() => void) | undefined;
     let unlistenMicBlockedHotkey: (() => void) | undefined;
     let unlistenPipelineWarming: (() => void) | undefined;
@@ -562,6 +590,11 @@ function MainWindow() {
       onDictationShortcutChanged(e.payload);
     }).then((fn) => {
       unlistenDictationShortcut = fn;
+    });
+    listen<string>("microphone-device-changed", (e) => {
+      onMicrophoneDeviceChanged(e.payload);
+    }).then((fn) => {
+      unlistenMicrophoneDevice = fn;
     });
     listen<unknown>("mic-recovery-required", (e) => {
       onMicRecoveryRequired(e.payload);
@@ -591,6 +624,7 @@ function MainWindow() {
       unlistenHistory?.();
       unlistenOverlayPref?.();
       unlistenDictationShortcut?.();
+      unlistenMicrophoneDevice?.();
       unlistenMicRecovery?.();
       unlistenMicBlockedHotkey?.();
       unlistenPipelineWarming?.();
@@ -682,6 +716,13 @@ function MainWindow() {
     void invoke<unknown>("get_dictation_shortcut")
       .then((shortcut) => updateSettingsPrefs({ dictationShortcut: parseDictationShortcut(shortcut) }))
       .catch(() => {});
+    void invoke<string>("get_microphone_device_id")
+      .then((deviceId) => {
+        const parsed = parseMicrophoneDeviceId(deviceId);
+        setPreferredMicrophoneDeviceId(parsed);
+        updateSettingsPrefs({ microphoneDeviceId: parsed });
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -764,6 +805,17 @@ function MainWindow() {
     }
   }, []);
 
+  const setMicrophoneDevicePreference = useCallback(async (deviceId: string) => {
+    const parsed = parseMicrophoneDeviceId(deviceId);
+    setPreferredMicrophoneDeviceId(parsed);
+    updateSettingsPrefs({ microphoneDeviceId: parsed });
+    try {
+      await invoke("set_microphone_device_id", { deviceId: parsed });
+    } catch {
+      /* Browser dev without Tauri backend. */
+    }
+  }, []);
+
   const applyThemePreference = useCallback(async (next: ThemePreference) => {
     updateSettingsPrefs({ themePreference: next });
     localStorage.setItem(THEME_STORAGE_KEY, next);
@@ -820,14 +872,14 @@ function MainWindow() {
           </Tooltip>
           <Drawer.Portal>
             <Drawer.Overlay className="fixed inset-0 z-[120] bg-black/35 backdrop-blur-[1px]" />
-            <Drawer.Content className="fixed inset-x-0 bottom-0 z-[121] flex max-h-[min(95vh,36rem)] flex-col overflow-hidden rounded-t-[1.25rem]">
-              <Elevated offset={1} className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-t-[1.25rem] ring-0 dark:ring-0">
+            <Drawer.Content className="fixed inset-x-0 bottom-0 z-[121] flex min-h-0 max-h-[min(95vh,36rem)] flex-col overflow-hidden rounded-t-[1.25rem]">
+              <Elevated offset={1} className="grid min-h-0 w-full min-w-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-t-[1.25rem] ring-0 dark:ring-0">
                 <div className="flex shrink-0 flex-col border-b border-border/80 px-5 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-2">
                   <Drawer.Handle className="mb-1" />
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <Drawer.Title className="text-xl font-medium tracking-[-0.02em] leading-tight text-foreground">Settings</Drawer.Title>
-                      <Drawer.Description className="sr-only">Shortcut, dictation bar, after-dictation behaviour and appearance for Mello Voice.</Drawer.Description>
+                      <Drawer.Description className="sr-only">Shortcut, microphone, dictation bar, after-dictation behaviour and appearance for Mello Voice.</Drawer.Description>
                     </div>
                     <Drawer.Close asChild>
                       <Button type="button" variant="ghost" size="icon" aria-label="Close settings">
@@ -836,13 +888,23 @@ function MainWindow() {
                     </Drawer.Close>
                   </div>
                 </div>
-                <ScrollArea className="min-h-0 flex-1">
+                <ScrollArea className="min-h-0 size-full">
                   <div className="flex flex-col gap-0 pb-6 px-5 pt-1">
                     <SettingsSettingRow title="Shortcut Key" description="Choose the key to double-tap for dictation.">
                       <DictationShortcutInput
                         value={dictationShortcut}
                         onChange={(next) => void setDictationShortcutPreference(next)}
                         onCaptureActiveChange={setShortcutCaptureActive}
+                      />
+                    </SettingsSettingRow>
+                    <Separator className="bg-border/80" />
+                    <SettingsSettingRow title="Microphone" description="Choose which microphone to use for dictation.">
+                      <MicrophoneInputSelect
+                        value={microphoneDeviceId}
+                        onChange={(next) => void setMicrophoneDevicePreference(next)}
+                        disabled={micPhase !== "ready"}
+                        active={settingsOpen}
+                        runtimeOs={runtimeOs}
                       />
                     </SettingsSettingRow>
                     <Separator className="bg-border/80" />

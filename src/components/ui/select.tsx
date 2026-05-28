@@ -6,10 +6,14 @@ import { ChevronDownIcon } from "@/components/icons/ChevronDownIcon";
 import { CheckIcon } from "@/components/icons/CheckIcon";
 import { cn } from "@/lib/utils";
 
+/** Fixed width for trailing settings controls (selects, shortcut field). */
+export const SETTINGS_CONTROL_WIDTH_CLASS = "w-[10rem]";
+
 /** Shared shell for trailing settings controls. */
 function settingsControlTriggerCn(className?: string) {
   return cn(
-    "group inline-flex h-9 min-w-[9.5rem] max-w-[12rem] flex-1 shrink-0 items-center justify-between gap-2 rounded-xl border border-border bg-transparent px-3 text-left text-base outline-none transition-[background-color,color,box-shadow] duration-80 touch-manipulation",
+    SETTINGS_CONTROL_WIDTH_CLASS,
+    "group inline-flex h-9 max-w-none shrink-0 items-center justify-between gap-2 rounded-xl border border-border bg-transparent px-3 text-left text-base outline-none transition-[background-color,color,box-shadow] duration-80 touch-manipulation",
     "disabled:pointer-events-none disabled:opacity-50",
     "hover:bg-foreground/[0.04] dark:hover:bg-foreground/[0.06]",
     className,
@@ -46,34 +50,66 @@ function SelectContent({
   sideOffset = 6,
   collisionPadding = 10,
   align = "end",
+  side,
+  matchTriggerWidth = true,
+  variant = "popper",
   ref,
   ...props
-}: ComponentProps<typeof SelectPrimitive.Content>) {
+}: ComponentProps<typeof SelectPrimitive.Content> & {
+  matchTriggerWidth?: boolean;
+  /** `menu` = opens upward, fixed width, no scroll chrome — for settings drawer controls near the bottom. */
+  variant?: "popper" | "menu";
+}) {
+  const isMenu = variant === "menu";
+  const resolvedSide = side ?? (isMenu ? "top" : "bottom");
+
   return (
   <SelectPortal>
     <SelectPrimitive.Content
       ref={ref}
+      side={resolvedSide}
       sideOffset={sideOffset}
       align={align}
       collisionPadding={collisionPadding}
       position="popper"
       avoidCollisions
-      style={{ width: "var(--radix-select-trigger-width)" }}
+      style={
+        isMenu
+          ? {
+              minWidth: "var(--radix-select-trigger-width)",
+              width: "17rem",
+            }
+          : matchTriggerWidth
+            ? { width: "var(--radix-select-trigger-width)" }
+            : undefined
+      }
       className={cn(
-        "relative z-[200] mt-1 max-h-[min(340px,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] rounded-xl bg-popover p-1 text-popover-foreground outline-none motion-reduce:transition-none",
-        /* Ring + fill only (no box-shadow, no hard border) — matches Elevated dark rule and avoids double chrome in light */
+        "relative z-[150] rounded-xl bg-popover text-popover-foreground outline-none motion-reduce:transition-none",
+        isMenu
+          ? "overflow-hidden p-1"
+          : "z-[200] mt-1 max-h-[min(340px,var(--radix-select-content-available-height))] p-1",
+        !isMenu &&
+          (matchTriggerWidth
+            ? "min-w-[var(--radix-select-trigger-width)]"
+            : "min-w-[var(--radix-select-trigger-width)] w-max max-w-[min(24rem,calc(100vw-2rem))]"),
         "shadow-none ring-1 ring-black/[0.045] dark:ring-white/[0.065]",
         className,
       )}
       {...props}
     >
-      <SelectPrimitive.ScrollUpButton className="flex cursor-default justify-center py-1 text-muted-foreground data-[hidden]:hidden">
-        <ChevronDownIcon className="-rotate-180 opacity-65" strokeWidth={1.75} />
-      </SelectPrimitive.ScrollUpButton>
-      <SelectPrimitive.Viewport className={cn("p-0")}>{children}</SelectPrimitive.Viewport>
-      <SelectPrimitive.ScrollDownButton className="flex cursor-default justify-center py-1 text-muted-foreground data-[hidden]:hidden">
-        <ChevronDownIcon className="opacity-65" strokeWidth={1.75} />
-      </SelectPrimitive.ScrollDownButton>
+      {isMenu ? (
+        <SelectPrimitive.Viewport className="p-0">{children}</SelectPrimitive.Viewport>
+      ) : (
+        <>
+          <SelectPrimitive.ScrollUpButton className="flex cursor-default justify-center py-1 text-muted-foreground data-[hidden]:hidden">
+            <ChevronDownIcon className="-rotate-180 opacity-65" strokeWidth={1.75} />
+          </SelectPrimitive.ScrollUpButton>
+          <SelectPrimitive.Viewport className={cn("p-0")}>{children}</SelectPrimitive.Viewport>
+          <SelectPrimitive.ScrollDownButton className="flex cursor-default justify-center py-1 text-muted-foreground data-[hidden]:hidden">
+            <ChevronDownIcon className="opacity-65" strokeWidth={1.75} />
+          </SelectPrimitive.ScrollDownButton>
+        </>
+      )}
     </SelectPrimitive.Content>
   </SelectPortal>
   );
@@ -103,4 +139,42 @@ function SelectItem({ className, children, ref, ...props }: ComponentProps<typeo
   );
 }
 
-export { Select, SelectValue, SelectTrigger, SelectContent, SelectItem, settingsControlTriggerCn };
+function SelectStackedItem({
+  className,
+  primaryLabel,
+  secondaryLabel,
+  ref,
+  ...props
+}: ComponentProps<typeof SelectPrimitive.Item> & {
+  primaryLabel: string;
+  secondaryLabel?: string;
+}) {
+  return (
+    <SelectPrimitive.Item
+      ref={ref}
+      className={cn(
+        "relative flex w-full select-none items-start gap-2 rounded-lg py-2.5 pl-2.5 pr-8 text-base outline-none transition-[background-color,color] duration-80 touch-manipulation",
+        "text-muted-foreground data-[state=checked]:text-foreground",
+        "data-[highlighted]:bg-muted data-[highlighted]:text-foreground",
+        "data-[state=checked]:bg-muted/70 data-[state=checked]:data-[highlighted]:bg-muted",
+        "disabled:pointer-events-none disabled:opacity-40",
+        className,
+      )}
+      {...props}
+    >
+      <span className="min-w-0 flex-1 overflow-hidden pr-1">
+        <SelectPrimitive.ItemText asChild>
+          <span className="block truncate leading-snug">{primaryLabel}</span>
+        </SelectPrimitive.ItemText>
+        {secondaryLabel ? (
+          <span className="mt-0.5 block text-sm leading-snug text-muted-foreground">{secondaryLabel}</span>
+        ) : null}
+      </span>
+      <SelectPrimitive.ItemIndicator className="absolute right-1.5 top-2.5 inline-flex shrink-0 text-foreground">
+        <CheckIcon strokeWidth={2} />
+      </SelectPrimitive.ItemIndicator>
+    </SelectPrimitive.Item>
+  );
+}
+
+export { Select, SelectValue, SelectTrigger, SelectContent, SelectItem, SelectStackedItem, settingsControlTriggerCn };

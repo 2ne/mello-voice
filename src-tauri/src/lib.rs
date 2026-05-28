@@ -312,12 +312,15 @@ struct AppPrefs {
     after_dictation: AfterDictationAction,
     #[serde(default)]
     dictation_shortcut: DictationShortcutPref,
+    /// Empty = system default microphone (WebView2 / browser default).
+    #[serde(default)]
+    microphone_device_id: String,
     /// Bumped when prefs shape changes; used for one-time migrations.
     #[serde(default)]
     prefs_version: u32,
 }
 
-const PREFS_VERSION: u32 = 4;
+const PREFS_VERSION: u32 = 5;
 
 fn default_show_overlay_bar() -> bool {
     true
@@ -330,6 +333,7 @@ impl Default for AppPrefs {
             theme: ThemeMode::default(),
             after_dictation: AfterDictationAction::default(),
             dictation_shortcut: DictationShortcutPref::default(),
+            microphone_device_id: String::new(),
             prefs_version: PREFS_VERSION,
         }
     }
@@ -371,6 +375,10 @@ fn load_prefs(app: &tauri::AppHandle) -> AppPrefs {
     if prefs.prefs_version < 4 {
         prefs.dictation_shortcut = DictationShortcutPref::default();
         prefs.prefs_version = 4;
+        dirty = true;
+    }
+    if prefs.prefs_version < 5 {
+        prefs.prefs_version = 5;
         dirty = true;
     }
     if dirty {
@@ -461,6 +469,21 @@ fn set_after_dictation_action(app: tauri::AppHandle, action: String) -> Result<(
     let mut prefs = load_prefs(&app);
     prefs.after_dictation = mode;
     save_prefs(&app, &prefs)?;
+    Ok(())
+}
+
+#[tauri::command]
+fn get_microphone_device_id(app: tauri::AppHandle) -> Result<String, String> {
+    Ok(load_prefs(&app).microphone_device_id)
+}
+
+#[tauri::command]
+fn set_microphone_device_id(app: tauri::AppHandle, device_id: String) -> Result<(), String> {
+    let mut prefs = load_prefs(&app);
+    prefs.microphone_device_id = device_id.trim().to_string();
+    save_prefs(&app, &prefs)?;
+    app.emit("microphone-device-changed", &prefs.microphone_device_id)
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -948,6 +971,8 @@ pub fn run() {
             set_overlay_bar_enabled,
             get_after_dictation_action,
             set_after_dictation_action,
+            get_microphone_device_id,
+            set_microphone_device_id,
             get_dictation_shortcut,
             set_dictation_shortcut,
             sync_dictation_key_listener,
