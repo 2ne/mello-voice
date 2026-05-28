@@ -998,7 +998,44 @@ h2 {
 
 @media (max-width: 620px) {
   .hero {
-    padding-top: 3rem;
+    min-height: 100dvh;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .hero,
+  .demo-section,
+  .statement-section,
+  .context-section,
+  .security-section,
+  .final-cta {
+    min-height: 100dvh;
+    box-sizing: border-box;
+  }
+
+  .demo-section,
+  .statement-section,
+  .context-section,
+  .security-section,
+  .final-cta {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-block: clamp(2rem, 6vh, 3rem);
+  }
+
+  .statement-section,
+  .context-section,
+  .final-cta {
+    padding-bottom: clamp(2rem, 6vh, 3rem);
+  }
+
+  .demo-copy {
+    padding-block: 0 clamp(1rem, 3vh, 1.5rem);
+  }
+
+  .context-stage {
+    margin-top: clamp(1rem, 3vh, 1.75rem);
   }
 
   .demo-stage {
