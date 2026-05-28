@@ -1001,19 +1001,84 @@ h2 {
     padding-top: 3rem;
   }
 
+  .demo-stage {
+    min-height: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  .demo-window,
+  .context-window {
+    padding-bottom: 4.75rem;
+  }
+
+  .demo-document {
+    padding-bottom: 0.5rem;
+  }
+
+  .context-document {
+    padding-bottom: 0.25rem;
+  }
+
+  .demo-overlay,
   .context-overlay {
-    border-radius: 24px;
-    flex-direction: column;
-    gap: 0.55rem;
-    padding: 0.75rem;
-    text-align: center;
+    bottom: 1rem;
+    transform: translateX(-50%);
+    max-width: calc(100% - 1.5rem);
   }
 
   .demo-overlay {
-    border-radius: 24px;
-    grid-template-columns: 1fr;
-    justify-items: center;
-    text-align: center;
+    gap: 0.72rem;
+    padding: 0.62rem 0.9rem 0.62rem 0.62rem;
+  }
+
+  .demo-record-button {
+    width: 2.55rem;
+    height: 2.55rem;
+  }
+
+  #demo-transcript {
+    font-size: 0.9rem;
+    line-height: 1.35;
+    text-wrap: balance;
+    white-space: normal;
+  }
+
+  .context-overlay {
+    gap: 0.62rem;
+    padding: 0.55rem 0.85rem 0.55rem 0.55rem;
+  }
+
+  .context-overlay-icon {
+    width: 2.15rem;
+    height: 2.15rem;
+  }
+
+  .context-overlay-text {
+    font-size: 0.88rem;
+    white-space: nowrap;
+  }
+
+  .context-tabs {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 0.45rem;
+    margin-top: 1.15rem;
+    padding-bottom: 0.15rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .context-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .context-tab {
+    flex: 0 0 auto;
+    min-height: 2rem;
+    padding-inline: 0.82rem;
+    font-size: 0.76rem;
   }
 
   .speech-flow {
@@ -1045,10 +1110,6 @@ h2 {
 
   .rewrite-panel {
     width: 100%;
-  }
-
-  #demo-transcript {
-    white-space: normal;
   }
 
   .site-footer {
