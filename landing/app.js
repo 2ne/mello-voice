@@ -127,15 +127,22 @@ function startDemo() {
     return;
   }
 
+  const narrowViewport = window.matchMedia("(max-width: 620px)");
+  const idlePrompt = narrowViewport.matches
+    ? "Tap to record"
+    : "Click here to start recording.";
+
   function setListening() {
     isListening = true;
     overlay.dataset.state = "recording";
     recordButton.setAttribute("aria-label", "Stop live dictation preview");
-    transcript.textContent = "Listening. Click again to stop.";
+    transcript.textContent = narrowViewport.matches
+      ? "Listening… Tap to stop."
+      : "Listening. Click again to stop.";
     if (output.textContent === initialText) output.textContent = "";
   }
 
-  function setIdle(message = "Click here to start recording.") {
+  function setIdle(message = idlePrompt) {
     isListening = false;
     overlay.dataset.state = "idle";
     recordButton.setAttribute("aria-label", "Start live dictation preview");
