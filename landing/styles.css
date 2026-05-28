@@ -1059,26 +1059,23 @@ h2 {
   }
 
   .context-tabs {
-    justify-content: flex-start;
     flex-wrap: nowrap;
-    gap: 0.45rem;
+    gap: 0.35rem;
     margin-top: 1.15rem;
-    padding-bottom: 0.15rem;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
+    width: 100%;
   }
 
-  .context-tabs::-webkit-scrollbar {
-    display: none;
+  .context-tabs > li {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .context-tab {
-    flex: 0 0 auto;
+    width: 100%;
     min-height: 2rem;
-    padding-inline: 0.82rem;
-    font-size: 0.76rem;
+    padding-inline: 0.25rem;
+    font-size: clamp(0.68rem, 2.8vw, 0.76rem);
+    text-align: center;
   }
 
   .speech-flow {
