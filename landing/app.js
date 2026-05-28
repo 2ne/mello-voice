@@ -17,6 +17,7 @@ resolveLatestDownload(platform);
 startDemo();
 startHeroScroll();
 startSpeechFlow();
+startContextStage();
 startWebgl();
 
 function detectPlatform() {
@@ -573,6 +574,119 @@ function createProgram(gl, vertexSource, fragmentSource) {
   }
 
   return program;
+}
+
+function startContextStage() {
+  const stage = document.querySelector("[data-context-stage]");
+  if (!stage) return;
+
+  const appLabel = stage.querySelector("[data-context-app]");
+  const existing = stage.querySelector("[data-context-existing]");
+  const dictation = stage.querySelector("[data-context-dictation]");
+  const tabs = [...stage.querySelectorAll(".context-tab")];
+
+  if (!appLabel || !existing || !dictation || !tabs.length) return;
+
+  const scenarios = [
+    {
+      app: "Mail",
+      existing: "Hi Alex — thanks for sending the draft over.",
+      dictation: "I'll review it tonight and send notes before standup tomorrow.",
+    },
+    {
+      app: "Slack",
+      existing: "#launch — can someone grab yesterday's signup numbers?",
+      dictation: "I'll pull them from PostHog and drop them here in ten minutes.",
+    },
+    {
+      app: "Notes",
+      existing: "Product sync — March 12",
+      dictation: "Ship the overlay polish first, then revisit the onboarding copy.",
+    },
+    {
+      app: "Cursor",
+      existing: "// TODO: wire the shortcut into the overlay state machine",
+      dictation: "Extract this into a shared hook so both windows can reuse it.",
+    },
+    {
+      app: "ChatGPT",
+      existing: "Summarize the notes below into three bullets for the exec update.",
+      dictation: "Keep it plain language, lead with the launch result, and flag the open risk.",
+    },
+  ];
+
+  let activeIndex = 0;
+  let cycleTimer = null;
+  let typingToken = 0;
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function setActiveTab(index) {
+    tabs.forEach((tab, tabIndex) => {
+      tab.classList.toggle("is-active", tabIndex === index);
+    });
+  }
+
+  function renderScenario(index, { animate = true } = {}) {
+    const scenario = scenarios[index];
+    if (!scenario) return;
+
+    activeIndex = index;
+    setActiveTab(index);
+    appLabel.textContent = scenario.app;
+    existing.textContent = scenario.existing;
+
+    typingToken += 1;
+    const token = typingToken;
+    dictation.classList.remove("is-typing");
+    dictation.textContent = "";
+
+    if (!animate || reducedMotion) {
+      dictation.textContent = scenario.dictation;
+      return;
+    }
+
+    dictation.classList.add("is-typing");
+    typeContextDictation(scenario.dictation, token);
+  }
+
+  async function typeContextDictation(text, token) {
+    for (const char of text) {
+      if (token !== typingToken) return;
+      dictation.textContent += char;
+
+      if (char === " ") {
+        await speechDelay(18);
+      } else if (char === "." || char === "," || char === "—") {
+        await speechDelay(110);
+      } else {
+        await speechDelay(speechRandomMs(26, 44));
+      }
+    }
+
+    if (token !== typingToken) return;
+    dictation.classList.remove("is-typing");
+  }
+
+  function scheduleNextCycle() {
+    if (reducedMotion) return;
+    clearTimeout(cycleTimer);
+    cycleTimer = window.setTimeout(() => {
+      renderScenario((activeIndex + 1) % scenarios.length);
+      scheduleNextCycle();
+    }, 5200);
+  }
+
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const index = Number(tab.dataset.contextIndex);
+      if (Number.isNaN(index) || index === activeIndex) return;
+      renderScenario(index);
+      scheduleNextCycle();
+    });
+  });
+
+  renderScenario(0, { animate: !reducedMotion });
+  scheduleNextCycle();
 }
 
 function startSpeechFlow() {

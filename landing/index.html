@@ -164,52 +164,53 @@
         </div>
       </section>
 
-      <section class="workflow-section" aria-labelledby="workflow-title">
-        <p class="section-kicker">Use it everywhere</p>
-        <h2 id="workflow-title">Built for the way you already write.</h2>
-        <p>
-          Mello sits quietly in your workflow. Use your voice for replies, prompts,
-          notes, drafts, and edits without moving into another app.
-        </p>
-        <div class="bento-grid">
-          <article class="bento-card bento-card-large">
-            <span>Speed</span>
-            <h3>Go from thought to text before the thought changes.</h3>
-            <p>Press your shortcut, talk naturally, and keep writing without waiting on a web app or hunting for a record button.</p>
-            <div class="bento-lines" aria-hidden="true">
-              <i></i>
-              <i></i>
-              <i></i>
+      <section class="context-section" aria-labelledby="context-title">
+        <div class="context-copy">
+          <p class="section-kicker">Use it everywhere</p>
+          <h2 id="context-title">Your voice, wherever you're typing.</h2>
+          <p>
+            One shortcut. Mello listens once and writes into the field you already have open —
+            email, chat, docs, code, or an AI prompt.
+          </p>
+        </div>
+
+        <div class="context-stage" data-context-stage aria-label="Examples of Mello in different apps">
+          <div class="context-window">
+            <div class="context-window-bar">
+              <div class="window-lights" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <span class="context-app-label" data-context-app>Mail</span>
             </div>
-          </article>
-          <article class="bento-card">
-            <span>Privacy</span>
-            <h3>Nothing leaves your computer.</h3>
-            <p>Your voice and transcript stay local. No cloud handoff, no workspace, no account.</p>
-            <div class="bento-lock" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M7 11V8a5 5 0 0 1 10 0v3"></path>
-                <rect x="5" y="11" width="14" height="10" rx="2"></rect>
-              </svg>
+            <div class="context-document">
+              <p class="context-existing" data-context-existing>
+                Hi Alex — thanks for sending the draft over.
+              </p>
+              <p class="context-dictation" data-context-dictation aria-live="polite">
+                I'll review it tonight and send notes before standup tomorrow.
+              </p>
             </div>
-          </article>
-          <article class="bento-card">
-            <span>Anywhere</span>
-            <h3>Works where your cursor already is.</h3>
-            <p>Email, documents, prompts, notes, messages. Speak into the thing you were already using.</p>
-            <div class="bento-cursor" aria-hidden="true"></div>
-          </article>
-          <article class="bento-card bento-card-wide">
-            <span>Writing</span>
-            <h3>Less typing. More momentum.</h3>
-            <p>Use Mello for first drafts, rough replies, long instructions, and those tiny thoughts that disappear when you open a blank page.</p>
-            <div class="bento-tags" aria-hidden="true">
-              <span>Email reply</span>
-              <span>AI prompt</span>
-              <span>Meeting note</span>
-              <span>Draft edit</span>
+            <div class="context-overlay" aria-hidden="true">
+              <span class="context-overlay-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
+                  <path d="M19 11a7 7 0 0 1-14 0"></path>
+                  <path d="M12 18v3"></path>
+                </svg>
+              </span>
+              <span class="context-overlay-text">Listening…</span>
             </div>
-          </article>
+          </div>
+
+          <ul class="context-tabs" aria-label="App examples">
+            <li><button type="button" class="context-tab is-active" data-context-index="0">Mail</button></li>
+            <li><button type="button" class="context-tab" data-context-index="1">Slack</button></li>
+            <li><button type="button" class="context-tab" data-context-index="2">Notes</button></li>
+            <li><button type="button" class="context-tab" data-context-index="3">Cursor</button></li>
+            <li><button type="button" class="context-tab" data-context-index="4">ChatGPT</button></li>
+          </ul>
         </div>
       </section>
 
@@ -219,21 +220,21 @@
           The safest data is the data that never leaves. Mello keeps dictation on your machine,
           avoids account setup, and reduces the surface area around your most personal input.
         </p>
-      </section>
 
-      <section class="local-proof" aria-label="Local-first proof points">
-        <article>
-          <span>No upload</span>
-          <p>Your voice and transcript stay on your computer.</p>
-        </article>
-        <article>
-          <span>No profile</span>
-          <p>There is no account to create before you can start writing.</p>
-        </article>
-        <article>
-          <span>No detour</span>
-          <p>Dictate into the app you are already using.</p>
-        </article>
+        <div class="security-manifest" aria-label="Local-first proof points">
+          <div class="security-line">
+            <p class="security-line-lead">On your computer</p>
+            <p class="security-line-detail">Your voice and transcript never leave the machine.</p>
+          </div>
+          <div class="security-line">
+            <p class="security-line-lead">No account to create</p>
+            <p class="security-line-detail">Download, allow the mic, and start dictating.</p>
+          </div>
+          <div class="security-line">
+            <p class="security-line-lead">Same app, same field</p>
+            <p class="security-line-detail">No browser tab, no upload step, no detour.</p>
+          </div>
+        </div>
       </section>
 
       <section class="final-cta" aria-labelledby="final-cta-title">
