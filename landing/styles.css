@@ -998,49 +998,40 @@ h2 {
 
 @media (max-width: 620px) {
   .hero {
-    min-height: 90svh;
-    padding-top: 0;
-    padding-bottom: 0;
+    padding-top: 3rem;
+    padding-bottom: clamp(3rem, 10vh, 5rem);
   }
 
-  .hero,
-  .demo-section,
-  .statement-section,
-  .context-section,
-  .security-section,
-  .final-cta {
-    min-height: 90svh;
-    box-sizing: border-box;
+  .demo-section {
+    padding-block: clamp(4.5rem, 14vh, 7rem);
   }
 
-  .demo-section,
+  .demo-copy {
+    padding-block: 0 clamp(1.25rem, 4vh, 2rem);
+  }
+
   .statement-section,
-  .context-section,
   .security-section,
+  .context-section,
   .final-cta {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding-block: clamp(2rem, 6vh, 3rem);
+    padding-block: clamp(4.5rem, 14vh, 7rem);
+  }
+
+  .statement-section,
+  .context-section {
+    padding-bottom: clamp(4.5rem, 14vh, 7rem);
+  }
+
+  .final-cta {
+    padding-bottom: clamp(5rem, 16vh, 8rem);
   }
 
   .final-cta .download-button {
     margin-inline: auto;
   }
 
-  .statement-section,
-  .context-section,
-  .final-cta {
-    padding-bottom: clamp(2rem, 6vh, 3rem);
-  }
-
-  .demo-copy {
-    padding-block: 0 clamp(1rem, 3vh, 1.5rem);
-  }
-
   .context-stage {
-    margin-top: clamp(1rem, 3vh, 1.75rem);
+    margin-top: clamp(1.5rem, 5vh, 2.5rem);
   }
 
   .demo-stage {
