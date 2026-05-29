@@ -268,6 +268,8 @@ function startWebgl() {
     uniform vec2 pointer;
     uniform float time;
     uniform float scrollProgress;
+    uniform float logoViewportScale;
+    uniform float logoFadeRadius;
 
     mat3 rotateX(float angle) {
       float s = sin(angle);
@@ -370,7 +372,7 @@ function startWebgl() {
       vec3 normal = rotation * vec3(0.0, 0.0, 1.0);
       vec3 light = normalize(vec3(-0.25 + pointer.x * 0.22, 0.34 - pointer.y * 0.12, 0.9));
 
-      float heroScale = mix(0.94, 1.06, scrollProgress);
+      float heroScale = mix(0.94, 1.06, scrollProgress) / max(logoViewportScale, 1.0);
       float heroLift = mix(0.02, -0.12, scrollProgress);
       float heroFade = 1.0 - smoothstep(0.16, 0.82, scrollProgress);
       vec2 sceneUv = uv * heroScale + vec2(0.0, heroLift);
@@ -383,7 +385,7 @@ function startWebgl() {
       float softCore = softLogo(glow) * 0.044;
       float lighting = 0.57 + 0.45 * max(dot(normal, light), 0.0);
       float premiumSheen = smoothstep(-0.55, 0.8, front.y - front.x * 0.22) * smoothstep(0.95, -0.15, front.y);
-      float fade = smoothstep(1.55, 0.08, length(uv));
+      float fade = smoothstep(logoFadeRadius, 0.08, length(uv));
 
       vec3 graphite = vec3(0.015);
       vec3 silver = vec3(0.76);
@@ -410,6 +412,9 @@ function startWebgl() {
   const pointer = gl.getUniformLocation(program, "pointer");
   const time = gl.getUniformLocation(program, "time");
   const scrollProgress = gl.getUniformLocation(program, "scrollProgress");
+  const logoViewportScale = gl.getUniformLocation(program, "logoViewportScale");
+  const logoFadeRadius = gl.getUniformLocation(program, "logoFadeRadius");
+  const narrowHeroLogo = window.matchMedia("(max-width: 620px)");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let start = performance.now();
   let targetPointerX = 0;
@@ -440,14 +445,17 @@ function startWebgl() {
     targetScrollProgress = Math.min(Math.max(window.scrollY / Math.max(window.innerHeight * 0.86, 1), 0), 1);
     currentScrollProgress += (targetScrollProgress - currentScrollProgress) * 0.08;
     const canvasFade = 1 - smoothStep(0.28, 0.92, currentScrollProgress);
-    const canvasScale = 1;
     const canvasLift = currentScrollProgress * -6;
+    const mobileLogoBoost = narrowHeroLogo.matches ? 1.16 : 1;
+    const mobileFadeRadius = narrowHeroLogo.matches ? 1.68 : 1.55;
     canvas.style.opacity = canvasFade.toFixed(3);
-    canvas.style.transform = `translate3d(0, ${canvasLift.toFixed(2)}vh, 0) scale(${canvasScale.toFixed(4)})`;
+    canvas.style.transform = `translate3d(0, ${canvasLift.toFixed(2)}vh, 0)`;
     gl.uniform2f(resolution, canvas.width, canvas.height);
     gl.uniform2f(pointer, pointerX, pointerY);
     gl.uniform1f(time, (now - start) * 0.001);
     gl.uniform1f(scrollProgress, currentScrollProgress);
+    gl.uniform1f(logoViewportScale, mobileLogoBoost);
+    gl.uniform1f(logoFadeRadius, mobileFadeRadius);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
     if (!reducedMotion) requestAnimationFrame(render);
