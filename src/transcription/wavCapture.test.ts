@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ensureMicPermission,
   mapMicError,
+  MAX_CAPTURE_SECONDS,
   prepareSamplesForWhisper,
   requestMicPermission,
   setPreferredMicrophoneDeviceId,
+  subscribeCaptureMaxDurationReached,
   warmWavMicCapturePipeline,
 } from './wavCapture'
 
@@ -91,6 +93,19 @@ describe('mapMicError', () => {
 
   it('returns unknown for other errors', () => {
     expect(mapMicError(new Error('blocked'))).toBe('unknown')
+  })
+})
+
+describe('capture session limits', () => {
+  it('allows up to ten minutes per dictation session', () => {
+    expect(MAX_CAPTURE_SECONDS).toBe(600)
+  })
+
+  it('notifies max-duration subscribers once per registration', () => {
+    const listener = vi.fn()
+    const unsubscribe = subscribeCaptureMaxDurationReached(listener)
+    unsubscribe()
+    expect(listener).not.toHaveBeenCalled()
   })
 })
 

@@ -4,6 +4,12 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.16] - 2026-05-29
+
+- **Open source (MIT)** — full source on GitHub; inspect, report issues, or contribute.
+- **10-minute session limit** — long dictation auto-stops, transcribes, and pastes using your **After dictation** setting (**Paste text** or **Paste and send**).
+- **Landing page** — FAQ, download links, and support info at [2ne.github.io/mello-voice](https://2ne.github.io/mello-voice/).
+
 ## [1.0.15] - 2026-05-29
 
 - **Starts with Windows** — Mello launches at sign-in and stays in the tray so dictation is ready without opening the app each day.

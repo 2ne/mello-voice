@@ -170,7 +170,7 @@ async fn transcribe_desktop_inner(
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 fn clamp_timeout(sec: Option<u64>) -> u64 {
     let v = sec.unwrap_or(TRANSCRIBE_DEFAULT_SECS);
-    v.clamp(18, 240)
+    v.clamp(18, 600)
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
@@ -327,7 +327,7 @@ mod tests {
     fn timeout_is_clamped_to_expected_bounds() {
         assert_eq!(clamp_timeout(Some(1)), 18);
         assert_eq!(clamp_timeout(Some(120)), 120);
-        assert_eq!(clamp_timeout(Some(999)), 240);
+        assert_eq!(clamp_timeout(Some(999)), 600);
     }
 
     #[test]

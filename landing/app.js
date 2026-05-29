@@ -1,5 +1,11 @@
-const RELEASE_API = "https://api.github.com/repos/2ne/mello-voice/releases/latest";
-const RELEASE_FALLBACK = "https://github.com/2ne/mello-voice/releases/latest";
+// @release-downloads-start
+const RELEASE_DOWNLOADS = {
+  tag: "v1.0.15",
+  releasePage: "https://github.com/2ne/mello-voice/releases/tag/v1.0.15",
+  windows: "https://github.com/2ne/mello-voice/releases/download/v1.0.15/Mello.Voice_1.0.15_x64-setup.exe",
+  mac: "",
+};
+// @release-downloads-end
 
 const platform = detectPlatform();
 const downloadLink = document.querySelector("#download-link");
@@ -73,33 +79,25 @@ function bindFinalDownload() {
   });
 }
 
-async function resolveLatestDownload(targetPlatform) {
-  if (targetPlatform === "other") return;
+function resolveLatestDownload(targetPlatform) {
+  if (targetPlatform === "other") {
+    downloadLink.href = RELEASE_DOWNLOADS.releasePage;
+    return;
+  }
 
-  try {
-    const response = await fetch(RELEASE_API, { headers: { Accept: "application/vnd.github+json" } });
-    if (!response.ok) throw new Error(`Release lookup failed: ${response.status}`);
+  const preferred =
+    targetPlatform === "mac" ? RELEASE_DOWNLOADS.mac : RELEASE_DOWNLOADS.windows;
+  downloadLink.href = preferred || RELEASE_DOWNLOADS.releasePage;
 
-    const release = await response.json();
-    const assets = Array.isArray(release.assets) ? release.assets : [];
-    const preferred = assets.find((asset) => {
-      const name = String(asset.name || "").toLowerCase();
-      if (targetPlatform === "mac") return name.endsWith(".dmg");
-      return name.endsWith("-setup.exe");
-    });
-
-    if (preferred?.browser_download_url) {
-      downloadLink.href = preferred.browser_download_url;
-      if (downloadCaption) {
-        downloadCaption.textContent =
-          targetPlatform === "mac"
-            ? "Latest macOS disk image from GitHub Releases."
-            : "Latest Windows setup installer from GitHub Releases.";
-      }
-    }
-  } catch {
-    downloadLink.href = RELEASE_FALLBACK;
-    if (downloadCaption) downloadCaption.textContent = "GitHub Releases will show the newest installer.";
+  if (downloadCaption) {
+    downloadCaption.textContent =
+      targetPlatform === "mac"
+        ? preferred
+          ? "Latest macOS disk image from GitHub Releases."
+          : "Open the release page for the macOS disk image."
+        : preferred
+          ? "Latest Windows setup installer from GitHub Releases."
+          : "Open the release page for the Windows installer.";
   }
 }
 
@@ -290,7 +288,7 @@ function startWebgl() {
 
     float logoSdf(vec2 p) {
       float center = roundedBox(p, vec2(0.092, 0.52), 0.092);
-      float sideSpread = mix(0.32, 0.52, smoothstep(0.08, 0.86, scrollProgress));
+      float sideSpread = mix(0.32, 0.52, smoothstep(0.0, 0.74, scrollProgress));
       float left = roundedBox(p - vec2(-sideSpread, 0.0), vec2(0.077, 0.305), 0.077);
       float right = roundedBox(p - vec2(sideSpread, 0.0), vec2(0.077, 0.305), 0.077);
       return min(center, min(left, right));
@@ -307,7 +305,7 @@ function startWebgl() {
 
     float barSurfaceShade(vec2 q) {
       float centerChoice = step(0.16, abs(q.x));
-      float sideSpread = mix(0.32, 0.52, smoothstep(0.08, 0.86, scrollProgress));
+      float sideSpread = mix(0.32, 0.52, smoothstep(0.0, 0.74, scrollProgress));
       float barCenter = centerChoice * sign(q.x) * sideSpread;
       float halfWidth = mix(0.092, 0.077, centerChoice);
       float lateral = clamp(abs(q.x - barCenter) / halfWidth, 0.0, 1.0);
@@ -439,7 +437,7 @@ function startWebgl() {
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
     pointerX += (targetPointerX - pointerX) * 0.065;
     pointerY += (targetPointerY - pointerY) * 0.065;
-    targetScrollProgress = Math.min(Math.max(window.scrollY / Math.max(window.innerHeight * 0.95, 1), 0), 1);
+    targetScrollProgress = Math.min(Math.max(window.scrollY / Math.max(window.innerHeight * 0.86, 1), 0), 1);
     currentScrollProgress += (targetScrollProgress - currentScrollProgress) * 0.08;
     const canvasFade = 1 - smoothStep(0.28, 0.92, currentScrollProgress);
     const canvasScale = 1;
@@ -587,12 +585,11 @@ function startContextStage() {
   const stage = document.querySelector("[data-context-stage]");
   if (!stage) return;
 
-  const appLabel = stage.querySelector("[data-context-app]");
   const existing = stage.querySelector("[data-context-existing]");
   const dictation = stage.querySelector("[data-context-dictation]");
   const tabs = [...stage.querySelectorAll(".context-tab")];
 
-  if (!appLabel || !existing || !dictation || !tabs.length) return;
+  if (!existing || !dictation || !tabs.length) return;
 
   const scenarios = [
     {
@@ -629,7 +626,9 @@ function startContextStage() {
 
   function setActiveTab(index) {
     tabs.forEach((tab, tabIndex) => {
-      tab.classList.toggle("is-active", tabIndex === index);
+      const active = tabIndex === index;
+      tab.classList.toggle("is-active", active);
+      tab.setAttribute("aria-selected", active ? "true" : "false");
     });
   }
 
@@ -639,7 +638,6 @@ function startContextStage() {
 
     activeIndex = index;
     setActiveTab(index);
-    appLabel.textContent = scenario.app;
     existing.textContent = scenario.existing;
 
     typingToken += 1;

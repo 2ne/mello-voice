@@ -111,25 +111,41 @@ const tokenResult = spawnSync('gh', ['auth', 'token'], {
 })
 const token = tokenResult.stdout?.trim()
 
-if (repo && token) {
-  const patch = spawnSync(
-    process.execPath,
-    [path.join(__dirname, 'patch-release-download-links.mjs'), tag, bodyFile],
-    {
-      cwd: ROOT,
-      encoding: 'utf8',
-      env: { ...process.env, GITHUB_REPOSITORY: repo, GITHUB_TOKEN: token },
-    },
-  )
-  if (patch.stdout) process.stdout.write(patch.stdout)
-  if (patch.stderr) process.stderr.write(patch.stderr)
-  if (patch.status !== 0) {
-    fs.unlinkSync(bodyFile)
-    process.exit(patch.status ?? 1)
+  if (repo && token) {
+    const patch = spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'patch-release-download-links.mjs'), tag, bodyFile],
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+        env: { ...process.env, GITHUB_REPOSITORY: repo, GITHUB_TOKEN: token },
+      },
+    )
+    if (patch.stdout) process.stdout.write(patch.stdout)
+    if (patch.stderr) process.stderr.write(patch.stderr)
+    if (patch.status !== 0) {
+      fs.unlinkSync(bodyFile)
+      process.exit(patch.status ?? 1)
+    }
+
+    const landingPatch = spawnSync(
+      process.execPath,
+      [path.join(__dirname, 'patch-landing-download-links.mjs'), tag],
+      {
+        cwd: ROOT,
+        encoding: 'utf8',
+        env: { ...process.env, GITHUB_REPOSITORY: repo, GITHUB_TOKEN: token },
+      },
+    )
+    if (landingPatch.stdout) process.stdout.write(landingPatch.stdout)
+    if (landingPatch.stderr) process.stderr.write(landingPatch.stderr)
+    if (landingPatch.status !== 0) {
+      fs.unlinkSync(bodyFile)
+      process.exit(landingPatch.status ?? 1)
+    }
+  } else {
+    console.warn('Could not resolve gh repo/token; skipped download-link patch.')
   }
-} else {
-  console.warn('Could not resolve gh repo/token; skipped download-link patch.')
-}
 
 fs.unlinkSync(bodyFile)
 console.log(`Published ${tag} with:`)

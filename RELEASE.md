@@ -18,7 +18,10 @@ The agent will run tests, write `releases/vX.Y.Z.md`, commit, tag, push, build W
 2. **Version bump + notes** — `npm run release:prepare`, edit `releases/vX.Y.Z.md` and `CHANGELOG.md`
 3. **Commit + tag + push**
 4. **Local Windows build** — `npm run setup:whisper` → `npm run tauri build`
-5. **Publish** — `npm run release:publish -- vX.Y.Z` (uploads `.exe` + `.msi`, sets release notes, patches download links)
+5. **Publish** — `npm run release:publish -- vX.Y.Z` (uploads `.exe` + `.msi`, sets release notes, patches download links, updates `landing/` download URLs)
+6. **Landing** — commit and push `landing/app.js` + `landing/index.html` if they changed (triggers GitHub Pages deploy)
+
+**Marketing site:** `landing/` deploys via `.github/workflows/deploy-landing.yml`. First-time setup: `npm run landing:pages-setup` (private Free accounts need a separate public `mello-voice-landing` repo).
 
 **Windows only.** macOS installers are not part of the release process.
 

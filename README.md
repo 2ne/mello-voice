@@ -137,6 +137,10 @@ mello-voice/
 
 **Marketing site:** the landing page in **`landing/`** deploys to GitHub Pages at **https://2ne.github.io/mello-voice/** when `landing/` changes on `main`.
 
+## Support
+
+Mello Voice is free and open source. If it saves you time, optional tips help fund development — **[Ko-fi](https://ko-fi.com/2neapps)**. No account or payment required to use the app.
+
 ## License
 
 [MIT](LICENSE) — use, modify, and distribute with attribution. Mello Voice is open source; the app itself still runs entirely on your machine.

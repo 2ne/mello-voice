@@ -41,7 +41,7 @@
           <a
             id="download-link"
             class="download-button"
-            href="https://github.com/2ne/mello-voice/releases/latest"
+            href="https://github.com/2ne/mello-voice/releases/download/v1.0.15/Mello.Voice_1.0.15_x64-setup.exe"
             rel="noopener"
           >
             <span class="download-icon" aria-hidden="true">
@@ -176,21 +176,29 @@
 
         <div class="context-stage" data-context-stage aria-label="Examples of Mello in different apps">
           <div class="context-window">
-            <div class="context-window-bar">
+            <div class="context-window-chrome">
               <div class="window-lights" aria-hidden="true">
                 <span></span>
                 <span></span>
                 <span></span>
               </div>
-              <span class="context-app-label" data-context-app>Mail</span>
+              <div class="context-tab-strip" role="tablist" aria-label="App examples">
+                <button type="button" role="tab" class="context-tab is-active" data-context-index="0" aria-selected="true">Mail</button>
+                <button type="button" role="tab" class="context-tab" data-context-index="1" aria-selected="false">Slack</button>
+                <button type="button" role="tab" class="context-tab" data-context-index="2" aria-selected="false">Notes</button>
+                <button type="button" role="tab" class="context-tab" data-context-index="3" aria-selected="false">Cursor</button>
+                <button type="button" role="tab" class="context-tab" data-context-index="4" aria-selected="false">ChatGPT</button>
+              </div>
             </div>
-            <div class="context-document">
-              <p class="context-existing" data-context-existing>
-                Hi Alex — thanks for sending the draft over.
-              </p>
-              <p class="context-dictation" data-context-dictation aria-live="polite">
-                I'll review it tonight and send notes before standup tomorrow.
-              </p>
+            <div class="context-window-body">
+              <div class="context-document">
+                <p class="context-existing" data-context-existing>
+                  Hi Alex — thanks for sending the draft over.
+                </p>
+                <p class="context-dictation" data-context-dictation aria-live="polite">
+                  I'll review it tonight and send notes before standup tomorrow.
+                </p>
+              </div>
             </div>
             <div class="context-overlay" aria-hidden="true">
               <span class="context-overlay-icon">
@@ -203,18 +211,11 @@
               <span class="context-overlay-text">Listening…</span>
             </div>
           </div>
-
-          <ul class="context-tabs" aria-label="App examples">
-            <li><button type="button" class="context-tab is-active" data-context-index="0">Mail</button></li>
-            <li><button type="button" class="context-tab" data-context-index="1">Slack</button></li>
-            <li><button type="button" class="context-tab" data-context-index="2">Notes</button></li>
-            <li><button type="button" class="context-tab" data-context-index="3">Cursor</button></li>
-            <li><button type="button" class="context-tab" data-context-index="4">ChatGPT</button></li>
-          </ul>
         </div>
       </section>
 
       <section class="security-section" aria-labelledby="security-title">
+        <p class="section-kicker">Security</p>
         <h2 id="security-title">Security starts with staying local.</h2>
         <p>
           The safest data is the data that never leaves. Mello keeps dictation on your machine,
@@ -234,6 +235,81 @@
             <p class="security-line-lead">Same app, same field</p>
             <p class="security-line-detail">No browser tab, no upload step, no detour.</p>
           </div>
+        </div>
+      </section>
+
+      <section class="faq-section" aria-labelledby="faq-title">
+        <p class="section-kicker">FAQ</p>
+        <h2 id="faq-title">Common questions.</h2>
+        <p>
+          Quick answers before you download — how Mello works, what stays on your machine,
+          and what to expect from a dictation session.
+        </p>
+
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary>Does Mello send my voice to the cloud?</summary>
+            <div class="faq-answer">
+              <p>
+                No. The desktop app transcribes on your computer using a local speech model
+                (Whisper). Your audio and transcript are not uploaded to Mello or a third-party
+                speech API for dictation.
+              </p>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary>How do I start and stop dictating?</summary>
+            <div class="faq-answer">
+              <p>
+                Double-tap your shortcut key to toggle dictation on and off. The default is
+                Caps Lock, but you can choose another key in Settings.
+              </p>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Which apps does it work in?</summary>
+            <div class="faq-answer">
+              <p>
+                Any app where you can type. Put the cursor in the field you want, dictate,
+                and Mello pastes the finished text there — email, chat, docs, code editors,
+                and AI prompts included.
+              </p>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary>How long can I dictate in one session?</summary>
+            <div class="faq-answer">
+              <p>
+                Up to ten minutes per session. Mello is built for short bursts, not long-form
+                recording. When you hit the limit, it stops automatically and pastes what you
+                captured so nothing is lost.
+              </p>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary>Does it work on Mac and Windows?</summary>
+            <div class="faq-answer">
+              <p>
+                Yes. Download the installer for your platform from GitHub Releases — a Windows
+                setup wizard or macOS disk image, depending on your machine.
+              </p>
+            </div>
+          </details>
+
+          <details class="faq-item">
+            <summary>What happens after I finish speaking?</summary>
+            <div class="faq-answer">
+              <p>
+                Mello copies the polished text to your clipboard and pastes it into the focused
+                field. In Settings you can choose <strong>Paste text</strong> or
+                <strong>Paste and send</strong>, which also presses Enter for chat-style apps.
+              </p>
+            </div>
+          </details>
         </div>
       </section>
 
@@ -268,7 +344,23 @@
             <span>Private voice typing for macOS and Windows.</span>
           </div>
         </div>
-        <p>Fast. Local. No account.</p>
+        <div class="footer-meta">
+          <p>Fast. Local. No account.</p>
+          <div class="footer-links">
+            <a
+              class="footer-support"
+              href="https://github.com/2ne/mello-voice"
+              rel="noopener"
+              target="_blank"
+            >Source on GitHub</a>
+            <a
+              class="footer-support"
+              href="https://ko-fi.com/2neapps"
+              rel="noopener sponsored"
+              target="_blank"
+            >Support on Ko-fi</a>
+          </div>
+        </div>
       </footer>
     </div>
 

@@ -10,7 +10,7 @@ When the user wants to **release**, **ship**, **publish**, **tag**, **bump the a
 
 1. Read and follow **`.cursor/skills/mello-voice-release/SKILL.md`** completely.
 2. **You** write **`releases/vX.Y.Z.md`** in the same tone as **`releases/v1.0.0.md`** (user-facing; not commit dumps).
-3. **You** run **`npm run verify`**, commit, create **`git tag vX.Y.Z`**, push commit + tag, **`npm run setup:whisper`**, **`npm run tauri build`**, then **`npm run release:publish -- vX.Y.Z`**.
-4. **Windows installers only** — no macOS release builds.
+3. **You** run **`npm run verify`**, commit, create **`git tag vX.Y.Z`**, push commit + tag, **`npm run setup:whisper`**, **`npm run tauri build`**, then **`npm run release:publish -- vX.Y.Z`**, then **commit and push `landing/`** download links.
+4. **Windows installers only** — no macOS release builds. **Landing site** deploys from `landing/` via GitHub Pages (see release skill **Marketing site**).
 
 Do not use GitHub’s auto-generated commit list as the release body. Do not ask the user to run `tauri build` or upload assets for a normal release.

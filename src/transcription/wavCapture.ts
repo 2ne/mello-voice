@@ -8,8 +8,8 @@ import {
   parseMicrophoneDeviceId,
 } from '../microphoneDevicePreference'
 
-/** Retain at most ~8 minutes of raw PCM at 48 kHz (reasonable cap for long sessions). */
-const RAW_RETAIN_SECONDS = 480
+/** Hard cap on a single dictation session — overlay auto-stops and transcribes at this limit. */
+export const MAX_CAPTURE_SECONDS = 600
 const MIN_CAPTURE_SECONDS = 0.12
 const TRIM_SPEECH_THRESHOLD_ABS = 0.003
 const TRIM_PAD_MS = 120
@@ -69,6 +69,8 @@ let state: CaptureState = { kind: 'idle' }
 let warmCapturePromise: Promise<void> | null = null
 let lastLevelEmitAt = 0
 const levelListeners = new Set<(snapshot: CaptureLevelSnapshot) => void>()
+const maxDurationListeners = new Set<() => void>()
+let maxDurationNotifiedThisSession = false
 
 /** Mic stream left open after warmup so the first capture reuses the same live device handle (Windows). */
 let primedMicStream: MediaStream | null = null
@@ -262,6 +264,14 @@ export function subscribeCaptureLevels(
   }
 }
 
+/** Fires once per capture session when recorded audio reaches {@link MAX_CAPTURE_SECONDS}. */
+export function subscribeCaptureMaxDurationReached(listener: () => void): () => void {
+  maxDurationListeners.add(listener)
+  return () => {
+    maxDurationListeners.delete(listener)
+  }
+}
+
 export function prepareSamplesForWhisper(samples: Float32Array, sampleRate: number): Float32Array {
   const minSamples = Math.floor(sampleRate * MIN_CAPTURE_SECONDS)
   if (samples.length < minSamples) {
@@ -284,13 +294,39 @@ export function prepareSamplesForWhisper(samples: Float32Array, sampleRate: numb
   return trimmed
 }
 
-function trimChunksToMaxDuration(chunks: Float32Array[], maxSamples: number): void {
+function notifyCaptureMaxDurationReached(): void {
+  for (const listener of maxDurationListeners) {
+    listener()
+  }
+}
+
+/** Trim excess from the newest chunk(s) so the session keeps the start of the recording. */
+function trimChunksToMaxSamples(chunks: Float32Array[], maxSamples: number): void {
   let total = totalChunkSamples(chunks)
-  while (chunks.length > 0 && total > maxSamples) {
-    const removed = chunks.shift()
-    if (removed) {
-      total -= removed.length
+  while (total > maxSamples && chunks.length > 0) {
+    const lastIndex = chunks.length - 1
+    const last = chunks[lastIndex]!
+    const excess = total - maxSamples
+    if (excess >= last.length) {
+      chunks.pop()
+      total -= last.length
+      continue
     }
+    chunks[lastIndex] = last.subarray(0, last.length - excess)
+    total = maxSamples
+  }
+}
+
+function appendCaptureChunk(chunks: Float32Array[], chunk: Float32Array, maxRetainSamples: number): void {
+  chunks.push(chunk)
+  const total = totalChunkSamples(chunks)
+  if (total <= maxRetainSamples) {
+    return
+  }
+  trimChunksToMaxSamples(chunks, maxRetainSamples)
+  if (!maxDurationNotifiedThisSession) {
+    maxDurationNotifiedThisSession = true
+    notifyCaptureMaxDurationReached()
   }
 }
 
@@ -378,8 +414,7 @@ async function startWorkletCapture(params: {
   node.port.onmessage = (ev: MessageEvent) => {
     const data = ev.data
     if (data instanceof Float32Array) {
-      chunks.push(Float32Array.from(data))
-      trimChunksToMaxDuration(chunks, maxRetainSamples)
+      appendCaptureChunk(chunks, Float32Array.from(data), maxRetainSamples)
       emitCaptureLevel(data)
     }
   }
@@ -415,8 +450,7 @@ function startScriptProcessorCapture(params: {
 
   processor.onaudioprocess = (ev: AudioProcessingEvent) => {
     const ch0 = ev.inputBuffer.getChannelData(0)
-    chunks.push(Float32Array.from(ch0))
-    trimChunksToMaxDuration(chunks, maxRetainSamples)
+    appendCaptureChunk(chunks, Float32Array.from(ch0), maxRetainSamples)
     emitCaptureLevel(ch0)
   }
 
@@ -464,7 +498,8 @@ export async function startWavMicCapture(): Promise<void> {
 
   const chunks: Float32Array[] = []
 
-  const maxRetainSamples = Math.floor(sampleRate * RAW_RETAIN_SECONDS)
+  maxDurationNotifiedThisSession = false
+  const maxRetainSamples = Math.floor(sampleRate * MAX_CAPTURE_SECONDS)
 
   const sinkGain = context.createGain()
   sinkGain.gain.value = 0
@@ -523,6 +558,7 @@ export async function stopWavMicCapture(): Promise<Uint8Array> {
     return wav
   } finally {
     state = { kind: 'idle' }
+    maxDurationNotifiedThisSession = false
     emitCaptureSilence()
   }
 }

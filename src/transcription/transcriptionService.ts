@@ -1,6 +1,6 @@
 import { polishFinalTranscript, whisperTranscribeWavBase64 } from './whisperLocalProvider'
 
-const FINAL_WHISPER_TIMEOUT_SECS = 165
+const FINAL_WHISPER_TIMEOUT_SECS = 600
 /** Local Whisper; returns trimmed text or `null` when Whisper cannot produce a usable transcript. */
 export async function transcribeWithWhisperPreferLocal(
   wav: Uint8Array,

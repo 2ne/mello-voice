@@ -12,6 +12,7 @@ import {
   setPreferredMicrophoneDeviceId,
   startWavMicCapture,
   stopWavMicCapture,
+  subscribeCaptureMaxDurationReached,
   subscribeCaptureLevels,
   warmWavMicCapturePipeline,
   resumeCaptureAudioIfActive,
@@ -21,7 +22,7 @@ import {
   buildFinalDictationText,
   transcribeWithWhisperPreferLocal,
 } from "../transcription/transcriptionService";
-import { addToHistory } from "../history";
+import { deliverDictationResult } from "../deliverDictation";
 import {
   FALLBACK_OVERLAY_BAR_DISABLED_WHEN_FETCH_FAILS,
   FALLBACK_OVERLAY_BAR_ENABLED_WHEN_FETCH_FAILS,
@@ -588,10 +589,13 @@ function OverlayRoot() {
   }, []);
 
   const runStopDictationPipeline = useCallback(async () => {
+    if (isProcessingRef.current || !isListeningRef.current) return;
+
     resetCapsGestureState();
 
-    setIsExpanded(false);
     isListeningRef.current = false;
+    isProcessingRef.current = true;
+    setIsExpanded(false);
     setAudioLevel(0);
     setIsProcessing(true);
     const wavPromise = stopWavMicCapture().catch((e) => {
@@ -604,20 +608,26 @@ function OverlayRoot() {
       const text = await buildFinalDictationText(whisperText);
 
       if (text) {
-        await addToHistory(text);
-        emit("history-updated").catch(() => {});
-        await new Promise((r) => setTimeout(r, 280));
         try {
-          await invoke("paste_text", { text });
+          await deliverDictationResult(text);
         } catch (e) {
-          console.error("Failed to paste:", e);
+          console.error("Failed to deliver dictation:", e);
         }
       }
     } finally {
+      isProcessingRef.current = false;
       setIsProcessing(false);
       hideOverlayWhenBarPreferOff();
     }
   }, [resetCapsGestureState, hideOverlayWhenBarPreferOff]);
+
+  useEffect(() => {
+    return subscribeCaptureMaxDurationReached(() => {
+      if (!isListeningRef.current || isProcessingRef.current) return;
+      // Same stop pipeline as manual double-tap — respects Settings → After dictation.
+      void runStopDictationPipeline();
+    });
+  }, [runStopDictationPipeline]);
 
   const runStartDictationPipeline = useCallback(async () => {
     let pref = barEnabledRef.current;
