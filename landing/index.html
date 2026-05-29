@@ -86,19 +86,23 @@
               <p id="demo-interim" aria-live="polite"></p>
             </div>
 
-            <div class="demo-overlay" data-state="idle">
-              <button id="demo-record" class="demo-record-button" type="button" aria-label="Start live dictation preview">
-                <svg class="demo-record-icon demo-record-icon-mic" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
-                  <path d="M19 11a7 7 0 0 1-14 0"></path>
-                  <path d="M12 18v3"></path>
-                </svg>
-                <svg class="demo-record-icon demo-record-icon-stop" viewBox="0 0 24 24" aria-hidden="true">
-                  <rect x="7" y="7" width="10" height="10" rx="1.35" fill="currentColor"></rect>
-                </svg>
-              </button>
-              <p id="demo-status" class="sr-only" aria-live="polite"></p>
-            </div>
+            <button
+              id="demo-record"
+              class="demo-record-button"
+              type="button"
+              data-state="idle"
+              aria-label="Start live dictation preview"
+            >
+              <svg class="demo-record-icon demo-record-icon-mic" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
+                <path d="M19 11a7 7 0 0 1-14 0"></path>
+                <path d="M12 18v3"></path>
+              </svg>
+              <svg class="demo-record-icon demo-record-icon-stop" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="7" y="7" width="10" height="10" rx="1.35" fill="currentColor"></rect>
+              </svg>
+            </button>
+            <p id="demo-status" class="sr-only" aria-live="polite"></p>
           </div>
         </div>
       </section>

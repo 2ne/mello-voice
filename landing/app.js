@@ -103,12 +103,11 @@ function resolveLatestDownload(targetPlatform) {
 
 function startDemo() {
   const recordButton = document.querySelector("#demo-record");
-  const overlay = document.querySelector(".demo-overlay");
   const status = document.querySelector("#demo-status");
   const output = document.querySelector("#demo-output");
   const interimOutput = document.querySelector("#demo-interim");
 
-  if (!recordButton || !overlay || !output || !interimOutput) return;
+  if (!recordButton || !output || !interimOutput) return;
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const initialText = "Click record and say a sentence. Your words will appear here.";
@@ -118,7 +117,7 @@ function startDemo() {
   let pendingIdleMessage = "";
 
   if (!SpeechRecognition) {
-    overlay.dataset.state = "unsupported";
+    recordButton.dataset.state = "unsupported";
     if (status) status.textContent = "Use Chrome or Edge to try live recording.";
     recordButton.disabled = true;
     recordButton.setAttribute("aria-label", "Live dictation preview unavailable");
@@ -131,24 +130,40 @@ function startDemo() {
 
   function setListening() {
     isListening = true;
-    overlay.dataset.state = "recording";
+    recordButton.dataset.state = "recording";
     recordButton.setAttribute("aria-label", "Stop live dictation preview");
     setStatus("");
-    if (output.textContent === initialText) output.textContent = "";
+    renderText();
   }
 
   function setIdle(message = "") {
     isListening = false;
-    overlay.dataset.state = "idle";
+    recordButton.dataset.state = "idle";
     recordButton.setAttribute("aria-label", "Start live dictation preview");
     setStatus(message);
-    interimOutput.textContent = "";
-    if (!finalText && !output.textContent.trim()) output.textContent = initialText;
+    renderText();
   }
 
   function renderText(interimText = "") {
-    output.textContent = finalText || (interimText ? "" : initialText);
-    interimOutput.textContent = interimText;
+    const hasSpeech = Boolean(finalText.trim() || interimText.trim());
+
+    if (isListening && !hasSpeech) {
+      output.textContent = "Listening…";
+      output.classList.add("demo-listening-placeholder");
+      interimOutput.textContent = "";
+      return;
+    }
+
+    output.classList.remove("demo-listening-placeholder");
+
+    if (hasSpeech) {
+      output.textContent = finalText;
+      interimOutput.textContent = interimText;
+      return;
+    }
+
+    output.textContent = initialText;
+    interimOutput.textContent = "";
   }
 
   function stopRecognition() {
@@ -163,7 +178,6 @@ function startDemo() {
     recognition.interimResults = true;
     finalText = "";
     pendingIdleMessage = "";
-    renderText();
     setListening();
 
     recognition.onresult = (event) => {

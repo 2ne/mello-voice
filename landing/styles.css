@@ -571,6 +571,10 @@ h2 {
   white-space: pre-wrap;
 }
 
+#demo-output.demo-listening-placeholder {
+  color: rgba(244, 244, 244, 0.26);
+}
+
 #demo-interim {
   max-width: 35rem;
   min-height: 2rem;
@@ -595,34 +599,19 @@ h2 {
   border: 0;
 }
 
-.demo-overlay {
+.demo-record-button {
   position: absolute;
   left: 50%;
   bottom: 0;
-  max-width: calc(100% - 2rem);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: translate(-50%, 50%);
-  padding: 0.175rem;
-  border: 1px solid rgba(255, 255, 255, 0.11);
-  border-radius: 999px;
-  background: rgba(18, 18, 18, 0.94);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 22px 60px rgba(0, 0, 0, 0.44);
-  color: var(--ink);
-}
-
-.demo-record-button {
-  position: relative;
+  z-index: 2;
   width: 2.85rem;
   height: 2.85rem;
   display: inline-grid;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  transform: translate(-50%, 50%);
+  border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(18, 18, 18, 0.94);
   color: rgba(244, 244, 244, 0.9);
   cursor: pointer;
   transition:
@@ -632,9 +621,8 @@ h2 {
 }
 
 .demo-record-button:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.22);
+  transform: translate(-50%, calc(50% - 1px));
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .demo-record-button:disabled {
@@ -661,20 +649,20 @@ h2 {
   height: 1.45rem;
 }
 
-.demo-overlay[data-state="recording"] .demo-record-icon-mic {
+.demo-record-button[data-state="recording"] .demo-record-icon-mic {
   display: none;
 }
 
-.demo-overlay[data-state="recording"] .demo-record-icon-stop {
+.demo-record-button[data-state="recording"] .demo-record-icon-stop {
   display: block;
 }
 
-.demo-overlay[data-state="recording"] .demo-record-button {
+.demo-record-button[data-state="recording"] {
   background: rgba(244, 244, 244, 0.92);
   color: #090909;
 }
 
-.demo-overlay[data-state="recording"] .demo-record-button::after {
+.demo-record-button[data-state="recording"]::after {
   content: "";
   position: absolute;
   inset: -0.36rem;
@@ -1230,20 +1218,20 @@ h2 {
     padding-bottom: 0.25rem;
   }
 
-  .demo-overlay,
+  .demo-record-button,
   .context-overlay {
     bottom: 0;
     transform: translate(-50%, 50%);
     max-width: calc(100% - 1.5rem);
   }
 
-  .demo-overlay {
-    padding: 0.175rem;
-  }
-
   .demo-record-button {
     width: 2.55rem;
     height: 2.55rem;
+  }
+
+  .demo-record-button:hover {
+    transform: translate(-50%, calc(50% - 1px));
   }
 
   .context-overlay {
