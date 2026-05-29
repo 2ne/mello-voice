@@ -1,0 +1,61 @@
+name: Deploy landing site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'landing/**'
+      - '.github/workflows/deploy-landing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: landing-pages
+  cancel-in-progress: false
+
+jobs:
+  # Private repos on GitHub Free cannot use Pages on the app repo. Set repository
+  # variable LANDING_PAGES_REPO (e.g. 2ne/mello-voice-landing) and secret
+  # LANDING_PAGES_TOKEN (PAT with contents:write on that public repo).
+  deploy-external:
+    if: ${{ vars.LANDING_PAGES_REPO != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Publish to external public repo
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.LANDING_PAGES_TOKEN }}
+          publish_dir: ./landing
+          external_repository: ${{ vars.LANDING_PAGES_REPO }}
+          publish_branch: gh-pages
+          force_orphan: true
+
+  # Same-repo deploy when GitHub Pages is enabled (public repo, or private + Pro/Team).
+  deploy:
+    if: ${{ vars.LANDING_PAGES_REPO == '' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload landing artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: landing
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

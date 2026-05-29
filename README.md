@@ -134,3 +134,9 @@ mello-voice/
 ```
 
 **Shipping a version (GitHub Release, Windows installers):** ask the agent to release — see **`RELEASE.md`**, **`AGENTS.md`**, and **`.cursor/skills/mello-voice-release/SKILL.md`**. Local Windows build troubleshooting: **`.cursor/skills/mello-voice-windows-release/SKILL.md`**.
+
+**Marketing site:** the landing page in **`landing/`** deploys to GitHub Pages at **https://2ne.github.io/mello-voice/** when `landing/` changes on `main`.
+
+## License
+
+[MIT](LICENSE) — use, modify, and distribute with attribution. Mello Voice is open source; the app itself still runs entirely on your machine.

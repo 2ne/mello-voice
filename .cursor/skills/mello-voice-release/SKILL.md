@@ -74,17 +74,43 @@ Also add a short **user-facing** entry to [`CHANGELOG.md`](../../CHANGELOG.md) (
    ```bash
    npm run release:publish -- vX.Y.Z
    ```
-   This creates/updates the release for the tag, uploads the Windows `.exe` and `.msi`, sets the body from `releases/vX.Y.Z.md`, and patches **Direct downloads** links from the uploaded assets.
+   This creates/updates the release for the tag, uploads the Windows `.exe` and `.msi`, sets the body from `releases/vX.Y.Z.md`, patches **Direct downloads** links from the uploaded assets, and **pins the marketing site** (`landing/app.js` + `landing/index.html`) to that tag’s Windows `.exe` and macOS `.dmg` (when present on the release).
 
    Requires **`gh`** authenticated (`gh auth status`). Repo defaults from the current checkout.
 
-10. **Tell the user** the release URL: `https://github.com/2ne/mello-voice/releases/tag/vX.Y.Z`
+10. **Commit and push landing download links** (after publish — assets must exist first):
+    ```bash
+    git add landing/app.js landing/index.html
+    git commit -m "Update landing download links for vX.Y.Z"
+    git push
+    ```
+    If macOS `.dmg` was not uploaded for this tag, the mac button falls back to the release page until a later release includes it.
+
+    Pushing `landing/` to **`main`** also triggers **`.github/workflows/deploy-landing.yml`**, which publishes the marketing site to GitHub Pages (usually within a couple of minutes).
+
+11. **Tell the user** the release URL and marketing site URL (see **Marketing site** below).
+
+## Marketing site (GitHub Pages)
+
+The static landing page lives in **`landing/`** and deploys via **`.github/workflows/deploy-landing.yml`** when `landing/` changes on **`main`**.
+
+**Site URL:** `https://2ne.github.io/mello-voice/`
+
+**One-time setup** (after the repo is public):
+
+```bash
+gh api --method POST repos/2ne/mello-voice/pages -f build_type=workflow
+```
+
+Then push `landing/` or run `gh workflow run deploy-landing.yml`. Diagnose with `npm run landing:pages-setup`.
+
+If the repo is ever private again on GitHub Free, use a separate public **`mello-voice-landing`** repo instead — see `npm run landing:pages-setup`.
 
 ## If the user already bumped the version in code
 
 - Read the version from `src-tauri/tauri.conf.json`.
 - Ensure `releases/vX.Y.Z.md` exists (create from `releases/TEMPLATE.md` if not).
-- Write notes, update CHANGELOG, then **commit (if needed) → tag → push → local build → `npm run release:publish`**.
+- Write notes, update CHANGELOG, then **commit (if needed) → tag → push → local build → `npm run release:publish` → commit/push `landing/` download links**.
 
 ## If the user only wants notes drafted (no ship yet)
 
@@ -108,3 +134,6 @@ Also add a short **user-facing** entry to [`CHANGELOG.md`](../../CHANGELOG.md) (
 | Missing NSIS/MSI after build | Install Tauri Windows prerequisites (WiX + NSIS). See windows-release skill. |
 | `gh release` fails | Run `gh auth status`; ensure tag is pushed. |
 | Download links 404 in release notes | Re-run `npm run release:publish -- vX.Y.Z` after assets upload. |
+| Landing site still points at old version | Re-run `npm run release:publish -- vX.Y.Z` (or `npm run release:patch-landing -- vX.Y.Z`), then commit and push `landing/`. |
+| Marketing site not updating | Confirm Pages is set up (`npm run landing:pages-setup`). Check Actions run for **Deploy landing site** after `landing/` push. |
+| Pages unavailable on private repo (Free) | Use public **`mello-voice-landing`** repo + `LANDING_PAGES_REPO` / `LANDING_PAGES_TOKEN` (see skill **Marketing site**). |

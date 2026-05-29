@@ -2,6 +2,7 @@
   "name": "mello-voice",
   "private": true,
   "version": "1.0.15",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "setup:whisper": "node scripts/setup-whisper-assets.mjs",
@@ -14,7 +15,9 @@
     "verify": "npm run test && npm run build && cargo test --manifest-path src-tauri/Cargo.toml",
     "version:bump": "node scripts/bump-version.mjs",
     "release:prepare": "node scripts/prepare-release.mjs",
-    "release:publish": "node scripts/publish-release.mjs"
+    "release:publish": "node scripts/publish-release.mjs",
+    "release:patch-landing": "node scripts/patch-landing-download-links.mjs",
+    "landing:pages-setup": "node scripts/setup-landing-pages.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.10.1",
