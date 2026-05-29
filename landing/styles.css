@@ -295,14 +295,12 @@ h2 {
   justify-content: flex-start;
   text-align: left;
   border: 1px solid rgba(255, 255, 255, 0.11);
+  border-top: 1px solid rgb(255 255 255 / 17%);
   border-radius: 22px;
   background:
     radial-gradient(circle at 78% 18%, rgba(255, 255, 255, 0.085), transparent 40%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
     rgba(12, 12, 12, 0.88);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 22px 70px rgba(0, 0, 0, 0.26);
 }
 
 .rewrite-panel-head {
@@ -519,9 +517,6 @@ h2 {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.018)),
     rgba(10, 10, 10, 0.88);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 34px 110px rgba(0, 0, 0, 0.46);
   backdrop-filter: blur(20px);
 }
 
@@ -588,18 +583,28 @@ h2 {
   text-wrap: pretty;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .demo-overlay {
   position: absolute;
   left: 50%;
   bottom: 0;
   max-width: calc(100% - 2rem);
-  min-height: 4.25rem;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.9rem;
+  display: flex;
   align-items: center;
+  justify-content: center;
   transform: translate(-50%, 50%);
-  padding: 0.7rem 1rem 0.7rem 0.75rem;
+  padding: 0.175rem;
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 999px;
   background: rgba(18, 18, 18, 0.94);
@@ -637,14 +642,31 @@ h2 {
   opacity: 0.5;
 }
 
-.demo-record-button svg {
+.demo-record-icon {
   width: 1.15rem;
   height: 1.15rem;
+}
+
+.demo-record-icon-mic {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.7;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.demo-record-icon-stop {
+  display: none;
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.demo-overlay[data-state="recording"] .demo-record-icon-mic {
+  display: none;
+}
+
+.demo-overlay[data-state="recording"] .demo-record-icon-stop {
+  display: block;
 }
 
 .demo-overlay[data-state="recording"] .demo-record-button {
@@ -661,22 +683,6 @@ h2 {
   animation: record-breathe 1.4s var(--ease) infinite;
 }
 
-.demo-overlay-body {
-  min-width: 0;
-}
-
-#demo-transcript {
-  min-height: 1.45rem;
-  margin: 0;
-  overflow: hidden;
-  color: rgba(244, 244, 244, 0.86);
-  font-size: 0.98rem;
-  font-weight: 560;
-  letter-spacing: -0.015em;
-  line-height: 1.4;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 @keyframes record-breathe {
   0% {
@@ -723,9 +729,6 @@ h2 {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.018)),
     rgba(10, 10, 10, 0.88);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 34px 110px rgba(0, 0, 0, 0.46);
   backdrop-filter: blur(20px);
 }
 
@@ -812,9 +815,6 @@ h2 {
   border: 1px solid rgba(255, 255, 255, 0.11);
   border-radius: 999px;
   background: rgba(18, 18, 18, 0.94);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 22px 60px rgba(0, 0, 0, 0.44);
 }
 
 .context-overlay-icon {
@@ -829,13 +829,9 @@ h2 {
 }
 
 .context-overlay-icon svg {
-  width: 0.95rem;
-  height: 0.95rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: currentColor;
 }
 
 .context-overlay-text {
@@ -844,6 +840,18 @@ h2 {
   font-size: 0.92rem;
   font-weight: 560;
   letter-spacing: -0.015em;
+  animation: context-listening-pulse 1.5s var(--ease) infinite;
+}
+
+@keyframes context-listening-pulse {
+  0%,
+  100% {
+    opacity: 0.38;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
 
 .context-tab {
@@ -1230,20 +1238,12 @@ h2 {
   }
 
   .demo-overlay {
-    gap: 0.72rem;
-    padding: 0.62rem 0.9rem 0.62rem 0.62rem;
+    padding: 0.175rem;
   }
 
   .demo-record-button {
     width: 2.55rem;
     height: 2.55rem;
-  }
-
-  #demo-transcript {
-    font-size: 0.9rem;
-    line-height: 1.35;
-    text-wrap: balance;
-    white-space: normal;
   }
 
   .context-overlay {

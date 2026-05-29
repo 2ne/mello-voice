@@ -88,15 +88,16 @@
 
             <div class="demo-overlay" data-state="idle">
               <button id="demo-record" class="demo-record-button" type="button" aria-label="Start live dictation preview">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
+                <svg class="demo-record-icon demo-record-icon-mic" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
                   <path d="M19 11a7 7 0 0 1-14 0"></path>
                   <path d="M12 18v3"></path>
                 </svg>
+                <svg class="demo-record-icon demo-record-icon-stop" viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="7" y="7" width="10" height="10" rx="1.35" fill="currentColor"></rect>
+                </svg>
               </button>
-              <div class="demo-overlay-body">
-                <p id="demo-transcript">Click here to start recording.</p>
-              </div>
+              <p id="demo-status" class="sr-only" aria-live="polite"></p>
             </div>
           </div>
         </div>
@@ -104,10 +105,10 @@
 
       <section class="statement-section" aria-labelledby="speed-title">
         <div class="statement-copy">
-          <p class="section-kicker">Why Mello</p>
+          <p class="section-kicker">Why Mello Voice</p>
           <h2 id="speed-title">The fastest way to get words down.</h2>
           <p>
-            Mello is designed for the moment you are already typing. Hit your shortcut,
+            Mello Voice is designed for the moment you are already typing. Hit your shortcut,
             speak naturally, and keep moving without changing apps or setting up an account.
           </p>
         </div>
@@ -169,12 +170,12 @@
           <p class="section-kicker">Use it everywhere</p>
           <h2 id="context-title">Your voice, wherever you're typing.</h2>
           <p>
-            One shortcut. Mello listens once and writes into the field you already have open —
+            One shortcut. Mello Voice listens once and writes into the field you already have open —
             email, chat, docs, code, or an AI prompt.
           </p>
         </div>
 
-        <div class="context-stage" data-context-stage aria-label="Examples of Mello in different apps">
+        <div class="context-stage" data-context-stage aria-label="Examples of Mello Voice in different apps">
           <div class="context-window">
             <div class="context-window-chrome">
               <div class="window-lights" aria-hidden="true">
@@ -202,10 +203,8 @@
             </div>
             <div class="context-overlay" aria-hidden="true">
               <span class="context-overlay-icon">
-                <svg viewBox="0 0 24 24">
-                  <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3Z"></path>
-                  <path d="M19 11a7 7 0 0 1-14 0"></path>
-                  <path d="M12 18v3"></path>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="7" y="7" width="10" height="10" rx="1.35" fill="currentColor"></rect>
                 </svg>
               </span>
               <span class="context-overlay-text">Listening…</span>
@@ -218,7 +217,7 @@
         <p class="section-kicker">Security</p>
         <h2 id="security-title">Security starts with staying local.</h2>
         <p>
-          The safest data is the data that never leaves. Mello keeps dictation on your machine,
+          The safest data is the data that never leaves. Mello Voice keeps dictation on your machine,
           avoids account setup, and reduces the surface area around your most personal input.
         </p>
 
@@ -242,17 +241,17 @@
         <p class="section-kicker">FAQ</p>
         <h2 id="faq-title">Common questions.</h2>
         <p>
-          Quick answers before you download — how Mello works, what stays on your machine,
+          Quick answers before you download — how Mello Voice works, what stays on your machine,
           and what to expect from a dictation session.
         </p>
 
         <div class="faq-list">
           <details class="faq-item">
-            <summary>Does Mello send my voice to the cloud?</summary>
+            <summary>Does Mello Voice send my voice to the cloud?</summary>
             <div class="faq-answer">
               <p>
                 No. The desktop app transcribes on your computer using a local speech model
-                (Whisper). Your audio and transcript are not uploaded to Mello or a third-party
+                (Whisper). Your audio and transcript are not uploaded to Mello Voice or a third-party
                 speech API for dictation.
               </p>
             </div>
@@ -273,7 +272,7 @@
             <div class="faq-answer">
               <p>
                 Any app where you can type. Put the cursor in the field you want, dictate,
-                and Mello pastes the finished text there — email, chat, docs, code editors,
+                and Mello Voice pastes the finished text there — email, chat, docs, code editors,
                 and AI prompts included.
               </p>
             </div>
@@ -283,7 +282,7 @@
             <summary>How long can I dictate in one session?</summary>
             <div class="faq-answer">
               <p>
-                Up to ten minutes per session. Mello is built for short bursts, not long-form
+                Up to ten minutes per session. Mello Voice is built for short bursts, not long-form
                 recording. When you hit the limit, it stops automatically and pastes what you
                 captured so nothing is lost.
               </p>
@@ -304,7 +303,7 @@
             <summary>What happens after I finish speaking?</summary>
             <div class="faq-answer">
               <p>
-                Mello copies the polished text to your clipboard and pastes it into the focused
+                Mello Voice copies the polished text to your clipboard and pastes it into the focused
                 field. In Settings you can choose <strong>Paste text</strong> or
                 <strong>Paste and send</strong>, which also presses Enter for chat-style apps.
               </p>

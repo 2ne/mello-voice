@@ -104,11 +104,11 @@ function resolveLatestDownload(targetPlatform) {
 function startDemo() {
   const recordButton = document.querySelector("#demo-record");
   const overlay = document.querySelector(".demo-overlay");
-  const transcript = document.querySelector("#demo-transcript");
+  const status = document.querySelector("#demo-status");
   const output = document.querySelector("#demo-output");
   const interimOutput = document.querySelector("#demo-interim");
 
-  if (!recordButton || !overlay || !transcript || !output || !interimOutput) return;
+  if (!recordButton || !overlay || !output || !interimOutput) return;
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const initialText = "Click record and say a sentence. Your words will appear here.";
@@ -119,32 +119,29 @@ function startDemo() {
 
   if (!SpeechRecognition) {
     overlay.dataset.state = "unsupported";
-    transcript.textContent = "Use Chrome or Edge to try live recording.";
+    if (status) status.textContent = "Use Chrome or Edge to try live recording.";
     recordButton.disabled = true;
     recordButton.setAttribute("aria-label", "Live dictation preview unavailable");
     return;
   }
 
-  const narrowViewport = window.matchMedia("(max-width: 620px)");
-  const idlePrompt = narrowViewport.matches
-    ? "Tap to record"
-    : "Click here to start recording.";
+  function setStatus(message = "") {
+    if (status) status.textContent = message;
+  }
 
   function setListening() {
     isListening = true;
     overlay.dataset.state = "recording";
     recordButton.setAttribute("aria-label", "Stop live dictation preview");
-    transcript.textContent = narrowViewport.matches
-      ? "Listening… Tap to stop."
-      : "Listening. Click again to stop.";
+    setStatus("");
     if (output.textContent === initialText) output.textContent = "";
   }
 
-  function setIdle(message = idlePrompt) {
+  function setIdle(message = "") {
     isListening = false;
     overlay.dataset.state = "idle";
     recordButton.setAttribute("aria-label", "Start live dictation preview");
-    transcript.textContent = message;
+    setStatus(message);
     interimOutput.textContent = "";
     if (!finalText && !output.textContent.trim()) output.textContent = initialText;
   }
