@@ -1,8 +1,8 @@
 // @release-downloads-start
 const RELEASE_DOWNLOADS = {
-  tag: "v1.0.15",
-  releasePage: "https://github.com/2ne/mello-voice/releases/tag/v1.0.15",
-  windows: "https://github.com/2ne/mello-voice/releases/download/v1.0.15/Mello.Voice_1.0.15_x64-setup.exe",
+  tag: "v1.0.16",
+  releasePage: "https://github.com/2ne/mello-voice/releases/tag/v1.0.16",
+  windows: "https://github.com/2ne/mello-voice/releases/download/v1.0.16/Mello.Voice_1.0.16_x64-setup.exe",
   mac: "",
 };
 // @release-downloads-end
