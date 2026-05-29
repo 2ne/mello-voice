@@ -4,6 +4,10 @@ User-facing history for Mello Voice. GitHub Releases use the matching file in `r
 
 ## [Unreleased]
 
+## [1.0.15] - 2026-05-29
+
+- **Starts with Windows** — Mello launches at sign-in and stays in the tray so dictation is ready without opening the app each day.
+
 ## [1.0.14] - 2026-05-28
 
 - **Pick your microphone** — in Settings, choose which input to use for dictation (or keep System default). Mello remembers your choice across sessions.

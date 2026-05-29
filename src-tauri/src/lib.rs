@@ -16,11 +16,15 @@ use tauri::{
 };
 
 /// whisper.cpp CPU/GPU builds ship DLLs next to whisper-cli.exe; bundled under resource `whisper_runtime/`.
-#[cfg(all(not(any(target_os = "android", target_os = "ios")), target_os = "windows"))]
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    target_os = "windows"
+))]
 fn prepend_whisper_runtime_to_path(handle: &tauri::AppHandle) {
-    let Ok(mark) =
-        handle.path().resolve("whisper_runtime/ggml.dll", tauri::path::BaseDirectory::Resource)
-    else {
+    let Ok(mark) = handle.path().resolve(
+        "whisper_runtime/ggml.dll",
+        tauri::path::BaseDirectory::Resource,
+    ) else {
         log::warn!(
             "Whisper runtime DLL path could not be resolved — run npm run setup:whisper before building"
         );
@@ -50,19 +54,20 @@ fn prepend_whisper_runtime_to_path(handle: &tauri::AppHandle) {
         }
         None => {
             env::set_var("PATH", &dir);
-            log::info!(
-                "PATH set to Whisper DLL directory ({})",
-                dir.display()
-            );
+            log::info!("PATH set to Whisper DLL directory ({})", dir.display());
         }
     }
 }
 
 /// Optional bundled `.dylib` dependencies beside whisper sidecars (`bundle.resources` → `Resources/whisper_runtime/`).
-#[cfg(all(not(any(target_os = "android", target_os = "ios")), target_os = "macos"))]
+#[cfg(all(
+    not(any(target_os = "android", target_os = "ios")),
+    target_os = "macos"
+))]
 fn prepend_whisper_dylibs_to_dyld(handle: &tauri::AppHandle) {
-    let Ok(dir) =
-        handle.path().resolve("whisper_runtime/", tauri::path::BaseDirectory::Resource)
+    let Ok(dir) = handle
+        .path()
+        .resolve("whisper_runtime/", tauri::path::BaseDirectory::Resource)
     else {
         log::warn!("whisper_runtime path could not be resolved for DYLD_LIBRARY_PATH");
         return;
@@ -93,10 +98,10 @@ fn prepend_whisper_dylibs_to_dyld(handle: &tauri::AppHandle) {
     );
 }
 
-mod transcribe;
-mod post_process;
 mod dictation_key_listener;
 mod overlay_window;
+mod post_process;
+mod transcribe;
 
 #[cfg(target_os = "windows")]
 mod mic_permission_windows;
@@ -844,8 +849,7 @@ async fn relay_dictation_hotkey(
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
         let normalized = state.trim().to_ascii_lowercase();
-        let is_pressed =
-            normalized == "pressed" || normalized == "press" || normalized == "down";
+        let is_pressed = normalized == "pressed" || normalized == "press" || normalized == "down";
         if !mic_overlay_boot_allowed(&app) {
             // Mic onboarding / recovery — do not route hotkeys into the overlay.
             if is_pressed {
@@ -943,6 +947,7 @@ fn paste_text(app: tauri::AppHandle, text: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_autostart::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             log::info!("Mello Voice already running — focusing existing window");
@@ -983,6 +988,31 @@ pub fn run() {
         ])
         .plugin(tauri_plugin_log::Builder::default().build())
         .setup(|app| {
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            {
+                use tauri_plugin_autostart::ManagerExt;
+                let autostart = app.autolaunch();
+                match autostart.is_enabled() {
+                    Ok(true) => log::debug!("Login autostart already registered"),
+                    Ok(false) => {
+                        if let Err(e) = autostart.enable() {
+                            log::warn!("Failed to register login autostart: {e}");
+                        } else {
+                            log::info!("Registered Mello Voice to start at login");
+                        }
+                    }
+                    Err(e) => {
+                        if let Err(enable_err) = autostart.enable() {
+                            log::warn!(
+                                "Could not read login autostart state ({e}); enable failed: {enable_err}"
+                            );
+                        } else {
+                            log::info!("Registered Mello Voice to start at login");
+                        }
+                    }
+                }
+            }
+
             // Persist default prefs on first run so dictation bar defaults to visible
             let app_handle = app.handle().clone();
             if let Ok(path) = prefs_path(&app_handle) {
@@ -1013,8 +1043,13 @@ pub fn run() {
             });
 
             let initial_shortcut_for_listener = load_prefs(&app_handle).dictation_shortcut;
-            if let Some(listener) = app_handle.try_state::<dictation_key_listener::DictationKeyListener>() {
-                let _ = listener.sync(app_handle.clone(), &initial_shortcut_for_listener.accelerator);
+            if let Some(listener) =
+                app_handle.try_state::<dictation_key_listener::DictationKeyListener>()
+            {
+                let _ = listener.sync(
+                    app_handle.clone(),
+                    &initial_shortcut_for_listener.accelerator,
+                );
             }
 
             // Build tray menu

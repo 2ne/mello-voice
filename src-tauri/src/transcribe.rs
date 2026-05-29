@@ -71,7 +71,10 @@ pub async fn transcribe_wav(app: AppHandle, payload: TranscribePayload) -> Resul
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
-async fn transcribe_desktop_inner(app: AppHandle, payload: TranscribePayload) -> Result<String, String> {
+async fn transcribe_desktop_inner(
+    app: AppHandle,
+    payload: TranscribePayload,
+) -> Result<String, String> {
     validate_base64_payload_len(payload.audio_wav_base64.len())?;
     let buf = decode_wav(&payload.audio_wav_base64)?;
     if buf.len() < 48 {

@@ -24,9 +24,7 @@ fn reset_on_webview(platform_webview: tauri::webview::PlatformWebview) -> Result
         let core = core
             .cast::<ICoreWebView2_13>()
             .map_err(|e| format!("ICoreWebView2_13: {e}"))?;
-        let profile = core
-            .Profile()
-            .map_err(|e| format!("Profile: {e}"))?;
+        let profile = core.Profile().map_err(|e| format!("Profile: {e}"))?;
         let profile = profile
             .cast::<ICoreWebView2Profile4>()
             .map_err(|e| format!("ICoreWebView2Profile4: {e}"))?;

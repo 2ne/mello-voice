@@ -333,15 +333,15 @@ pub fn accelerator_to_cg_keycode(accelerator: &str) -> Option<u16> {
 #[cfg(target_os = "windows")]
 mod windows {
     use super::*;
-    use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
-    use std::sync::OnceLock;
     use std::mem;
     use std::ptr;
+    use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+    use std::sync::OnceLock;
     use windows_sys::Win32::Foundation::{LPARAM, LRESULT, WPARAM};
     use windows_sys::Win32::System::Threading::GetCurrentThreadId;
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        CallNextHookEx, DispatchMessageW, GetMessageW, KBDLLHOOKSTRUCT, PostThreadMessageW,
-        SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx, HC_ACTION, MSG, WH_KEYBOARD_LL,
+        CallNextHookEx, DispatchMessageW, GetMessageW, PostThreadMessageW, SetWindowsHookExW,
+        TranslateMessage, UnhookWindowsHookEx, HC_ACTION, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL,
         WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
     };
 
@@ -351,9 +351,8 @@ mod windows {
     static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
     pub fn start(app: AppHandle, accelerator: &str) -> Result<ListenerWorker, String> {
-        let vk = accelerator_to_vk(accelerator).ok_or_else(|| {
-            format!("unsupported dictation shortcut accelerator: {accelerator}")
-        })?;
+        let vk = accelerator_to_vk(accelerator)
+            .ok_or_else(|| format!("unsupported dictation shortcut accelerator: {accelerator}"))?;
         TARGET_VK.store(vk, Ordering::Relaxed);
         let _ = APP_HANDLE.set(app);
         let stop_gate = Arc::new(AtomicBool::new(true));
@@ -449,9 +448,8 @@ mod macos {
     static RUNLOOP: OnceLock<Mutex<Option<CFRunLoop>>> = OnceLock::new();
 
     pub fn start(app: AppHandle, accelerator: &str) -> Result<ListenerWorker, String> {
-        let keycode = accelerator_to_cg_keycode(accelerator).ok_or_else(|| {
-            format!("unsupported dictation shortcut accelerator: {accelerator}")
-        })?;
+        let keycode = accelerator_to_cg_keycode(accelerator)
+            .ok_or_else(|| format!("unsupported dictation shortcut accelerator: {accelerator}"))?;
         TARGET_KEYCODE.store(keycode, Ordering::Relaxed);
         let _ = APP_HANDLE.set(app);
         let stop_gate = Arc::new(AtomicBool::new(true));

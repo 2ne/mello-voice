@@ -5,8 +5,11 @@
     "windows",
     "linux"
   ],
-  "windows": ["overlay"],
+  "windows": [
+    "overlay"
+  ],
   "permissions": [
-    "positioner:default"
+    "positioner:default",
+    "autostart:default"
   ]
 }
