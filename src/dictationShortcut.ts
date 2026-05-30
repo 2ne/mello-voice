@@ -64,6 +64,7 @@ for (let i = 0; i < 26; i += 1) {
 
 const SUPPORTED_ACCELERATORS = new Set([
   DEFAULT_DICTATION_SHORTCUT.accelerator,
+  "Alt",
   ...Object.values(CHARACTER_CODE_SHORTCUTS).map((shortcut) => shortcut.accelerator),
 ]);
 
@@ -92,8 +93,9 @@ export function parseDictationShortcut(value: unknown): DictationShortcutPrefere
 }
 
 export function dictationShortcutFromKeyboardEvent(event: KeyboardShortcutEvent): DictationShortcutPreference | null {
-  if (event.altKey || event.ctrlKey || event.metaKey) return null;
   if (event.key === "CapsLock" || event.code === "CapsLock") return DEFAULT_DICTATION_SHORTCUT;
+  if (event.key === "Alt") return { accelerator: "Alt", label: "Option" };
+  if (event.altKey || event.ctrlKey || event.metaKey) return null;
   return CHARACTER_CODE_SHORTCUTS[event.code] ?? null;
 }
 

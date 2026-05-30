@@ -189,7 +189,7 @@ fn whisper_thread_count() -> u32 {
     std::thread::available_parallelism()
         .map(|n| n.get() as u32)
         .unwrap_or(4)
-        .clamp(1, 4)
+        .clamp(1, 8)
 }
 
 #[cfg(not(any(target_os = "android", target_os = "ios")))]

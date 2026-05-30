@@ -177,6 +177,7 @@ pub fn accelerator_to_vk(accelerator: &str) -> Option<u32> {
         "\\" => VK_OEM_5 as u32,
         "]" => VK_OEM_6 as u32,
         "'" => VK_OEM_7 as u32,
+        "Alt" => VK_MENU as u32,
         "Backspace" => VK_BACK as u32,
         "Enter" => VK_RETURN as u32,
         "CapsLock" => VK_CAPITAL as u32,
@@ -279,6 +280,7 @@ pub fn accelerator_to_cg_keycode(accelerator: &str) -> Option<u16> {
         "\\" => 0x2a,
         "]" => 0x1e,
         "'" => 0x27,
+        "Alt" => 0x3A, // Left Option key; Right Option (0x3D) is also caught via FlagsChanged
         "Backspace" => 0x33,
         "Enter" => 0x24,
         "CapsLock" => 0x39,
@@ -437,15 +439,21 @@ mod macos {
     use core_foundation::base::TCFType;
     use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoop, CFRunLoopRun, CFRunLoopStop};
     use core_graphics::event::{
-        CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement, CGEventType,
-        EventField,
+        CGEventFlags, CGEventTap, CGEventTapLocation, CGEventTapOptions, CGEventTapPlacement,
+        CGEventType, EventField,
     };
     use std::sync::atomic::{AtomicU16, Ordering};
     use std::sync::{Mutex, OnceLock};
 
     static TARGET_KEYCODE: AtomicU16 = AtomicU16::new(0);
     static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
-    static RUNLOOP: OnceLock<Mutex<Option<CFRunLoop>>> = OnceLock::new();
+    // Mutex (not OnceLock) so each worker can register its run loop — OnceLock::set only
+    // succeeds once, meaning request_stop would never fire for the second and later workers.
+    static RUNLOOP: Mutex<Option<CFRunLoop>> = Mutex::new(None);
+    // CapsLock fires FlagsChanged on both physical key-down and key-up; track the last known
+    // AlphaShift state so we only emit "Pressed" when it actually flips (= real press).
+    static PREV_CAPS_LOCK_FLAG: std::sync::atomic::AtomicBool =
+        std::sync::atomic::AtomicBool::new(false);
 
     pub fn start(app: AppHandle, accelerator: &str) -> Result<ListenerWorker, String> {
         let keycode = accelerator_to_cg_keycode(accelerator)
@@ -464,12 +472,10 @@ mod macos {
     }
 
     pub fn request_stop() {
-        if let Some(runloop_slot) = RUNLOOP.get() {
-            if let Ok(guard) = runloop_slot.lock() {
-                if let Some(runloop) = guard.as_ref() {
-                    unsafe {
-                        CFRunLoopStop(runloop.as_concrete_TypeRef());
-                    }
+        if let Ok(guard) = RUNLOOP.lock() {
+            if let Some(runloop) = guard.as_ref() {
+                unsafe {
+                    CFRunLoopStop(runloop.as_concrete_TypeRef());
                 }
             }
         }
@@ -480,7 +486,9 @@ mod macos {
             CGEventTapLocation::HID,
             CGEventTapPlacement::HeadInsertEventTap,
             CGEventTapOptions::ListenOnly,
-            vec![CGEventType::KeyDown, CGEventType::KeyUp],
+            // FlagsChanged is required for CapsLock and modifier-only keys (Option).
+            // Those keys do not fire KeyDown/KeyUp on macOS.
+            vec![CGEventType::KeyDown, CGEventType::KeyUp, CGEventType::FlagsChanged],
             |_, event_type, event| {
                 let keycode =
                     event.get_integer_value_field(EventField::KEYBOARD_EVENT_KEYCODE) as u16;
@@ -488,6 +496,33 @@ mod macos {
                     let state = match event_type {
                         CGEventType::KeyDown => "Pressed",
                         CGEventType::KeyUp => "Released",
+                        CGEventType::FlagsChanged => {
+                            let flags = event.get_flags();
+                            match keycode {
+                                // CapsLock (0x39): fires FlagsChanged on both key-down AND key-up.
+                                // Only emit "Pressed" when AlphaShift actually flips — that's the
+                                // real physical press. The key-up event leaves AlphaShift unchanged.
+                                0x39 => {
+                                    let now_set =
+                                        flags.contains(CGEventFlags::CGEventFlagAlphaShift);
+                                    let prev_set = PREV_CAPS_LOCK_FLAG
+                                        .swap(now_set, Ordering::Relaxed);
+                                    if now_set == prev_set {
+                                        return Some(event.clone()); // key-up echo, skip
+                                    }
+                                    "Pressed"
+                                }
+                                // Left/Right Option (0x3A / 0x3D): flag set = key down, clear = key up.
+                                0x3A | 0x3D => {
+                                    if flags.contains(CGEventFlags::CGEventFlagAlternate) {
+                                        "Pressed"
+                                    } else {
+                                        "Released"
+                                    }
+                                }
+                                _ => return Some(event.clone()),
+                            }
+                        }
                         _ => return Some(event.clone()),
                     };
                     if let Some(app) = APP_HANDLE.get() {
@@ -511,7 +546,9 @@ mod macos {
         };
 
         let runloop = CFRunLoop::get_current();
-        let _ = RUNLOOP.set(Mutex::new(Some(runloop.clone())));
+        if let Ok(mut guard) = RUNLOOP.lock() {
+            *guard = Some(runloop.clone());
+        }
         let loop_source = match tap.mach_port.create_runloop_source(0) {
             Ok(source) => source,
             Err(()) => {
@@ -528,10 +565,8 @@ mod macos {
                 CFRunLoopRun();
             }
         }
-        if let Some(runloop_slot) = RUNLOOP.get() {
-            if let Ok(mut guard) = runloop_slot.lock() {
-                *guard = None;
-            }
+        if let Ok(mut guard) = RUNLOOP.lock() {
+            *guard = None;
         }
     }
 }
