@@ -76,3 +76,4 @@ To produce **sharable installers** (not just `tauri dev`):
 3. If `app.exe` “Access denied” during build, stop running dev instances (`taskkill /IM app.exe /F`).
 
 Full workflow, troubleshooting, and end-user expectations: **`.cursor/skills/mello-voice-windows-release/SKILL.md`**
+ 
