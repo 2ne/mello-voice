@@ -480,6 +480,132 @@
 
     .options-grid { display: grid; gap: 8px; margin: 14px 0; }
 
+    .radio-group {
+      border: none;
+      margin: 16px 0 0;
+      padding: 0;
+      display: grid;
+      gap: 8px;
+    }
+
+    .radio-group legend {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--foreground);
+      margin-bottom: 10px;
+      padding: 0;
+    }
+
+    .radio-group-hint {
+      font-size: 0.8125rem;
+      color: var(--muted-foreground);
+      margin: 0 0 4px;
+    }
+
+    .radio-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      background: var(--background);
+      box-shadow: var(--shadow-card);
+      cursor: pointer;
+      transition: box-shadow 0.18s var(--ease-ui), background 0.18s var(--ease-ui);
+    }
+
+    .radio-option:hover { background: var(--hover); }
+
+    .radio-option input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+
+    .radio-indicator {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      border-radius: 50%;
+      box-shadow: inset 0 0 0 2px oklch(1 0 0 / 22%);
+      background: var(--background);
+      transition: box-shadow 0.18s var(--ease-ui);
+      position: relative;
+    }
+
+    .radio-option input:checked + .radio-indicator {
+      box-shadow: inset 0 0 0 5px var(--primary);
+    }
+
+    .radio-option input:focus-visible + .radio-indicator {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    .radio-text {
+      font-size: 0.875rem;
+      line-height: 1.45;
+      color: var(--foreground);
+    }
+
+    .radio-option.selected { box-shadow: inset 0 0 0 1px oklch(1 0 0 / 12%), var(--shadow-card); }
+    .radio-option.correct { box-shadow: inset 0 0 0 2px var(--success), var(--shadow-card); }
+    .radio-option.correct .radio-indicator { box-shadow: inset 0 0 0 5px var(--success); }
+    .radio-option.wrong { box-shadow: inset 0 0 0 2px var(--destructive), var(--shadow-card); }
+    .radio-option.wrong .radio-indicator { box-shadow: inset 0 0 0 5px var(--destructive); }
+    .radio-option.disabled { opacity: 0.7; cursor: default; pointer-events: none; }
+
+    .check-answer-row {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .check-answer-row .pending-label {
+      font-size: 0.8125rem;
+      color: var(--muted-foreground);
+    }
+
+    .mock-progress {
+      height: 6px;
+      background: #e4e4e7;
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 10px 0 8px;
+    }
+
+    .mock-progress fill,
+    .mock-progress-bar {
+      display: block;
+      height: 100%;
+      background: oklch(0.663 0.175 264.2);
+      border-radius: 999px;
+    }
+
+    .mock-meta {
+      font-size: 0.6875rem;
+      color: #71717a;
+      margin-top: 6px;
+    }
+
+    .mock-btn.disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .mock-overlay-note {
+      font-size: 0.6875rem;
+      color: #52525b;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #e4e4e7;
+    }
+
     .option-btn {
       text-align: left;
       font: inherit;
@@ -617,7 +743,7 @@
       <div class="brand">
         <div>
           <h1>UX Bug Hunt</h1>
-          <p>Presentation · Spot the UI · UX Quest · v1.2</p>
+          <p>Presentation · Spot the UI · UX Quest · v1.3</p>
         </div>
       </div>
       <div class="score-pill">
@@ -715,8 +841,8 @@
         <div class="slide" data-slide="4">
           <div class="slide-content">
             <div class="slide-label">Round 3 · System status</div>
-            <div class="slide-title">Silence feels like a bug.</div>
-            <p class="slide-sub">If nothing happens after a click, users click again — or leave.</p>
+            <div class="slide-title">A spinner alone isn't enough.</div>
+            <p class="slide-sub">During a long filing, users need progress, disabled actions, and time estimates — not just "please wait".</p>
             <p class="slide-sub" style="margin-top:12px;color:var(--primary)">→ <strong>Spot the UI · Round 3</strong></p>
           </div>
           <div class="speaker-note"><strong>Debrief</strong>Heuristic: Visibility of system status. Dev hook: "Where's the loading state in your state machine?"</div>
@@ -755,7 +881,7 @@
       <div class="card">
         <span class="badge quest">Spot the UI</span>
         <h2>Which design works better for the user?</h2>
-        <p>Click A or B. You'll get instant feedback tied to a UX law. 4 rounds · 10 points each.</p>
+        <p>Both options look plausible — look closely. Click A or B. 4 rounds · 10 points each.</p>
       </div>
       <div id="spotContainer"></div>
     </section>
@@ -765,7 +891,7 @@
       <div class="card">
         <span class="badge quest">UX Quest</span>
         <h2>Find the deliberate UX bug</h2>
-        <p>Each scenario has exactly one main flaw. Interact with the demo, then pick the best answer. 6 challenges · 10 points each.</p>
+        <p>Each scenario has one deliberate flaw. Explore the demo, choose one answer below, then click <strong>Check answer</strong>.</p>
       </div>
       <div class="progress-bar"><div id="questProgress" style="width:0%"></div></div>
       <div id="questContainer"></div>
@@ -859,24 +985,24 @@
       {
         id: 'spot1',
         title: 'Round 1 — Document approval',
-        question: 'A lawyer needs to approve a matter quickly. Which layout guides them better?',
+        question: 'Both layouts include Approve and Export. Which one actually prioritises the fee-earner\'s main task?',
         correct: 'b',
         law: 'restorff',
-        explain: 'Option B makes "Approve matter" visually dominant. Option A gives equal weight to Approve and Export — Von Restorff fails when everything shouts.',
+        explain: 'Option A makes Export the filled button — the eye goes to the wrong action. Option B keeps Approve as the only filled control; Export stays available but visually secondary.',
         renderA: () => `
           <div class="mock-ui">
             <div class="mock-title">Matter #2847 — Review</div>
-            <div class="mock-sub">Smith & Partners acquisition</div>
-            <div class="mock-row">
-              <span class="mock-btn primary">Approve matter</span>
+            <div class="mock-sub">Smith & Partners acquisition · Pending approval</div>
+            <div class="mock-row" style="justify-content:flex-end;margin-top:12px">
+              <span class="mock-btn ghost">Approve matter</span>
               <span class="mock-btn primary">Export PDF</span>
             </div>
           </div>`,
         renderB: () => `
           <div class="mock-ui">
             <div class="mock-title">Matter #2847 — Review</div>
-            <div class="mock-sub">Smith & Partners acquisition</div>
-            <div class="mock-row">
+            <div class="mock-sub">Smith & Partners acquisition · Pending approval</div>
+            <div class="mock-row" style="margin-top:12px">
               <span class="mock-btn primary">Approve matter</span>
               <span class="mock-btn ghost">Export PDF</span>
             </div>
@@ -885,71 +1011,81 @@
       {
         id: 'spot2',
         title: 'Round 2 — Password reset',
-        question: 'Which error message helps the user recover?',
+        question: 'Both show an error after a failed reset attempt. Which one helps the user recover?',
         correct: 'b',
         law: 'recovery',
-        explain: 'Option B states what went wrong and what to do next. Option A blames the user with no recovery path — a classic support-ticket generator.',
+        explain: 'Option A sounds specific but offers no next step — users still don\'t know what to fix. Option B suggests a concrete correction and an alternative path (SSO).',
         renderA: () => `
           <div class="mock-ui">
             <div class="mock-title">Reset password</div>
-            <input class="mock-input" value="alex@" readonly>
-            <div class="mock-error">Invalid input.</div>
+            <input class="mock-input" value="alex@firm" readonly style="border-color:#dc2626">
+            <div class="mock-error">Email address not recognised.</div>
           </div>`,
         renderB: () => `
           <div class="mock-ui">
             <div class="mock-title">Reset password</div>
-            <input class="mock-input" value="alex@" readonly>
-            <div class="mock-error" style="color:#92400e;background:#fef3c7;padding:8px;border-radius:6px">Enter your full work email (e.g. alex@firm.com). <strong style="color:#1e3a5f">Try again</strong></div>
+            <input class="mock-input" value="alex@firm" readonly>
+            <div class="mock-error" style="color:#92400e;background:#fef3c7;padding:8px;border-radius:6px">Use your full work email (e.g. alex@firm.com) or <strong style="color:oklch(0.598 0.168 264.2)">sign in with SSO</strong>.</div>
           </div>`
       },
       {
         id: 'spot3',
-        title: 'Round 3 — Filing a document',
-        question: 'User clicked "Submit to court". Which feels trustworthy?',
+        title: 'Round 3 — Court filing in progress',
+        question: 'The user submitted a filing 20 seconds ago. Which state best prevents duplicate submissions and reduces anxiety?',
         correct: 'a',
         law: 'status',
-        explain: 'Option A shows progress — the system is working. Option B looks frozen; users click again or assume it failed.',
+        explain: 'Option A disables further action, shows step progress, and sets expectations. Option B has a spinner but leaves Submit active and gives no sense of progress — users often click again or assume it failed.',
         renderA: () => `
           <div class="mock-ui">
-            <div class="mock-title">Court filing</div>
-            <div class="mock-sub">Uploading bundle…</div>
-            <div class="mock-row" style="margin-top:8px">
+            <div class="mock-title">Submitting to court</div>
+            <div class="mock-sub">Bundle #8821 · Step 2 of 4 — Uploading documents</div>
+            <div class="mock-progress"><span class="mock-progress-bar" style="width:47%"></span></div>
+            <div class="mock-row">
               <span class="mock-spinner"></span>
-              <span class="mock-status">Submitting — do not close this window</span>
+              <span class="mock-status">About 40 seconds remaining</span>
             </div>
+            <div class="mock-row" style="margin-top:12px">
+              <span class="mock-btn primary disabled">Submit to court</span>
+              <span class="mock-btn ghost disabled">Cancel</span>
+            </div>
+            <div class="mock-overlay-note">Do not close this window until filing completes.</div>
           </div>`,
         renderB: () => `
           <div class="mock-ui">
-            <div class="mock-title">Court filing</div>
-            <div class="mock-sub">Bundle ready</div>
-            <div class="mock-row" style="margin-top:8px">
+            <div class="mock-title">Submitting to court</div>
+            <div class="mock-sub">Bundle #8821</div>
+            <div class="mock-row" style="margin-top:12px">
+              <span class="mock-spinner"></span>
+              <span style="font-size:0.75rem;color:#71717a">Please wait…</span>
+            </div>
+            <div class="mock-row" style="margin-top:16px">
               <span class="mock-btn primary">Submit to court</span>
             </div>
+            <div class="mock-meta">No progress indicator · Elapsed: 20s</div>
           </div>`
       },
       {
         id: 'spot4',
         title: 'Round 4 — New client intake',
-        question: 'Which form respects cognitive load for a busy fee-earner?',
+        question: 'Both are multi-step flows. Which one reduces cognitive load for a busy fee-earner?',
         correct: 'b',
         law: 'hick',
-        explain: "Option B uses progressive disclosure (step 1 of 3). Option A dumps 8 fields at once — Hick's Law says decision time explodes.",
+        explain: "Option A is a wizard in name only — step 1 still shows eight upcoming requirements. Option B focuses attention on two fields now and hides the rest until needed.",
         renderA: () => `
           <div class="mock-ui">
-            <div class="mock-title">New client</div>
+            <div class="mock-title">New client — Step 1 of 8</div>
+            <div class="mock-progress"><span class="mock-progress-bar" style="width:12%"></span></div>
             <input class="mock-input" placeholder="Client name" readonly>
-            <input class="mock-input" placeholder="Company number" readonly>
-            <input class="mock-input" placeholder="Address line 1" readonly>
-            <input class="mock-input" placeholder="Address line 2" readonly>
-            <input class="mock-input" placeholder="Fee earner" readonly>
-            <input class="mock-input" placeholder="Matter type" readonly>
-            <input class="mock-input" placeholder="Conflict check ID" readonly>
-            <input class="mock-input" placeholder="Billing reference" readonly>
+            <input class="mock-input" placeholder="Client type" readonly>
+            <div style="margin-top:10px;padding:8px;background:#f4f4f5;border-radius:6px;font-size:0.6875rem;color:#71717a;line-height:1.5">
+              Still required: company number, address ×2, fee earner, matter type, conflict check, billing ref, AML docs…
+            </div>
+            <span class="mock-btn primary" style="margin-top:10px">Continue →</span>
           </div>`,
         renderB: () => `
           <div class="mock-ui">
             <div class="mock-title">New client — Step 1 of 3</div>
-            <div class="mock-sub">Basic details · ~2 min</div>
+            <div class="mock-sub">Basic details · about 2 minutes</div>
             <input class="mock-input" placeholder="Client name" readonly>
             <input class="mock-input" placeholder="Client type" readonly>
             <span class="mock-btn primary">Continue →</span>
@@ -1171,36 +1307,54 @@
     }
 
     // ─── Render UX Quest ─────────────────────────────────────────────────
-    let currentQuest = 0;
+    const questPending = {};
 
     function renderQuest() {
       const container = document.getElementById('questContainer');
       const answered = Object.keys(state.quest).length;
       document.getElementById('questProgress').style.width = (answered / QUEST_CHALLENGES.length * 100) + '%';
 
-      // Find first unanswered or show all as cards
       container.innerHTML = QUEST_CHALLENGES.map(ch => {
         const ans = state.quest[ch.id];
+        const pending = questPending[ch.id];
+        const optionClass = (opt) => {
+          if (ans?.choice === opt.id) return opt.correct ? 'correct disabled' : 'wrong disabled';
+          if (ans && opt.correct) return 'correct disabled';
+          if (!ans && pending === opt.id) return 'selected';
+          return ans ? 'disabled' : '';
+        };
+
         return `
           <div class="card" id="quest-${ch.id}">
             <h3>${ch.title}</h3>
             <p>${ch.intro}</p>
             <div class="quest-demo" id="demo-${ch.id}">${ch.demoHtml}</div>
-            <div class="options-grid">
+            <p class="radio-group-hint">Select one answer, then check it.</p>
+            <fieldset class="radio-group" role="radiogroup" aria-label="${ch.title}">
+              <legend>Pick one answer</legend>
               ${ch.options.map(opt => `
-                <button class="option-btn ${ans?.choice === opt.id ? (opt.correct ? 'correct' : 'wrong') : ''} ${ans && opt.correct ? 'correct' : ''}"
-                  data-quest="${ch.id}" data-opt="${opt.id}" ${ans ? 'disabled' : ''}>
-                  ${opt.text}
-                </button>`).join('')}
-            </div>
+                <label class="radio-option ${optionClass(opt)}">
+                  <input type="radio" name="quest-${ch.id}" value="${opt.id}"
+                    ${pending === opt.id ? 'checked' : ''}
+                    ${ans ? 'disabled' : ''}>
+                  <span class="radio-indicator" aria-hidden="true"></span>
+                  <span class="radio-text">${opt.text}</span>
+                </label>`).join('')}
+            </fieldset>
+            ${ans ? '' : `
+              <div class="check-answer-row">
+                <button type="button" class="btn primary" id="check-${ch.id}" ${pending ? '' : 'disabled'}>
+                  Check answer
+                </button>
+                <span class="pending-label">${pending ? 'Ready to check' : 'Choose an option first'}</span>
+              </div>`}
             <div class="feedback-box ${ans ? 'show' : ''} ${ans?.correct ? 'correct' : 'wrong'}">
-              ${ans ? (ans.correct ? '✓ Correct!' : '✗ ') + ch.explain : ''}
+              ${ans ? (ans.correct ? '✓ Correct!' : '✗ Not quite — ') + ch.explain : ''}
               ${ans ? `<span class="law-tag">${lawName(ch.law)}</span>` : ''}
             </div>
           </div>`;
       }).join('');
 
-      // Interactive demos
       setupQuestDemo('q1', () => {
         const fb = document.getElementById('q1-feedback');
         if (fb) fb.textContent = 'You clicked — imagine mis-clicking Delete when you meant Cancel.';
@@ -1210,13 +1364,24 @@
         if (fb) fb.textContent = '…nothing visible happened. Did it save? Would you navigate away?';
       });
 
-      container.querySelectorAll('[data-quest]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const qid = btn.dataset.quest;
+      container.querySelectorAll('input[type="radio"][name^="quest-"]').forEach(input => {
+        input.addEventListener('change', () => {
+          const qid = input.name.replace('quest-', '');
           if (state.quest[qid]) return;
-          const ch = QUEST_CHALLENGES.find(c => c.id === qid);
-          const opt = ch.options.find(o => o.id === btn.dataset.opt);
+          questPending[qid] = input.value;
+          renderQuest();
+        });
+      });
+
+      QUEST_CHALLENGES.forEach(ch => {
+        const btn = document.getElementById('check-' + ch.id);
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+          const qid = ch.id;
+          if (state.quest[qid] || !questPending[qid]) return;
+          const opt = ch.options.find(o => o.id === questPending[qid]);
           state.quest[qid] = { choice: opt.id, correct: opt.correct, law: ch.law };
+          delete questPending[qid];
           persistAndSync();
           renderQuest();
         });
@@ -1334,6 +1499,7 @@
     document.getElementById('btnReset').addEventListener('click', () => {
       if (confirm('Reset all progress in this browser?')) {
         state = { ...defaultState };
+        Object.keys(questPending).forEach(k => delete questPending[k]);
         saveState();
         renderSpot();
         renderQuest();
