@@ -74,19 +74,6 @@
       gap: 14px;
     }
 
-    .brand-mark {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      background: var(--card);
-      box-shadow: var(--shadow-card);
-      display: grid;
-      place-items: center;
-      flex-shrink: 0;
-    }
-
-    .brand-mark svg { width: 20px; height: 20px; fill: var(--foreground); }
-
     header h1 {
       font-size: 1.125rem;
       font-weight: 600;
@@ -540,7 +527,7 @@
       overflow: hidden;
     }
 
-    .progress-bar fill {
+    .progress-bar div {
       display: block;
       height: 100%;
       background: var(--primary);
@@ -628,13 +615,6 @@
   <div class="app">
     <header>
       <div class="brand">
-        <div class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 48 48" aria-hidden="true">
-            <rect x="21" y="8" width="6" height="32" rx="3"></rect>
-            <rect x="10" y="15" width="5" height="18" rx="2.5"></rect>
-            <rect x="33" y="15" width="5" height="18" rx="2.5"></rect>
-          </svg>
-        </div>
         <div>
           <h1>UX Bug Hunt</h1>
           <p>Presentation · Spot the UI · UX Quest</p>
@@ -787,7 +767,7 @@
         <h2>Find the deliberate UX bug</h2>
         <p>Each scenario has exactly one main flaw. Interact with the demo, then pick the best answer. 6 challenges · 10 points each.</p>
       </div>
-      <div class="progress-bar"><fill id="questProgress" style="width:0%"></fill></div>
+      <div class="progress-bar"><div id="questProgress" style="width:0%"></div></div>
       <div id="questContainer"></div>
     </section>
 
@@ -849,7 +829,7 @@
     function saveState() {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
       updateScoreDisplay();
-      updateResults();
+      refreshResultsSummary();
     }
 
     // ─── UX Laws data ────────────────────────────────────────────────────
@@ -1108,7 +1088,7 @@
     function switchTab(tabId) {
       document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
       document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tabId));
-      if (tabId === 'results') updateResults();
+      if (tabId === 'results') refreshResultsSummary();
     }
 
     // ─── Slides ──────────────────────────────────────────────────────────
@@ -1273,7 +1253,7 @@
       document.getElementById('maxScore').textContent = MAX_SCORE;
     }
 
-    function updateResults() {
+    function refreshResultsSummary() {
       const spotScore = calcSpotScore();
       const questScore = calcQuestScore();
       const total = spotScore + questScore;
@@ -1308,7 +1288,6 @@
       ].join('\n');
 
       document.getElementById('exportText').value = summary;
-      saveState();
     }
 
     function getWeakestAreas() {
@@ -1326,7 +1305,8 @@
 
     document.getElementById('playerName').addEventListener('input', e => {
       state.playerName = e.target.value;
-      updateResults();
+      refreshResultsSummary();
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
     });
     if (state.playerName) document.getElementById('playerName').value = state.playerName;
 
@@ -1359,7 +1339,7 @@
     renderQuest();
     renderLaws();
     updateScoreDisplay();
-    updateResults();
+    refreshResultsSummary();
   </script>
 </body>
 </html>
