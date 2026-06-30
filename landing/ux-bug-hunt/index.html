@@ -6,25 +6,35 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="format-detection" content="telephone=no">
-  <title>UX Bug Hunt — Workshop</title>
+  <title>UX Bug Hunt</title>
   <style>
     :root {
-      --bg: #0f1419;
-      --surface: #1a2332;
-      --surface-2: #243044;
-      --text: #e8edf4;
-      --muted: #8b9cb3;
-      --accent: #3b82f6;
-      --accent-soft: rgba(59, 130, 246, 0.15);
-      --success: #22c55e;
-      --success-soft: rgba(34, 197, 94, 0.15);
-      --warning: #f59e0b;
-      --warning-soft: rgba(245, 158, 11, 0.15);
-      --danger: #ef4444;
-      --danger-soft: rgba(239, 68, 68, 0.15);
-      --ring: rgba(59, 130, 246, 0.4);
-      --radius: 12px;
-      --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color-scheme: dark;
+      --background: oklch(0.205 0 0);
+      --foreground: oklch(0.985 0 0);
+      --card: oklch(0.235 0 0);
+      --card-elevated: oklch(0.264 0 0);
+      --muted: oklch(0.269 0 0);
+      --muted-foreground: oklch(0.708 0 0);
+      --primary: oklch(0.663 0.175 264.2);
+      --primary-hover: oklch(0.598 0.168 264.2);
+      --primary-soft: color-mix(in oklab, var(--primary) 14%, transparent);
+      --destructive: oklch(0.704 0.191 22.216);
+      --destructive-soft: color-mix(in oklab, var(--destructive) 14%, transparent);
+      --success: oklch(0.696 0.17 162.48);
+      --success-soft: color-mix(in oklab, var(--success) 14%, transparent);
+      --warning: oklch(0.769 0.188 70.08);
+      --warning-soft: color-mix(in oklab, var(--warning) 12%, transparent);
+      --border: oklch(1 0 0 / 10%);
+      --ring: var(--primary);
+      --hover: color-mix(in oklab, var(--foreground) 6%, transparent);
+      --active: color-mix(in oklab, var(--foreground) 10%, transparent);
+      --radius: 0.625rem;
+      --radius-lg: calc(var(--radius) * 1.4);
+      --shadow-card: inset 0 1px 0 0 oklch(1 0 0 / 2%), inset 0 0 0 1px oklch(1 0 0 / 4%), 0 1px 1px -0.5px oklch(0 0 0 / 18%);
+      --shadow-elevated: inset 0 1px 0 0 oklch(1 0 0 / 4%), inset 0 0 0 1px oklch(1 0 0 / 6%), 0 6px 6px -3px oklch(0 0 0 / 18%);
+      --ease-ui: linear(0, 0.52 42%, 0.82 72%, 1);
+      --font: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
       --mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
     }
 
@@ -37,123 +47,181 @@
 
     body {
       font-family: var(--font);
-      background: var(--bg);
-      color: var(--text);
+      background: linear-gradient(180deg, #070707 0%, #030303 100%);
+      color: var(--foreground);
       line-height: 1.5;
       min-height: 100vh;
       min-height: 100dvh;
       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: geometricPrecision;
     }
 
-    .app { max-width: 960px; margin: 0 auto; padding: 24px 20px 48px; }
+    .app { max-width: 920px; margin: 0 auto; padding: 28px 20px 56px; }
 
     header {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 24px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid var(--surface-2);
+      gap: 20px;
+      margin-bottom: 28px;
     }
 
-    header h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
-    header p { font-size: 0.875rem; color: var(--muted); margin-top: 4px; }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--card);
+      box-shadow: var(--shadow-card);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+
+    .brand-mark svg { width: 20px; height: 20px; fill: var(--foreground); }
+
+    header h1 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+    }
+
+    header p {
+      font-size: 0.8125rem;
+      color: var(--muted-foreground);
+      margin-top: 2px;
+    }
 
     .score-pill {
       display: flex;
-      align-items: center;
-      gap: 12px;
-      background: var(--surface);
-      border: 1px solid var(--surface-2);
+      align-items: baseline;
+      gap: 6px;
+      background: var(--card);
+      box-shadow: var(--shadow-card);
       border-radius: 999px;
-      padding: 8px 16px;
-      font-size: 0.875rem;
+      padding: 10px 16px;
+      font-size: 0.8125rem;
+      color: var(--muted-foreground);
     }
 
-    .score-pill strong { color: var(--accent); }
+    .score-pill strong {
+      color: var(--foreground);
+      font-size: 1rem;
+      font-weight: 600;
+    }
 
     nav.tabs {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 4px;
+      padding: 4px;
       margin-bottom: 24px;
+      background: var(--card);
+      box-shadow: var(--shadow-card);
+      border-radius: calc(var(--radius) + 4px);
     }
 
     nav.tabs button {
       font: inherit;
-      font-size: 0.875rem;
-      min-height: 44px;
-      padding: 10px 16px;
-      border-radius: 999px;
-      border: 1px solid var(--surface-2);
-      background: var(--surface);
-      color: var(--muted);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      min-height: 40px;
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      border: none;
+      background: transparent;
+      color: var(--muted-foreground);
       cursor: pointer;
-      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      transition: background 0.18s var(--ease-ui), color 0.18s var(--ease-ui);
     }
 
-    nav.tabs button:hover { color: var(--text); border-color: var(--muted); }
+    nav.tabs button:hover {
+      color: var(--foreground);
+      background: var(--hover);
+    }
+
     nav.tabs button.active {
-      background: var(--accent-soft);
-      border-color: var(--accent);
-      color: var(--text);
+      background: var(--card-elevated);
+      color: var(--foreground);
+      box-shadow: var(--shadow-card);
     }
 
-    .panel { display: none; animation: fadeIn 0.25s ease; }
+    .panel { display: none; animation: fadeIn 0.28s var(--ease-ui); }
     .panel.active { display: block; }
 
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
+      from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
     .card {
-      background: var(--surface);
-      border: 1px solid var(--surface-2);
-      border-radius: var(--radius);
+      background: var(--card);
+      box-shadow: var(--shadow-card);
+      border-radius: var(--radius-lg);
       padding: 24px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
 
-    .card h2 { font-size: 1.125rem; font-weight: 600; margin-bottom: 8px; }
-    .card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
-    .card p, .card li { color: var(--muted); font-size: 0.9375rem; }
-    .card ul, .card ol { padding-left: 1.25rem; margin-top: 8px; }
-    .card li + li { margin-top: 6px; }
+    .card h2 {
+      font-size: 1.0625rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .card h3 {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .card p, .card li {
+      color: var(--muted-foreground);
+      font-size: 0.875rem;
+    }
+
+    .card ul, .card ol {
+      padding-left: 1.2rem;
+      margin-top: 10px;
+    }
+
+    .card li + li { margin-top: 8px; }
 
     .badge {
       display: inline-block;
       font-size: 0.6875rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
-      padding: 4px 10px;
-      border-radius: 999px;
-      margin-bottom: 12px;
+      letter-spacing: 0.08em;
+      padding: 4px 0;
+      margin-bottom: 10px;
+      color: var(--muted-foreground);
     }
 
-    .badge.present { background: var(--accent-soft); color: var(--accent); }
-    .badge.quest { background: var(--warning-soft); color: var(--warning); }
-    .badge.law { background: var(--success-soft); color: var(--success); }
+    .badge.present { color: var(--primary); }
+    .badge.quest { color: var(--warning); }
+    .badge.law { color: var(--success); }
 
     /* Slides */
     .slide-deck { position: relative; }
 
-    .slide {
-      display: none;
-      min-height: 420px;
-    }
-
+    .slide { display: none; min-height: 400px; }
     .slide.active { display: block; }
 
     .slide-content {
-      background: var(--surface);
-      border: 1px solid var(--surface-2);
-      border-radius: var(--radius);
-      padding: 40px 32px;
-      min-height: 380px;
+      background: var(--card);
+      box-shadow: var(--shadow-elevated);
+      border-radius: calc(var(--radius-lg) * 1.2);
+      padding: 48px 36px;
+      min-height: 360px;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -162,25 +230,27 @@
     .slide-content.center { text-align: center; align-items: center; }
 
     .slide-label {
-      font-size: 0.75rem;
-      color: var(--muted);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      color: var(--primary);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 16px;
+      letter-spacing: 0.1em;
+      margin-bottom: 14px;
     }
 
     .slide-title {
-      font-size: clamp(1.5rem, 4vw, 2.25rem);
-      font-weight: 700;
-      letter-spacing: -0.03em;
-      line-height: 1.2;
-      margin-bottom: 16px;
+      font-size: clamp(1.625rem, 4vw, 2.375rem);
+      font-weight: 650;
+      letter-spacing: -0.04em;
+      line-height: 1.12;
+      margin-bottom: 14px;
     }
 
     .slide-sub {
-      font-size: 1.0625rem;
-      color: var(--muted);
-      max-width: 540px;
+      font-size: 1rem;
+      color: var(--muted-foreground);
+      max-width: 520px;
+      line-height: 1.55;
     }
 
     .slide-sub.center { margin: 0 auto; }
@@ -188,27 +258,30 @@
     .checklist {
       list-style: none;
       padding: 0;
-      margin-top: 20px;
+      margin-top: 22px;
+      width: 100%;
+      max-width: 520px;
     }
 
     .checklist li {
       display: flex;
-      gap: 12px;
+      gap: 14px;
       align-items: flex-start;
-      padding: 12px 16px;
-      background: var(--surface-2);
-      border-radius: 8px;
+      padding: 14px 16px;
+      background: var(--background);
+      box-shadow: var(--shadow-card);
+      border-radius: var(--radius);
       margin-bottom: 8px;
-      color: var(--text);
-      font-size: 0.9375rem;
+      color: var(--foreground);
+      font-size: 0.875rem;
     }
 
     .checklist li span.num {
       flex-shrink: 0;
-      width: 24px;
-      height: 24px;
-      background: var(--accent-soft);
-      color: var(--accent);
+      width: 26px;
+      height: 26px;
+      background: var(--primary-soft);
+      color: var(--primary);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -218,81 +291,92 @@
     }
 
     .speaker-note {
-      margin-top: 16px;
-      padding: 12px 16px;
-      background: var(--bg);
-      border-left: 3px solid var(--warning);
-      border-radius: 0 8px 8px 0;
+      margin-top: 14px;
+      padding: 12px 14px;
+      background: color-mix(in oklab, var(--card) 70%, transparent);
+      border-radius: var(--radius);
       font-size: 0.8125rem;
-      color: var(--muted);
+      color: var(--muted-foreground);
+      border-left: 2px solid var(--border);
     }
 
-    .speaker-note strong { color: var(--warning); display: block; margin-bottom: 4px; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .speaker-note strong {
+      color: var(--muted-foreground);
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.625rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+    }
 
     .slide-controls {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: 16px;
+      margin-top: 14px;
       gap: 12px;
     }
 
     .slide-controls button {
       font: inherit;
-      font-size: 0.875rem;
-      padding: 10px 20px;
-      border-radius: 8px;
-      border: 1px solid var(--surface-2);
-      background: var(--surface);
-      color: var(--text);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      padding: 10px 18px;
+      border-radius: var(--radius);
+      border: none;
+      background: var(--card);
+      box-shadow: var(--shadow-card);
+      color: var(--foreground);
       cursor: pointer;
+      transition: background 0.18s var(--ease-ui);
     }
 
-    .slide-controls button:hover { border-color: var(--accent); }
-    .slide-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
-    .slide-progress { font-size: 0.8125rem; color: var(--muted); }
+    .slide-controls button:hover { background: var(--card-elevated); }
+    .slide-controls button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .slide-progress { font-size: 0.8125rem; color: var(--muted-foreground); }
 
     /* A/B Spot UI */
     .ab-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin: 20px 0;
+      gap: 12px;
+      margin: 18px 0;
     }
 
     @media (max-width: 640px) { .ab-grid { grid-template-columns: 1fr; } }
 
     .ab-option {
-      border: 2px solid var(--surface-2);
-      border-radius: var(--radius);
-      padding: 16px;
+      border-radius: var(--radius-lg);
+      padding: 14px;
       cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
-      background: var(--bg);
+      transition: box-shadow 0.18s var(--ease-ui), background 0.18s var(--ease-ui);
+      background: var(--background);
+      box-shadow: var(--shadow-card);
     }
 
-    .ab-option:hover { border-color: var(--muted); }
-    .ab-option.selected { border-color: var(--accent); background: var(--accent-soft); }
-    .ab-option.correct { border-color: var(--success); background: var(--success-soft); }
-    .ab-option.wrong { border-color: var(--danger); background: var(--danger-soft); }
+    .ab-option:hover { background: var(--hover); }
+    .ab-option.selected { box-shadow: inset 0 0 0 2px var(--primary), var(--shadow-card); }
+    .ab-option.correct { box-shadow: inset 0 0 0 2px var(--success), var(--shadow-card); }
+    .ab-option.wrong { box-shadow: inset 0 0 0 2px var(--destructive), var(--shadow-card); }
 
     .ab-label {
-      font-size: 0.75rem;
+      font-size: 0.6875rem;
       font-weight: 700;
-      color: var(--muted);
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
       margin-bottom: 12px;
     }
 
-    /* Mini mock UI components */
+    /* Mini mock UI */
     .mock-ui {
       background: #fff;
-      color: #1a1a1a;
-      border-radius: 8px;
+      color: #18181b;
+      border-radius: var(--radius);
       padding: 16px;
       font-size: 0.8125rem;
     }
-
-    .mock-ui.dark { background: #f4f4f5; }
 
     .mock-title { font-weight: 600; margin-bottom: 4px; font-size: 0.875rem; }
     .mock-sub { color: #71717a; font-size: 0.75rem; margin-bottom: 12px; }
@@ -309,10 +393,10 @@
       margin-top: 4px;
     }
 
-    .mock-btn.primary { background: #1e3a5f; color: #fff; }
+    .mock-btn.primary { background: oklch(0.663 0.175 264.2); color: #fff; }
     .mock-btn.secondary { background: #e4e4e7; color: #3f3f46; }
-    .mock-btn.ghost { background: transparent; color: #3b82f6; border: 1px solid #d4d4d8; }
-    .mock-btn.danger { background: #dc2626; color: #fff; }
+    .mock-btn.ghost { background: transparent; color: oklch(0.598 0.168 264.2); border: 1px solid #d4d4d8; }
+    .mock-btn.danger { background: oklch(0.577 0.245 27.325); color: #fff; }
     .mock-btn.small { padding: 6px 10px; font-size: 0.6875rem; }
 
     .mock-input {
@@ -322,9 +406,10 @@
       border-radius: 6px;
       font-size: 0.75rem;
       margin-bottom: 8px;
+      background: #fff;
     }
 
-    .mock-error { color: #dc2626; font-size: 0.6875rem; margin-top: 4px; }
+    .mock-error { color: oklch(0.577 0.245 27.325); font-size: 0.6875rem; margin-top: 4px; }
 
     .mock-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
@@ -342,7 +427,7 @@
     .mock-spinner {
       width: 12px; height: 12px;
       border: 2px solid #d4d4d8;
-      border-top-color: #1e3a5f;
+      border-top-color: oklch(0.663 0.175 264.2);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
     }
@@ -350,205 +435,215 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .feedback-box {
-      margin-top: 16px;
-      padding: 16px;
-      border-radius: 8px;
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: var(--radius);
       font-size: 0.875rem;
       display: none;
+      line-height: 1.5;
     }
 
     .feedback-box.show { display: block; }
-    .feedback-box.correct { background: var(--success-soft); border: 1px solid var(--success); color: var(--text); }
-    .feedback-box.wrong { background: var(--danger-soft); border: 1px solid var(--danger); color: var(--text); }
+    .feedback-box.correct { background: var(--success-soft); color: var(--foreground); }
+    .feedback-box.wrong { background: var(--destructive-soft); color: var(--foreground); }
 
     .feedback-box .law-tag {
       display: inline-block;
-      margin-top: 8px;
+      margin-top: 10px;
       padding: 4px 10px;
-      background: var(--surface-2);
+      background: var(--background);
+      box-shadow: var(--shadow-card);
       border-radius: 999px;
       font-size: 0.75rem;
       color: var(--success);
     }
 
-    /* Quest interactive */
+    /* Quest */
     .quest-demo {
-      background: var(--bg);
-      border: 1px solid var(--surface-2);
-      border-radius: var(--radius);
+      background: var(--background);
+      box-shadow: var(--shadow-card);
+      border-radius: var(--radius-lg);
       padding: 20px;
-      margin: 16px 0;
+      margin: 14px 0;
     }
 
     .quest-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 
     button.btn {
       font: inherit;
-      font-size: 0.875rem;
-      min-height: 44px;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      min-height: 40px;
       padding: 10px 18px;
-      border-radius: 8px;
+      border-radius: var(--radius);
       border: none;
       cursor: pointer;
-      transition: opacity 0.15s;
+      transition: background 0.18s var(--ease-ui), opacity 0.18s var(--ease-ui);
     }
 
-    button.btn:hover { opacity: 0.9; }
-    button.btn.primary { background: var(--accent); color: #fff; }
-    button.btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--surface-2); }
-    button.btn.success { background: var(--success); color: #fff; }
-
-    .options-grid {
-      display: grid;
-      gap: 8px;
-      margin: 16px 0;
+    button.btn:hover { opacity: 0.92; }
+    button.btn.primary { background: var(--primary); color: var(--foreground); }
+    button.btn.primary:hover { background: var(--primary-hover); }
+    button.btn.secondary {
+      background: var(--card-elevated);
+      color: var(--foreground);
+      box-shadow: var(--shadow-card);
     }
+    button.btn.success { background: var(--success); color: #052e16; }
+
+    .options-grid { display: grid; gap: 8px; margin: 14px 0; }
 
     .option-btn {
       text-align: left;
       font: inherit;
       font-size: 0.875rem;
       padding: 14px 16px;
-      border-radius: 8px;
-      border: 1px solid var(--surface-2);
-      background: var(--bg);
-      color: var(--text);
+      border-radius: var(--radius);
+      border: none;
+      background: var(--background);
+      box-shadow: var(--shadow-card);
+      color: var(--foreground);
       cursor: pointer;
-      transition: border-color 0.15s, background 0.15s;
+      transition: box-shadow 0.18s var(--ease-ui), background 0.18s var(--ease-ui);
     }
 
-    .option-btn:hover { border-color: var(--muted); }
-    .option-btn.selected { border-color: var(--accent); background: var(--accent-soft); }
-    .option-btn.correct { border-color: var(--success); background: var(--success-soft); }
-    .option-btn.wrong { border-color: var(--danger); background: var(--danger-soft); }
+    .option-btn:hover { background: var(--hover); }
+    .option-btn.selected { box-shadow: inset 0 0 0 2px var(--primary), var(--shadow-card); }
+    .option-btn.correct { box-shadow: inset 0 0 0 2px var(--success), var(--shadow-card); }
+    .option-btn.wrong { box-shadow: inset 0 0 0 2px var(--destructive), var(--shadow-card); }
 
-    textarea.text-answer {
+    textarea.text-answer,
+    #playerName {
       width: 100%;
-      min-height: 80px;
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid var(--surface-2);
-      background: var(--bg);
-      color: var(--text);
+      min-height: 44px;
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      border: none;
+      background: var(--background);
+      box-shadow: inset 0 0 0 1px oklch(1 0 0 / 8%);
+      color: var(--foreground);
       font: inherit;
       font-size: 0.875rem;
+    }
+
+    textarea.text-answer {
+      min-height: 80px;
       resize: vertical;
       margin: 12px 0;
     }
 
     .progress-bar {
-      height: 4px;
-      background: var(--surface-2);
+      height: 3px;
+      background: var(--muted);
       border-radius: 999px;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
       overflow: hidden;
     }
 
     .progress-bar fill {
       display: block;
       height: 100%;
-      background: var(--accent);
+      background: var(--primary);
       border-radius: 999px;
-      transition: width 0.3s ease;
+      transition: width 0.3s var(--ease-ui);
     }
 
-    /* Laws reference */
-    .laws-grid {
-      display: grid;
-      gap: 12px;
-    }
+    /* Laws */
+    .laws-grid { display: grid; gap: 10px; }
 
     .law-card {
-      background: var(--bg);
-      border: 1px solid var(--surface-2);
-      border-radius: 8px;
+      background: var(--background);
+      box-shadow: var(--shadow-card);
+      border-radius: var(--radius);
       padding: 16px;
     }
 
-    .law-card h4 { font-size: 0.9375rem; margin-bottom: 4px; }
-    .law-card p { font-size: 0.8125rem; color: var(--muted); }
-    .law-card .example { font-size: 0.75rem; color: var(--accent); margin-top: 8px; }
+    .law-card h4 { font-size: 0.875rem; font-weight: 600; margin-bottom: 4px; letter-spacing: -0.01em; }
+    .law-card p { font-size: 0.8125rem; color: var(--muted-foreground); line-height: 1.5; }
+    .law-card .example { font-size: 0.75rem; color: var(--primary); margin-top: 8px; }
 
     /* Results */
     .results-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
-      margin: 20px 0;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin: 18px 0;
     }
 
     .stat-box {
-      background: var(--bg);
-      border: 1px solid var(--surface-2);
-      border-radius: 8px;
-      padding: 16px;
+      background: var(--background);
+      box-shadow: var(--shadow-card);
+      border-radius: var(--radius);
+      padding: 18px 14px;
       text-align: center;
     }
 
-    .stat-box .num { font-size: 2rem; font-weight: 700; color: var(--accent); }
-    .stat-box .label { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+    .stat-box .num {
+      font-size: 1.75rem;
+      font-weight: 650;
+      letter-spacing: -0.03em;
+      color: var(--foreground);
+    }
+
+    .stat-box .label {
+      font-size: 0.6875rem;
+      font-weight: 500;
+      color: var(--muted-foreground);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
 
     .export-area {
       width: 100%;
       min-height: 100px;
-      padding: 12px;
-      border-radius: 8px;
-      border: 1px solid var(--surface-2);
-      background: var(--bg);
-      color: var(--muted);
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      border: none;
+      background: var(--background);
+      box-shadow: inset 0 0 0 1px oklch(1 0 0 / 8%);
+      color: var(--muted-foreground);
       font-family: var(--mono);
       font-size: 0.75rem;
       margin: 12px 0;
+      line-height: 1.6;
     }
-
-    .info-banner {
-      background: var(--accent-soft);
-      border: 1px solid var(--accent);
-      border-radius: 8px;
-      padding: 14px 16px;
-      font-size: 0.8125rem;
-      color: var(--text);
-      margin-bottom: 20px;
-    }
-
-    .info-banner strong { color: var(--accent); }
 
     .hidden { display: none !important; }
 
     kbd {
       display: inline-block;
-      padding: 2px 6px;
+      padding: 2px 7px;
       font-family: var(--mono);
-      font-size: 0.75rem;
-      background: var(--surface-2);
+      font-size: 0.6875rem;
+      background: var(--background);
+      box-shadow: var(--shadow-card);
       border-radius: 4px;
-      border: 1px solid var(--muted);
     }
+
+    .accent-link { color: var(--primary); }
   </style>
 </head>
 <body>
   <div class="app">
     <header>
-      <div>
-        <h1>UX Bug Hunt</h1>
-        <p>Presentation + interactive quest · works offline · no login required</p>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" aria-hidden="true">
+            <rect x="21" y="8" width="6" height="32" rx="3"></rect>
+            <rect x="10" y="15" width="5" height="18" rx="2.5"></rect>
+            <rect x="33" y="15" width="5" height="18" rx="2.5"></rect>
+          </svg>
+        </div>
+        <div>
+          <h1>UX Bug Hunt</h1>
+          <p>Presentation · Spot the UI · UX Quest</p>
+        </div>
       </div>
       <div class="score-pill">
-        Score: <strong id="totalScore">0</strong> / <span id="maxScore">0</span>
+        <strong id="totalScore">0</strong><span>/</span><span id="maxScore">0</span>
       </div>
     </header>
-
-    <div class="info-banner">
-      <strong>Law firm friendly:</strong> One self-contained file — no login required. Share results by copying the summary at the end into Teams chat.
-    </div>
-
-    <div class="info-banner" style="border-color:var(--warning);background:var(--warning-soft)">
-      <strong>iPhone / iPad:</strong> Do <em>not</em> open a <code style="font-size:0.75rem">raw.githubusercontent.com</code> link — iOS shows source code instead of the app.
-      <ol style="margin-top:10px;padding-left:1.2rem;color:var(--text);font-size:0.8125rem">
-        <li style="margin-top:6px"><strong>Best:</strong> open the hosted link <a href="https://2ne.github.io/mello-voice/ux-bug-hunt/" style="color:var(--accent)">2ne.github.io/mello-voice/ux-bug-hunt/</a></li>
-        <li style="margin-top:6px"><strong>Offline:</strong> save the file to the Files app, then tap it there (opens in Safari as a real page)</li>
-      </ol>
-    </div>
 
     <nav class="tabs" role="tablist">
       <button class="active" data-tab="intro" role="tab">Start here</button>
@@ -620,7 +715,7 @@
             <div class="slide-label">Round 1 · Visual hierarchy</div>
             <div class="slide-title">Which action should win?</div>
             <p class="slide-sub">When two buttons look equally important, users hesitate — and often pick wrong.</p>
-            <p class="slide-sub" style="margin-top:12px;color:var(--warning)">→ Switch to <strong>Spot the UI · Round 1</strong> and vote A or B.</p>
+            <p class="slide-sub" style="margin-top:12px;color:var(--primary)">→ Switch to <strong>Spot the UI · Round 1</strong> and vote A or B.</p>
           </div>
           <div class="speaker-note"><strong>Debrief</strong>Law: Von Restorff effect + visual hierarchy. Dev hook: "Which CTA gets the keyboard focus path?"</div>
         </div>
@@ -631,7 +726,7 @@
             <div class="slide-label">Round 2 · Error recovery</div>
             <div class="slide-title">Errors should help, not blame.</div>
             <p class="slide-sub">"Invalid input" tells the user they failed. A good message tells them how to succeed.</p>
-            <p class="slide-sub" style="margin-top:12px;color:var(--warning)">→ <strong>Spot the UI · Round 2</strong></p>
+            <p class="slide-sub" style="margin-top:12px;color:var(--primary)">→ <strong>Spot the UI · Round 2</strong></p>
           </div>
           <div class="speaker-note"><strong>Debrief</strong>Heuristic: Help users recognize, diagnose, and recover from errors. Dev hook: "What's the edge case when the API 500s?"</div>
         </div>
@@ -642,7 +737,7 @@
             <div class="slide-label">Round 3 · System status</div>
             <div class="slide-title">Silence feels like a bug.</div>
             <p class="slide-sub">If nothing happens after a click, users click again — or leave.</p>
-            <p class="slide-sub" style="margin-top:12px;color:var(--warning)">→ <strong>Spot the UI · Round 3</strong></p>
+            <p class="slide-sub" style="margin-top:12px;color:var(--primary)">→ <strong>Spot the UI · Round 3</strong></p>
           </div>
           <div class="speaker-note"><strong>Debrief</strong>Heuristic: Visibility of system status. Dev hook: "Where's the loading state in your state machine?"</div>
         </div>
@@ -653,7 +748,7 @@
             <div class="slide-label">Round 4 · Cognitive load</div>
             <div class="slide-title">Don't make me think on page one.</div>
             <p class="slide-sub">Progressive disclosure beats a wall of fields — especially in high-stakes flows.</p>
-            <p class="slide-sub" style="margin-top:12px;color:var(--warning)">→ <strong>Spot the UI · Round 4</strong> then <strong>UX Quest</strong></p>
+            <p class="slide-sub" style="margin-top:12px;color:var(--primary)">→ <strong>Spot the UI · Round 4</strong> then <strong>UX Quest</strong></p>
           </div>
           <div class="speaker-note"><strong>Debrief</strong>Laws: Hick's Law + Miller's Law. Ask: "Which round would have caught a bug you shipped last month?"</div>
         </div>
@@ -711,8 +806,8 @@
       <div class="card">
         <h2>Your results</h2>
         <p>Progress is saved in this browser. Copy the summary below and paste into Teams so the group can compare.</p>
-        <label style="display:block;margin-top:16px;font-size:0.875rem;color:var(--muted)">Your name (optional)</label>
-        <input type="text" id="playerName" placeholder="e.g. Alex" class="mock-input" style="background:var(--bg);color:var(--text);margin-top:8px">
+        <label style="display:block;margin-top:16px;font-size:0.875rem;color:var(--muted-foreground)">Your name (optional)</label>
+        <input type="text" id="playerName" placeholder="e.g. Alex" style="margin-top:8px">
       </div>
       <div class="results-grid">
         <div class="stat-box"><div class="num" id="resSpot">0</div><div class="label">Spot the UI</div></div>
@@ -890,7 +985,7 @@
               <span class="mock-btn danger mock-interactive" data-action="delete">Delete</span>
             </div>
           </div>
-          <p id="q1-feedback" style="font-size:0.8125rem;color:var(--muted);margin-top:12px"></p>`,
+          <p id="q1-feedback" style="font-size:0.8125rem;color:var(--muted-foreground);margin-top:12px"></p>`,
         options: [
           { id: 'a', text: 'Delete is red — that\'s enough warning', correct: false },
           { id: 'b', text: 'Cancel and Delete are adjacent with equal visual weight — mis-clicks are likely (Law of Proximity)', correct: true },
@@ -910,7 +1005,7 @@
             <textarea class="mock-input" style="min-height:60px" readonly>Updated conflict analysis...</textarea>
             <span class="mock-btn primary mock-interactive" data-action="save">Save changes</span>
           </div>
-          <p id="q2-feedback" style="font-size:0.8125rem;color:var(--muted);margin-top:12px"></p>`,
+          <p id="q2-feedback" style="font-size:0.8125rem;color:var(--muted-foreground);margin-top:12px"></p>`,
         options: [
           { id: 'a', text: 'No loading or success state after save — user can\'t tell if it worked', correct: true },
           { id: 'b', text: 'The textarea is too small', correct: false },
