@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UX Bug Hunt — Workshop</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface-2: #243044;
+      --text: #e8edf4;
+      --muted: #8b9cb3;
+      --accent: #3b82f6;
+      --accent-soft: rgba(59, 130, 246, 0.15);
+      --success: #22c55e;
+      --success-soft: rgba(34, 197, 94, 0.15);
+      --warning: #f59e0b;
+      --warning-soft: rgba(245, 158, 11, 0.15);
+      --danger: #ef4444;
+      --danger-soft: rgba(239, 68, 68, 0.15);
+      --ring: rgba(59, 130, 246, 0.4);
+      --radius: 12px;
+      --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      --mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .app { max-width: 960px; margin: 0 auto; padding: 24px 20px 48px; }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--surface-2);
+    }
+
+    header h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
+    header p { font-size: 0.875rem; color: var(--muted); margin-top: 4px; }
+
+    .score-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--surface-2);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 0.875rem;
+    }
+
+    .score-pill strong { color: var(--accent); }
+
+    nav.tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    nav.tabs button {
+      font: inherit;
+      font-size: 0.875rem;
+      padding: 10px 16px;
+      border-radius: 999px;
+      border: 1px solid var(--surface-2);
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    nav.tabs button:hover { color: var(--text); border-color: var(--muted); }
+    nav.tabs button.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .panel { display: none; animation: fadeIn 0.25s ease; }
+    .panel.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--surface-2);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+
+    .card h2 { font-size: 1.125rem; font-weight: 600; margin-bottom: 8px; }
+    .card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 8px; }
+    .card p, .card li { color: var(--muted); font-size: 0.9375rem; }
+    .card ul, .card ol { padding-left: 1.25rem; margin-top: 8px; }
+    .card li + li { margin-top: 6px; }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+
+    .badge.present { background: var(--accent-soft); color: var(--accent); }
+    .badge.quest { background: var(--warning-soft); color: var(--warning); }
+    .badge.law { background: var(--success-soft); color: var(--success); }
+
+    /* Slides */
+    .slide-deck { position: relative; }
+
+    .slide {
+      display: none;
+      min-height: 420px;
+    }
+
+    .slide.active { display: block; }
+
+    .slide-content {
+      background: var(--surface);
+      border: 1px solid var(--surface-2);
+      border-radius: var(--radius);
+      padding: 40px 32px;
+      min-height: 380px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .slide-content.center { text-align: center; align-items: center; }
+
+    .slide-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+
+    .slide-title {
+      font-size: clamp(1.5rem, 4vw, 2.25rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 16px;
+    }
+
+    .slide-sub {
+      font-size: 1.0625rem;
+      color: var(--muted);
+      max-width: 540px;
+    }
+
+    .slide-sub.center { margin: 0 auto; }
+
+    .checklist {
+      list-style: none;
+      padding: 0;
+      margin-top: 20px;
+    }
+
+    .checklist li {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 12px 16px;
+      background: var(--surface-2);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      color: var(--text);
+      font-size: 0.9375rem;
+    }
+
+    .checklist li span.num {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .speaker-note {
+      margin-top: 16px;
+      padding: 12px 16px;
+      background: var(--bg);
+      border-left: 3px solid var(--warning);
+      border-radius: 0 8px 8px 0;
+      font-size: 0.8125rem;
+      color: var(--muted);
+    }
+
+    .speaker-note strong { color: var(--warning); display: block; margin-bottom: 4px; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; }
+
+    .slide-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+      gap: 12px;
+    }
+
+    .slide-controls button {
+      font: inherit;
+      font-size: 0.875rem;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--surface-2);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .slide-controls button:hover { border-color: var(--accent); }
+    .slide-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .slide-progress { font-size: 0.8125rem; color: var(--muted); }
+
+    /* A/B Spot UI */
+    .ab-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    @media (max-width: 640px) { .ab-grid { grid-template-columns: 1fr; } }
+
+    .ab-option {
+      border: 2px solid var(--surface-2);
+      border-radius: var(--radius);
+      padding: 16px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: var(--bg);
+    }
+
+    .ab-option:hover { border-color: var(--muted); }
+    .ab-option.selected { border-color: var(--accent); background: var(--accent-soft); }
+    .ab-option.correct { border-color: var(--success); background: var(--success-soft); }
+    .ab-option.wrong { border-color: var(--danger); background: var(--danger-soft); }
+
+    .ab-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* Mini mock UI components */
+    .mock-ui {
+      background: #fff;
+      color: #1a1a1a;
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 0.8125rem;
+    }
+
+    .mock-ui.dark { background: #f4f4f5; }
+
+    .mock-title { font-weight: 600; margin-bottom: 4px; font-size: 0.875rem; }
+    .mock-sub { color: #71717a; font-size: 0.75rem; margin-bottom: 12px; }
+
+    .mock-btn {
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      border: none;
+      cursor: default;
+      margin-right: 6px;
+      margin-top: 4px;
+    }
+
+    .mock-btn.primary { background: #1e3a5f; color: #fff; }
+    .mock-btn.secondary { background: #e4e4e7; color: #3f3f46; }
+    .mock-btn.ghost { background: transparent; color: #3b82f6; border: 1px solid #d4d4d8; }
+    .mock-btn.danger { background: #dc2626; color: #fff; }
+    .mock-btn.small { padding: 6px 10px; font-size: 0.6875rem; }
+
+    .mock-input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d4d4d8;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      margin-bottom: 8px;
+    }
+
+    .mock-error { color: #dc2626; font-size: 0.6875rem; margin-top: 4px; }
+
+    .mock-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    .mock-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 0.6875rem;
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .mock-spinner {
+      width: 12px; height: 12px;
+      border: 2px solid #d4d4d8;
+      border-top-color: #1e3a5f;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .feedback-box {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      display: none;
+    }
+
+    .feedback-box.show { display: block; }
+    .feedback-box.correct { background: var(--success-soft); border: 1px solid var(--success); color: var(--text); }
+    .feedback-box.wrong { background: var(--danger-soft); border: 1px solid var(--danger); color: var(--text); }
+
+    .feedback-box .law-tag {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 4px 10px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      font-size: 0.75rem;
+      color: var(--success);
+    }
+
+    /* Quest interactive */
+    .quest-demo {
+      background: var(--bg);
+      border: 1px solid var(--surface-2);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin: 16px 0;
+    }
+
+    .quest-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+
+    button.btn {
+      font: inherit;
+      font-size: 0.875rem;
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    button.btn:hover { opacity: 0.9; }
+    button.btn.primary { background: var(--accent); color: #fff; }
+    button.btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--surface-2); }
+    button.btn.success { background: var(--success); color: #fff; }
+
+    .options-grid {
+      display: grid;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .option-btn {
+      text-align: left;
+      font: inherit;
+      font-size: 0.875rem;
+      padding: 14px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--surface-2);
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .option-btn:hover { border-color: var(--muted); }
+    .option-btn.selected { border-color: var(--accent); background: var(--accent-soft); }
+    .option-btn.correct { border-color: var(--success); background: var(--success-soft); }
+    .option-btn.wrong { border-color: var(--danger); background: var(--danger-soft); }
+
+    textarea.text-answer {
+      width: 100%;
+      min-height: 80px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--surface-2);
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.875rem;
+      resize: vertical;
+      margin: 12px 0;
+    }
+
+    .progress-bar {
+      height: 4px;
+      background: var(--surface-2);
+      border-radius: 999px;
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .progress-bar fill {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    /* Laws reference */
+    .laws-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .law-card {
+      background: var(--bg);
+      border: 1px solid var(--surface-2);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .law-card h4 { font-size: 0.9375rem; margin-bottom: 4px; }
+    .law-card p { font-size: 0.8125rem; color: var(--muted); }
+    .law-card .example { font-size: 0.75rem; color: var(--accent); margin-top: 8px; }
+
+    /* Results */
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .stat-box {
+      background: var(--bg);
+      border: 1px solid var(--surface-2);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-box .num { font-size: 2rem; font-weight: 700; color: var(--accent); }
+    .stat-box .label { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+    .export-area {
+      width: 100%;
+      min-height: 100px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--surface-2);
+      background: var(--bg);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      margin: 12px 0;
+    }
+
+    .info-banner {
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 0.8125rem;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+
+    .info-banner strong { color: var(--accent); }
+
+    .hidden { display: none !important; }
+
+    kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      background: var(--surface-2);
+      border-radius: 4px;
+      border: 1px solid var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>UX Bug Hunt</h1>
+        <p>Presentation + interactive quest · works offline · no login required</p>
+      </div>
+      <div class="score-pill">
+        Score: <strong id="totalScore">0</strong> / <span id="maxScore">0</span>
+      </div>
+    </header>
+
+    <div class="info-banner">
+      <strong>Law firm friendly:</strong> This is one self-contained file. Email it, upload to SharePoint/Teams, or open locally in Edge/Chrome. No external servers, CDNs, or accounts. Share results by copying the summary at the end into Teams chat.
+    </div>
+
+    <nav class="tabs" role="tablist">
+      <button class="active" data-tab="intro" role="tab">Start here</button>
+      <button data-tab="present" role="tab">Presentation</button>
+      <button data-tab="spot" role="tab">Spot the UI</button>
+      <button data-tab="quest" role="tab">UX Quest</button>
+      <button data-tab="laws" role="tab">UX laws</button>
+      <button data-tab="results" role="tab">Results</button>
+    </nav>
+
+    <!-- INTRO -->
+    <section id="panel-intro" class="panel active">
+      <div class="card">
+        <span class="badge present">Facilitator guide</span>
+        <h2>How to run this remotely (20 minutes)</h2>
+        <ol>
+          <li><strong>Share the file</strong> — attach to a Teams invite or upload to SharePoint. Everyone opens the same HTML in their browser.</li>
+          <li><strong>You screen-share</strong> the Presentation tab. They follow along on Spot the UI + UX Quest tabs on their own device.</li>
+          <li><strong>0–2 min:</strong> Slide 1–2 — hook + 3 merge questions.</li>
+          <li><strong>2–16 min:</strong> Slides 3–6 align with Spot the UI rounds 1–4 (vote on their screen, discuss on call).</li>
+          <li><strong>16–20 min:</strong> UX Quest challenges + copy Results into Teams.</li>
+        </ol>
+      </div>
+      <div class="card">
+        <h3>Before you start</h3>
+        <ul>
+          <li>Enter your name on the Results tab (optional — for the team summary).</li>
+          <li>Presentation shortcuts: <kbd>←</kbd> <kbd>→</kbd> or on-screen buttons.</li>
+          <li>Everything saves in this browser only (localStorage). Clearing browser data resets progress.</li>
+        </ul>
+        <div class="quest-actions" style="margin-top:16px">
+          <button class="btn primary" id="btnStartPresent">Begin presentation</button>
+          <button class="btn secondary" id="btnStartQuest">Jump to UX Quest</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRESENTATION -->
+    <section id="panel-present" class="panel">
+      <div class="slide-deck" id="slideDeck">
+        <!-- Slide 1 -->
+        <div class="slide active" data-slide="0">
+          <div class="slide-content center">
+            <div class="slide-label">UX Bug Hunt · 20 min</div>
+            <div class="slide-title">Same reflex as code review — different layer.</div>
+            <p class="slide-sub center">Today we train the eye, not read the playbook again.</p>
+          </div>
+          <div class="speaker-note"><strong>Speaker note (2 min)</strong>Ask: "What's wrong with this screen?" Show Spot the UI Round 1 on your shared screen after this slide. Let 5 seconds of silence sit — discomfort is the hook.</div>
+        </div>
+
+        <!-- Slide 2 -->
+        <div class="slide" data-slide="1">
+          <div class="slide-content">
+            <div class="slide-label">Bridge</div>
+            <div class="slide-title">The playbook is the map.<br>Today is the compass.</div>
+            <p class="slide-sub">We're not doing art critique — we're debugging user flows.</p>
+            <ul class="checklist">
+              <li><span class="num">1</span> Can someone complete the happy path without guessing?</li>
+              <li><span class="num">2</span> Does every state exist — loading, empty, error, success?</li>
+              <li><span class="num">3</span> If they fail, can they recover without losing work?</li>
+            </ul>
+          </div>
+          <div class="speaker-note"><strong>Speaker note</strong>Pin these three questions in your team's PR template. This is the takeaway artifact.</div>
+        </div>
+
+        <!-- Slide 3 -->
+        <div class="slide" data-slide="2">
+          <div class="slide-content">
+            <div class="slide-label">Round 1 · Visual hierarchy</div>
+            <div class="slide-title">Which action should win?</div>
+            <p class="slide-sub">When two buttons look equally important, users hesitate — and often pick wrong.</p>
+            <p class="slide-sub" style="margin-top:12px;color:var(--warning)">→ Switch to <strong>Spot the UI · Round 1</strong> and vote A or B.</p>
+          </div>
+          <div class="speaker-note"><strong>Debrief</strong>Law: Von Restorff effect + visual hierarchy. Dev hook: "Which CTA gets the keyboard focus path?"</div>
+        </div>
+
+        <!-- Slide 4 -->
+        <div class="slide" data-slide="3">
+          <div class="slide-content">
+            <div class="slide-label">Round 2 · Error recovery</div>
+            <div class="slide-title">Errors should help, not blame.</div>
+            <p class="slide-sub">"Invalid input" tells the user they failed. A good message tells them how to succeed.</p>
+            <p class="slide-sub" style="margin-top:12px;color:var(--warning)">→ <strong>Spot the UI · Round 2</strong></p>
+          </div>
+          <div class="speaker-note"><strong>Debrief</strong>Heuristic: Help users recognize, diagnose, and recover from errors. Dev hook: "What's the edge case when the API 500s?"</div>
+        </div>
+
+        <!-- Slide 5 -->
+        <div class="slide" data-slide="4">
+          <div class="slide-content">
+            <div class="slide-label">Round 3 · System status</div>
+            <div class="slide-title">Silence feels like a bug.</div>
+            <p class="slide-sub">If nothing happens after a click, users click again — or leave.</p>
+            <p class="slide-sub" style="margin-top:12px;color:var(--warning)">→ <strong>Spot the UI · Round 3</strong></p>
+          </div>
+          <div class="speaker-note"><strong>Debrief</strong>Heuristic: Visibility of system status. Dev hook: "Where's the loading state in your state machine?"</div>
+        </div>
+
+        <!-- Slide 6 -->
+        <div class="slide" data-slide="5">
+          <div class="slide-content">
+            <div class="slide-label">Round 4 · Cognitive load</div>
+            <div class="slide-title">Don't make me think on page one.</div>
+            <p class="slide-sub">Progressive disclosure beats a wall of fields — especially in high-stakes flows.</p>
+            <p class="slide-sub" style="margin-top:12px;color:var(--warning)">→ <strong>Spot the UI · Round 4</strong> then <strong>UX Quest</strong></p>
+          </div>
+          <div class="speaker-note"><strong>Debrief</strong>Laws: Hick's Law + Miller's Law. Ask: "Which round would have caught a bug you shipped last month?"</div>
+        </div>
+
+        <!-- Slide 7 -->
+        <div class="slide" data-slide="6">
+          <div class="slide-content center">
+            <div class="slide-label">Commit</div>
+            <div class="slide-title">One round per sprint retro.</div>
+            <p class="slide-sub center">Copy your Results summary into Teams. Highest score buys coffee — or just bragging rights.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide-controls">
+        <button id="slidePrev" disabled>← Previous</button>
+        <span class="slide-progress"><span id="slideCurrent">1</span> / <span id="slideTotal">7</span></span>
+        <button id="slideNext">Next →</button>
+      </div>
+    </section>
+
+    <!-- SPOT THE UI -->
+    <section id="panel-spot" class="panel">
+      <div class="card">
+        <span class="badge quest">Spot the UI</span>
+        <h2>Which design works better for the user?</h2>
+        <p>Click A or B. You'll get instant feedback tied to a UX law. 4 rounds · 10 points each.</p>
+      </div>
+      <div id="spotContainer"></div>
+    </section>
+
+    <!-- UX QUEST -->
+    <section id="panel-quest" class="panel">
+      <div class="card">
+        <span class="badge quest">UX Quest</span>
+        <h2>Find the deliberate UX bug</h2>
+        <p>Each scenario has exactly one main flaw. Interact with the demo, then pick the best answer. 6 challenges · 10 points each.</p>
+      </div>
+      <div class="progress-bar"><fill id="questProgress" style="width:0%"></fill></div>
+      <div id="questContainer"></div>
+    </section>
+
+    <!-- UX LAWS -->
+    <section id="panel-laws" class="panel">
+      <div class="card">
+        <span class="badge law">Reference</span>
+        <h2>UX laws used in this workshop</h2>
+        <p>Quick reference for your playbook extension. Each challenge maps to one of these.</p>
+      </div>
+      <div class="laws-grid" id="lawsGrid"></div>
+    </section>
+
+    <!-- RESULTS -->
+    <section id="panel-results" class="panel">
+      <div class="card">
+        <h2>Your results</h2>
+        <p>Progress is saved in this browser. Copy the summary below and paste into Teams so the group can compare.</p>
+        <label style="display:block;margin-top:16px;font-size:0.875rem;color:var(--muted)">Your name (optional)</label>
+        <input type="text" id="playerName" placeholder="e.g. Alex" class="mock-input" style="background:var(--bg);color:var(--text);margin-top:8px">
+      </div>
+      <div class="results-grid">
+        <div class="stat-box"><div class="num" id="resSpot">0</div><div class="label">Spot the UI</div></div>
+        <div class="stat-box"><div class="num" id="resQuest">0</div><div class="label">UX Quest</div></div>
+        <div class="stat-box"><div class="num" id="resTotal">0</div><div class="label">Total</div></div>
+        <div class="stat-box"><div class="num" id="resPct">0%</div><div class="label">Accuracy</div></div>
+      </div>
+      <div class="card">
+        <h3>Team summary (copy & paste)</h3>
+        <textarea class="export-area" id="exportText" readonly></textarea>
+        <div class="quest-actions">
+          <button class="btn primary" id="btnCopy">Copy to clipboard</button>
+          <button class="btn secondary" id="btnReset">Reset all progress</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ─── State ───────────────────────────────────────────────────────────
+    const STORAGE_KEY = 'ux-bug-hunt-v1';
+
+    const defaultState = {
+      playerName: '',
+      spot: {},
+      quest: {},
+      slide: 0
+    };
+
+    let state = loadState();
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? { ...defaultState, ...JSON.parse(raw) } : { ...defaultState };
+      } catch { return { ...defaultState }; }
+    }
+
+    function saveState() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+      updateScoreDisplay();
+      updateResults();
+    }
+
+    // ─── UX Laws data ────────────────────────────────────────────────────
+    const UX_LAWS = [
+      { id: 'fitts', name: "Fitts's Law", desc: 'The time to reach a target depends on its size and distance. Primary actions should be big and close.', example: 'Tiny "Submit" buried in a toolbar' },
+      { id: 'hick', name: "Hick's Law", desc: 'More choices = longer decision time. Reduce options or use progressive disclosure.', example: '12-field form on one screen' },
+      { id: 'miller', name: "Miller's Law", desc: 'People hold ~7±2 items in working memory. Chunk information.', example: 'Wall of settings with no grouping' },
+      { id: 'jakob', name: "Jakob's Law", desc: 'Users prefer your site to work like others they already know.', example: 'Custom close button in top-left' },
+      { id: 'restorff', name: 'Von Restorff effect', desc: 'The item that stands out is remembered — use it for the primary action only.', example: 'Two equally bold CTAs' },
+      { id: 'status', name: 'Visibility of system status', desc: 'Always show what the system is doing (loading, saving, success).', example: 'Button click with no feedback' },
+      { id: 'recovery', name: 'Error recovery', desc: 'Help users recognize, diagnose, and recover from errors in plain language.', example: '"Error 422" with no next step' },
+      { id: 'proximity', name: 'Law of proximity', desc: 'Items close together are perceived as related.', example: 'Cancel next to Delete with no spacing' },
+      { id: 'tesler', name: "Tesler's Law", desc: 'Complexity is conserved — simplify for users even if dev work shifts.', example: 'Exposing internal IDs to end users' },
+      { id: 'peak', name: 'Peak-end rule', desc: 'People judge experiences by the peak moment and the ending.', example: 'Smooth flow, brutal error at the end' }
+    ];
+
+    // ─── Spot the UI rounds ──────────────────────────────────────────────
+    const SPOT_ROUNDS = [
+      {
+        id: 'spot1',
+        title: 'Round 1 — Document approval',
+        question: 'A lawyer needs to approve a matter quickly. Which layout guides them better?',
+        correct: 'b',
+        law: 'restorff',
+        explain: 'Option B makes "Approve matter" visually dominant. Option A gives equal weight to Approve and Export — Von Restorff fails when everything shouts.',
+        renderA: () => `
+          <div class="mock-ui">
+            <div class="mock-title">Matter #2847 — Review</div>
+            <div class="mock-sub">Smith & Partners acquisition</div>
+            <div class="mock-row">
+              <span class="mock-btn primary">Approve matter</span>
+              <span class="mock-btn primary">Export PDF</span>
+            </div>
+          </div>`,
+        renderB: () => `
+          <div class="mock-ui">
+            <div class="mock-title">Matter #2847 — Review</div>
+            <div class="mock-sub">Smith & Partners acquisition</div>
+            <div class="mock-row">
+              <span class="mock-btn primary">Approve matter</span>
+              <span class="mock-btn ghost">Export PDF</span>
+            </div>
+          </div>`
+      },
+      {
+        id: 'spot2',
+        title: 'Round 2 — Password reset',
+        question: 'Which error message helps the user recover?',
+        correct: 'b',
+        law: 'recovery',
+        explain: 'Option B states what went wrong and what to do next. Option A blames the user with no recovery path — a classic support-ticket generator.',
+        renderA: () => `
+          <div class="mock-ui">
+            <div class="mock-title">Reset password</div>
+            <input class="mock-input" value="alex@" readonly>
+            <div class="mock-error">Invalid input.</div>
+          </div>`,
+        renderB: () => `
+          <div class="mock-ui">
+            <div class="mock-title">Reset password</div>
+            <input class="mock-input" value="alex@" readonly>
+            <div class="mock-error" style="color:#92400e;background:#fef3c7;padding:8px;border-radius:6px">Enter your full work email (e.g. alex@firm.com). <strong style="color:#1e3a5f">Try again</strong></div>
+          </div>`
+      },
+      {
+        id: 'spot3',
+        title: 'Round 3 — Filing a document',
+        question: 'User clicked "Submit to court". Which feels trustworthy?',
+        correct: 'a',
+        law: 'status',
+        explain: 'Option A shows progress — the system is working. Option B looks frozen; users click again or assume it failed.',
+        renderA: () => `
+          <div class="mock-ui">
+            <div class="mock-title">Court filing</div>
+            <div class="mock-sub">Uploading bundle…</div>
+            <div class="mock-row" style="margin-top:8px">
+              <span class="mock-spinner"></span>
+              <span class="mock-status">Submitting — do not close this window</span>
+            </div>
+          </div>`,
+        renderB: () => `
+          <div class="mock-ui">
+            <div class="mock-title">Court filing</div>
+            <div class="mock-sub">Bundle ready</div>
+            <div class="mock-row" style="margin-top:8px">
+              <span class="mock-btn primary">Submit to court</span>
+            </div>
+          </div>`
+      },
+      {
+        id: 'spot4',
+        title: 'Round 4 — New client intake',
+        question: 'Which form respects cognitive load for a busy fee-earner?',
+        correct: 'b',
+        law: 'hick',
+        explain: "Option B uses progressive disclosure (step 1 of 3). Option A dumps 8 fields at once — Hick's Law says decision time explodes.",
+        renderA: () => `
+          <div class="mock-ui">
+            <div class="mock-title">New client</div>
+            <input class="mock-input" placeholder="Client name" readonly>
+            <input class="mock-input" placeholder="Company number" readonly>
+            <input class="mock-input" placeholder="Address line 1" readonly>
+            <input class="mock-input" placeholder="Address line 2" readonly>
+            <input class="mock-input" placeholder="Fee earner" readonly>
+            <input class="mock-input" placeholder="Matter type" readonly>
+            <input class="mock-input" placeholder="Conflict check ID" readonly>
+            <input class="mock-input" placeholder="Billing reference" readonly>
+          </div>`,
+        renderB: () => `
+          <div class="mock-ui">
+            <div class="mock-title">New client — Step 1 of 3</div>
+            <div class="mock-sub">Basic details · ~2 min</div>
+            <input class="mock-input" placeholder="Client name" readonly>
+            <input class="mock-input" placeholder="Client type" readonly>
+            <span class="mock-btn primary">Continue →</span>
+          </div>`
+      }
+    ];
+
+    // ─── UX Quest challenges ───────────────────────────────────────────────
+    const QUEST_CHALLENGES = [
+      {
+        id: 'q1',
+        title: 'Challenge 1 — The mystery button',
+        intro: 'Try clicking the buttons below. One of them is a UX bug waiting to happen.',
+        law: 'proximity',
+        demoHtml: `
+          <div class="mock-ui" style="max-width:320px">
+            <div class="mock-title">Delete draft?</div>
+            <div class="mock-sub">This cannot be undone.</div>
+            <div class="mock-row">
+              <span class="mock-btn secondary mock-interactive" data-action="cancel">Cancel</span>
+              <span class="mock-btn danger mock-interactive" data-action="delete">Delete</span>
+            </div>
+          </div>
+          <p id="q1-feedback" style="font-size:0.8125rem;color:var(--muted);margin-top:12px"></p>`,
+        options: [
+          { id: 'a', text: 'Delete is red — that\'s enough warning', correct: false },
+          { id: 'b', text: 'Cancel and Delete are adjacent with equal visual weight — mis-clicks are likely (Law of Proximity)', correct: true },
+          { id: 'c', text: 'The modal needs a logo', correct: false },
+          { id: 'd', text: 'Delete should be hidden in a menu', correct: false }
+        ],
+        explain: 'Destructive actions need separation, clear hierarchy, and often a confirmation step. Proximity + equal sizing = accidental deletes.'
+      },
+      {
+        id: 'q2',
+        title: 'Challenge 2 — Silent submit',
+        intro: 'Click "Save changes" and watch what happens.',
+        law: 'status',
+        demoHtml: `
+          <div class="mock-ui" style="max-width:320px">
+            <div class="mock-title">Matter notes</div>
+            <textarea class="mock-input" style="min-height:60px" readonly>Updated conflict analysis...</textarea>
+            <span class="mock-btn primary mock-interactive" data-action="save">Save changes</span>
+          </div>
+          <p id="q2-feedback" style="font-size:0.8125rem;color:var(--muted);margin-top:12px"></p>`,
+        options: [
+          { id: 'a', text: 'No loading or success state after save — user can\'t tell if it worked', correct: true },
+          { id: 'b', text: 'The textarea is too small', correct: false },
+          { id: 'c', text: 'Notes should auto-save silently with no UI ever', correct: false },
+          { id: 'd', text: 'Button label should say "Submit"', correct: false }
+        ],
+        explain: 'Visibility of system status: show saving → saved (or error). Silence after an action feels like failure — especially in legal workflows where data loss is catastrophic.'
+      },
+      {
+        id: 'q3',
+        title: 'Challenge 3 — Search with no results',
+        intro: 'The search returned nothing. What\'s the UX bug?',
+        law: 'recovery',
+        demoHtml: `
+          <div class="mock-ui" style="max-width:320px">
+            <div class="mock-title">Matter search</div>
+            <input class="mock-input" value="Smith 2024" readonly>
+            <div style="padding:24px;text-align:center;color:#71717a;font-size:0.75rem">No results.</div>
+          </div>`,
+        options: [
+          { id: 'a', text: 'Empty state gives no guidance — suggest spelling, filters, or "create new"', correct: true },
+          { id: 'b', text: 'Should show a random matter instead', correct: false },
+          { id: 'c', text: '"No results" is perfectly fine', correct: false },
+          { id: 'd', text: 'Search box should be wider', correct: false }
+        ],
+        explain: 'Empty states are UX opportunities. Tell users why it\'s empty and what to do next — reduces "system is broken" support tickets.'
+      },
+      {
+        id: 'q4',
+        title: 'Challenge 4 — Custom navigation',
+        intro: 'Your app put "Settings" in an unusual place. Which law applies?',
+        law: 'jakob',
+        demoHtml: `
+          <div class="mock-ui" style="max-width:320px">
+            <div class="mock-row" style="justify-content:space-between;border-bottom:1px solid #e4e4e7;padding-bottom:8px;margin-bottom:8px">
+              <span style="font-weight:600">CaseManager</span>
+              <span class="mock-btn ghost small">⚙ Settings</span>
+            </div>
+            <div class="mock-sub">Most enterprise apps: settings bottom-left or profile menu top-right.</div>
+          </div>`,
+        options: [
+          { id: 'a', text: 'Jakob\'s Law — users expect patterns from other tools they use daily', correct: true },
+          { id: 'b', text: 'Fitts\'s Law — settings is too small', correct: false },
+          { id: 'c', text: 'Peak-end rule — settings should be at the end of the app', correct: false },
+          { id: 'd', text: 'No law applies — be creative', correct: false }
+        ],
+        explain: 'Innovation in high-stakes tools should be intentional, not accidental. Familiar patterns reduce training cost and errors.'
+      },
+      {
+        id: 'q5',
+        title: 'Challenge 5 — Internal jargon',
+        intro: 'A fee-earner sees this label on a button. What\'s wrong?',
+        law: 'tesler',
+        demoHtml: `
+          <div class="mock-ui" style="max-width:320px">
+            <div class="mock-title">Workflow queue</div>
+            <span class="mock-btn primary">Initiate CMIS-7 sync</span>
+            <div class="mock-sub" style="margin-top:8px">Status: PENDING_AUTH_Z</div>
+          </div>`,
+        options: [
+          { id: 'a', text: 'Exposes internal system names — complexity pushed onto the user (Tesler\'s Law violation)', correct: true },
+          { id: 'b', text: 'Button should be green', correct: false },
+          { id: 'c', text: 'Needs more acronyms for precision', correct: false },
+          { id: 'd', text: 'Status code is helpful for everyone', correct: false }
+        ],
+        explain: 'Absorb complexity in the backend. User-facing copy should describe outcomes: "Sync with case management" not internal protocol names.'
+      },
+      {
+        id: 'q6',
+        title: 'Challenge 6 — The bad ending',
+        intro: 'A 10-step flow ends like this. Which law explains why users remember it as "terrible"?',
+        law: 'peak',
+        demoHtml: `
+          <div class="mock-ui" style="max-width:320px">
+            <div class="mock-title">✓ Filing complete</div>
+            <div class="mock-sub" style="color:#dc2626">Warning: Some metadata fields were skipped. Reference: ERR_META_09. Contact IT.</div>
+          </div>`,
+        options: [
+          { id: 'a', text: 'Peak-end rule — a scary ending taints the whole experience', correct: true },
+          { id: 'b', text: 'Hick\'s Law — too many steps', correct: false },
+          { id: 'c', text: 'Miller\'s Law — reference code is too long', correct: false },
+          { id: 'd', text: 'No issue — warnings are always good', correct: false }
+        ],
+        explain: 'End on clarity and confidence. If something non-critical was skipped, explain impact in plain English and offer a clear fix path — don\'t dump error codes.'
+      }
+    ];
+
+    const SPOT_POINTS = 10;
+    const QUEST_POINTS = 10;
+    const MAX_SCORE = SPOT_ROUNDS.length * SPOT_POINTS + QUEST_CHALLENGES.length * QUEST_POINTS;
+
+    // ─── Tab navigation ──────────────────────────────────────────────────
+    document.querySelectorAll('nav.tabs button').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    document.getElementById('btnStartPresent').addEventListener('click', () => switchTab('present'));
+    document.getElementById('btnStartQuest').addEventListener('click', () => switchTab('quest'));
+
+    function switchTab(tabId) {
+      document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+      document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + tabId));
+      if (tabId === 'results') updateResults();
+    }
+
+    // ─── Slides ──────────────────────────────────────────────────────────
+    const slides = document.querySelectorAll('.slide');
+    const slideTotal = slides.length;
+    document.getElementById('slideTotal').textContent = slideTotal;
+
+    function showSlide(n) {
+      n = Math.max(0, Math.min(n, slideTotal - 1));
+      state.slide = n;
+      slides.forEach((s, i) => s.classList.toggle('active', i === n));
+      document.getElementById('slideCurrent').textContent = n + 1;
+      document.getElementById('slidePrev').disabled = n === 0;
+      document.getElementById('slideNext').disabled = n === slideTotal - 1;
+      saveState();
+    }
+
+    document.getElementById('slidePrev').addEventListener('click', () => showSlide(state.slide - 1));
+    document.getElementById('slideNext').addEventListener('click', () => showSlide(state.slide + 1));
+
+    document.addEventListener('keydown', e => {
+      const presentActive = document.getElementById('panel-present').classList.contains('active');
+      if (!presentActive) return;
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); showSlide(state.slide + 1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); showSlide(state.slide - 1); }
+    });
+
+    showSlide(state.slide);
+
+    // ─── Render Spot the UI ──────────────────────────────────────────────
+    function renderSpot() {
+      const container = document.getElementById('spotContainer');
+      container.innerHTML = SPOT_ROUNDS.map((round, idx) => {
+        const answered = state.spot[round.id];
+        const chosen = answered?.choice;
+        const isCorrect = answered?.correct;
+        return `
+          <div class="card" id="spot-${round.id}">
+            <h3>${round.title}</h3>
+            <p>${round.question}</p>
+            <div class="ab-grid">
+              <div class="ab-option ${chosen === 'a' ? (round.correct === 'a' ? 'correct' : 'wrong') : ''} ${chosen === 'a' ? 'selected' : ''}"
+                   data-spot="${round.id}" data-choice="a" ${answered ? 'style="pointer-events:none"' : ''}>
+                <div class="ab-label">A</div>
+                ${round.renderA()}
+              </div>
+              <div class="ab-option ${chosen === 'b' ? (round.correct === 'b' ? 'correct' : 'wrong') : ''} ${chosen === 'b' ? 'selected' : ''}"
+                   data-spot="${round.id}" data-choice="b" ${answered ? 'style="pointer-events:none"' : ''}>
+                <div class="ab-label">B</div>
+                ${round.renderB()}
+              </div>
+            </div>
+            <div class="feedback-box ${answered ? 'show' : ''} ${isCorrect ? 'correct' : 'wrong'}">
+              ${answered ? (isCorrect ? '✓ Correct!' : '✗ Not quite —') : ''} ${answered ? round.explain : ''}
+              ${answered ? `<span class="law-tag">${lawName(round.law)}</span>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+
+      container.querySelectorAll('[data-spot]').forEach(el => {
+        el.addEventListener('click', () => {
+          const id = el.dataset.spot;
+          if (state.spot[id]) return;
+          const choice = el.dataset.choice;
+          const round = SPOT_ROUNDS.find(r => r.id === id);
+          const correct = choice === round.correct;
+          state.spot[id] = { choice, correct, law: round.law };
+          saveState();
+          renderSpot();
+        });
+      });
+    }
+
+    // ─── Render UX Quest ─────────────────────────────────────────────────
+    let currentQuest = 0;
+
+    function renderQuest() {
+      const container = document.getElementById('questContainer');
+      const answered = Object.keys(state.quest).length;
+      document.getElementById('questProgress').style.width = (answered / QUEST_CHALLENGES.length * 100) + '%';
+
+      // Find first unanswered or show all as cards
+      container.innerHTML = QUEST_CHALLENGES.map(ch => {
+        const ans = state.quest[ch.id];
+        return `
+          <div class="card" id="quest-${ch.id}">
+            <h3>${ch.title}</h3>
+            <p>${ch.intro}</p>
+            <div class="quest-demo" id="demo-${ch.id}">${ch.demoHtml}</div>
+            <div class="options-grid">
+              ${ch.options.map(opt => `
+                <button class="option-btn ${ans?.choice === opt.id ? (opt.correct ? 'correct' : 'wrong') : ''} ${ans && opt.correct ? 'correct' : ''}"
+                  data-quest="${ch.id}" data-opt="${opt.id}" ${ans ? 'disabled' : ''}>
+                  ${opt.text}
+                </button>`).join('')}
+            </div>
+            <div class="feedback-box ${ans ? 'show' : ''} ${ans?.correct ? 'correct' : 'wrong'}">
+              ${ans ? (ans.correct ? '✓ Correct!' : '✗ ') + ch.explain : ''}
+              ${ans ? `<span class="law-tag">${lawName(ch.law)}</span>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+
+      // Interactive demos
+      setupQuestDemo('q1', () => {
+        const fb = document.getElementById('q1-feedback');
+        if (fb) fb.textContent = 'You clicked — imagine mis-clicking Delete when you meant Cancel.';
+      });
+      setupQuestDemo('q2', () => {
+        const fb = document.getElementById('q2-feedback');
+        if (fb) fb.textContent = '…nothing visible happened. Did it save? Would you navigate away?';
+      });
+
+      container.querySelectorAll('[data-quest]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const qid = btn.dataset.quest;
+          if (state.quest[qid]) return;
+          const ch = QUEST_CHALLENGES.find(c => c.id === qid);
+          const opt = ch.options.find(o => o.id === btn.dataset.opt);
+          state.quest[qid] = { choice: opt.id, correct: opt.correct, law: ch.law };
+          saveState();
+          renderQuest();
+        });
+      });
+    }
+
+    function setupQuestDemo(qid, onClick) {
+      const demo = document.getElementById('demo-' + qid);
+      if (!demo) return;
+      demo.querySelectorAll('.mock-interactive').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', onClick);
+      });
+    }
+
+    // ─── Laws grid ───────────────────────────────────────────────────────
+    function renderLaws() {
+      document.getElementById('lawsGrid').innerHTML = UX_LAWS.map(l => `
+        <div class="law-card">
+          <h4>${l.name}</h4>
+          <p>${l.desc}</p>
+          <div class="example">Example: ${l.example}</div>
+        </div>`).join('');
+    }
+
+    function lawName(id) {
+      return UX_LAWS.find(l => l.id === id)?.name || id;
+    }
+
+    // ─── Scoring & results ───────────────────────────────────────────────
+    function calcSpotScore() {
+      return Object.values(state.spot).filter(a => a.correct).length * SPOT_POINTS;
+    }
+
+    function calcQuestScore() {
+      return Object.values(state.quest).filter(a => a.correct).length * QUEST_POINTS;
+    }
+
+    function updateScoreDisplay() {
+      const total = calcSpotScore() + calcQuestScore();
+      document.getElementById('totalScore').textContent = total;
+      document.getElementById('maxScore').textContent = MAX_SCORE;
+    }
+
+    function updateResults() {
+      const spotScore = calcSpotScore();
+      const questScore = calcQuestScore();
+      const total = spotScore + questScore;
+      const spotDone = Object.keys(state.spot).length;
+      const questDone = Object.keys(state.quest).length;
+      const spotCorrect = Object.values(state.spot).filter(a => a.correct).length;
+      const questCorrect = Object.values(state.quest).filter(a => a.correct).length;
+      const answered = spotDone + questDone;
+      const pct = answered ? Math.round(total / (answered * 10) * 100) : 0;
+
+      document.getElementById('resSpot').textContent = spotScore;
+      document.getElementById('resQuest').textContent = questScore;
+      document.getElementById('resTotal').textContent = total;
+      document.getElementById('resPct').textContent = pct + '%';
+
+      const name = document.getElementById('playerName').value.trim() || 'Anonymous';
+      state.playerName = name;
+
+      const summary = [
+        `UX Bug Hunt — Results`,
+        `Name: ${name}`,
+        `Date: ${new Date().toLocaleDateString()}`,
+        ``,
+        `Spot the UI: ${spotCorrect}/${SPOT_ROUNDS.length} correct (${spotScore}/${SPOT_ROUNDS.length * SPOT_POINTS} pts)`,
+        `UX Quest: ${questCorrect}/${QUEST_CHALLENGES.length} correct (${questScore}/${QUEST_CHALLENGES.length * QUEST_POINTS} pts)`,
+        `Total: ${total}/${MAX_SCORE} (${pct}% of attempted)`,
+        ``,
+        `Weakest areas:`,
+        ...getWeakestAreas(),
+        ``,
+        `Next step: pick one "UX PR question" for this sprint's code reviews.`
+      ].join('\n');
+
+      document.getElementById('exportText').value = summary;
+      saveState();
+    }
+
+    function getWeakestAreas() {
+      const missed = [];
+      SPOT_ROUNDS.forEach(r => {
+        const a = state.spot[r.id];
+        if (a && !a.correct) missed.push(`- Spot: ${r.title} (${lawName(r.law)})`);
+      });
+      QUEST_CHALLENGES.forEach(c => {
+        const a = state.quest[c.id];
+        if (a && !a.correct) missed.push(`- Quest: ${c.title} (${lawName(c.law)})`);
+      });
+      return missed.length ? missed : ['- None — great run!'];
+    }
+
+    document.getElementById('playerName').addEventListener('input', e => {
+      state.playerName = e.target.value;
+      updateResults();
+    });
+    if (state.playerName) document.getElementById('playerName').value = state.playerName;
+
+    document.getElementById('btnCopy').addEventListener('click', () => {
+      const ta = document.getElementById('exportText');
+      ta.select();
+      navigator.clipboard?.writeText(ta.value).then(() => {
+        document.getElementById('btnCopy').textContent = 'Copied!';
+        setTimeout(() => document.getElementById('btnCopy').textContent = 'Copy to clipboard', 2000);
+      }).catch(() => {
+        document.execCommand('copy');
+        document.getElementById('btnCopy').textContent = 'Copied!';
+        setTimeout(() => document.getElementById('btnCopy').textContent = 'Copy to clipboard', 2000);
+      });
+    });
+
+    document.getElementById('btnReset').addEventListener('click', () => {
+      if (confirm('Reset all progress in this browser?')) {
+        state = { ...defaultState };
+        saveState();
+        renderSpot();
+        renderQuest();
+        showSlide(0);
+        switchTab('intro');
+      }
+    });
+
+    // ─── Init ────────────────────────────────────────────────────────────
+    renderSpot();
+    renderQuest();
+    renderLaws();
+    updateScoreDisplay();
+    updateResults();
+  </script>
+</body>
+</html>
