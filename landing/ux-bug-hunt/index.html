@@ -617,7 +617,7 @@
       <div class="brand">
         <div>
           <h1>UX Bug Hunt</h1>
-          <p>Presentation · Spot the UI · UX Quest</p>
+          <p>Presentation · Spot the UI · UX Quest · v1.2</p>
         </div>
       </div>
       <div class="score-pill">
@@ -828,8 +828,16 @@
 
     function saveState() {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+    }
+
+    function syncUI() {
       updateScoreDisplay();
       refreshResultsSummary();
+    }
+
+    function persistAndSync() {
+      saveState();
+      syncUI();
     }
 
     // ─── UX Laws data ────────────────────────────────────────────────────
@@ -1096,14 +1104,14 @@
     const slideTotal = slides.length;
     document.getElementById('slideTotal').textContent = slideTotal;
 
-    function showSlide(n) {
+    function showSlide(n, persist) {
       n = Math.max(0, Math.min(n, slideTotal - 1));
       state.slide = n;
       slides.forEach((s, i) => s.classList.toggle('active', i === n));
       document.getElementById('slideCurrent').textContent = n + 1;
       document.getElementById('slidePrev').disabled = n === 0;
       document.getElementById('slideNext').disabled = n === slideTotal - 1;
-      saveState();
+      if (persist !== false) saveState();
     }
 
     document.getElementById('slidePrev').addEventListener('click', () => showSlide(state.slide - 1));
@@ -1116,7 +1124,7 @@
       if (e.key === 'ArrowLeft') { e.preventDefault(); showSlide(state.slide - 1); }
     });
 
-    showSlide(state.slide);
+    showSlide(state.slide, false);
 
     // ─── Render Spot the UI ──────────────────────────────────────────────
     function renderSpot() {
@@ -1156,7 +1164,7 @@
           const round = SPOT_ROUNDS.find(r => r.id === id);
           const correct = choice === round.correct;
           state.spot[id] = { choice, correct, law: round.law };
-          saveState();
+          persistAndSync();
           renderSpot();
         });
       });
@@ -1209,7 +1217,7 @@
           const ch = QUEST_CHALLENGES.find(c => c.id === qid);
           const opt = ch.options.find(o => o.id === btn.dataset.opt);
           state.quest[qid] = { choice: opt.id, correct: opt.correct, law: ch.law };
-          saveState();
+          persistAndSync();
           renderQuest();
         });
       });
@@ -1305,8 +1313,8 @@
 
     document.getElementById('playerName').addEventListener('input', e => {
       state.playerName = e.target.value;
+      saveState();
       refreshResultsSummary();
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
     });
     if (state.playerName) document.getElementById('playerName').value = state.playerName;
 
@@ -1329,7 +1337,8 @@
         saveState();
         renderSpot();
         renderQuest();
-        showSlide(0);
+        showSlide(0, false);
+        syncUI();
         switchTab('intro');
       }
     });
@@ -1338,8 +1347,7 @@
     renderSpot();
     renderQuest();
     renderLaws();
-    updateScoreDisplay();
-    refreshResultsSummary();
+    syncUI();
   </script>
 </body>
 </html>
