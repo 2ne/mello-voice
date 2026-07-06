@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'landing/**'
+      - 'public/index.html'
       - '.github/workflows/deploy-landing.yml'
   workflow_dispatch:
 
@@ -28,6 +29,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Include UX Quest static page
+        run: |
+          mkdir -p landing/ux-quest
+          cp public/index.html landing/ux-quest/index.html
+
       - name: Publish to external public repo
         uses: peaceiris/actions-gh-pages@v4
         with:
@@ -50,6 +56,11 @@ jobs:
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
+
+      - name: Include UX Quest static page
+        run: |
+          mkdir -p landing/ux-quest
+          cp public/index.html landing/ux-quest/index.html
 
       - name: Upload landing artifact
         uses: actions/upload-pages-artifact@v3
