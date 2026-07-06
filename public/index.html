@@ -1,0 +1,3070 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>UX Quest — Cleary</title>
+        <meta name="description" content="A short training exercise. Spot what is off, choose one response, and learn why." />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@400;500;700&display=swap" />
+        <link
+            rel="icon"
+            href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Cstyle%3Epath%7Bfill:%2318181b%7D%40media(prefers-color-scheme:dark)%7Bpath%7Bfill:%23fafafa%7D%7D%3C/style%3E%3Cpath d='M27.207 7.436c-4.647 3.996-7.81 7.696-9.724 10.81-.93.073-1.87.158-2.8.248-6.573.637-12.85.47-11.97-5.19.954-6.047 7.864-8.597 10.464-8.719 3.29-.158 4 .903 3.936 3.086-.063 2.182-.21 4.896.487 5.131 1.04.354 1.907-2.632 4.143-5.899C24.893 2.304 26.7.928 26.56.476c-.227-.759-1.343-.637-2.593.628-1.204 1.22-4.634 4.62-4.967 4.59-.333-.027-.937-2.864-5.36-2.92C7.203 2.689-1.293 9.204.167 16.28c1.05 5.095 8.743 4.245 16.546 3.317-1.733 3.29-1.926 5.783-.896 7.076 2.083 2.596 6.666 1.888 6.666 1.888l-3.263 5.944s-3.043.238-6.273.354c-2.57.093-3.717.283-4.064 1.622-.183.702 1.517 3.275 5.267 3.51 3.75.234 6.69-4.09 6.69-4.09s3.617-.535 5.21-.728c1.593-.192 1.573-1.044.717-1.002-1.55.08-4.977.215-4.977.215s5.14-7.43 5-8.018c-.14-.59-1.737-1.065-2.43-1.005-.693.06-3.96 2.3-5.903.413-1.77-1.718-.204-4.314 1.35-6.547a64.684 64.684 0 0 1 5.643-.433c1.147-.023 2.183-.028 3.123-.023-.186.21-.333.388-.463.516-1.777 1.955-3.09 3.184-2.88 3.354.48.41 2.693-1.308 5.257-3.85 5.08.136 6.496.646 6.63.459.26-.36-2.977-.965-5.81-1.285 3.186-3.28 6.666-7.577 8-10.54 2.486-5.656-1.68-8.96-12.1.008ZM16.72 37.75a3.23 3.23 0 0 1-1.374.335 3.263 3.263 0 0 1-1.393-.276c-.973-.472-.77-1.415.73-1.534 1.18-.096 3.23-.49 3.484-.334.253.156-.317 1.29-1.447 1.809ZM37.487 6.196c-.51 2.51-5.487 8.621-8.084 11.636a89.838 89.838 0 0 0-8.716.195c2.236-2.861 8.76-9.855 11.106-11.585 3.68-2.723 6.32-3.312 5.694-.246Z'/%3E%3C/svg%3E"
+        />
+        <script>
+            // Set theme before first paint to avoid flash.
+            ;(function () {
+                try {
+                    const stored = localStorage.getItem('ux-quest-theme')
+                    const theme =
+                        stored === 'light' || stored === 'dark' ? stored : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+                    document.documentElement.dataset.theme = theme
+                } catch (e) {
+                    document.documentElement.dataset.theme = 'light'
+                }
+            })()
+        </script>
+        <style>
+            /* ==========================================================
+               Design tokens, mirrored from @cgsh-gaia/design-library
+               ========================================================== */
+            :root {
+                color-scheme: light;
+                /* Primary scale, canonical @cgsh-gaia/design-library values (light mode) */
+                --color-primary: #00b100;
+                --color-primary-50: #e9ffe5;
+                --color-primary-100: #ccffc7;
+                --color-primary-200: #9dff95;
+                --color-primary-300: #60fe58;
+                --color-primary-400: #2ef526;
+                --color-primary-500: #09dc06;
+                --color-primary-600: #00b100;
+                --color-primary-700: #068509;
+                --color-primary-800: #0b690d;
+                --color-primary-900: #0f5813;
+                --color-primary-950: #013205;
+                /* Foreground color to use on top of a primary-filled surface */
+                --color-on-primary: #ffffff;
+
+                --color-background: #fafafa;
+                --color-surface-100: #ffffff;
+                --color-surface-200: #f4f4f5;
+                --color-surface-300: #e4e4e7;
+                --color-surface-400: #d4d4d8;
+                --color-surface-interactive: #ffffff;
+
+                --color-title: #18181b;
+                --color-body: #27272a;
+                --color-subtitle: #52525b;
+                --color-muted: #71717a;
+
+                --color-border: #d4d4d8;
+                --color-border-light: #e4e4e7;
+                --color-border-dark: #a1a1aa;
+
+                --color-error: #d32f2f;
+                --color-error-light: #ef5350;
+                --color-error-bg: #fdecea;
+
+                --color-success: #008a00;
+                --color-success-bg: color-mix(in srgb, var(--color-primary) 10%, transparent);
+
+                --color-contained-bg: #18181b;
+                --color-contained-fg: #fafafa;
+
+                /*
+                 * Sunken well surface, used where an inset/recessed area is desired
+                 * (like the mockup device chrome around a mini-app). In LIGHT mode it's
+                 * one shade darker than the background (surface-200). In DARK mode it
+                 * matches the background exactly, because you can't visually recess
+                 * below the darkest surface. The well is then defined by its border
+                 * and the content inside sits at surface-100+ which appears elevated.
+                 */
+                --color-well: var(--color-surface-200);
+                /* Toggle knob, physical-switch metaphor, always light regardless of theme. */
+                --color-toggle-knob: #ffffff;
+
+                /*
+                 * Mockup nested-elevation tokens.
+                 * The mockup frame sits on the body; the app card sits inside the frame.
+                 * The card must always read as MORE elevated than the frame regardless
+                 * of theme, which requires flipping the surface assignments:
+                 *   LIGHT: frame = light gray (surface-200), card = white (surface-100)
+                 *   DARK:  frame = darker (surface-100), card = lighter (surface-200)
+                 * Menu panels (dropdowns inside the card) follow the same pattern.
+                 */
+                --color-mockup-frame: var(--color-surface-200);
+                --color-mockup-card: var(--color-surface-100);
+                --color-menu-panel: var(--color-surface-100);
+                --color-menu-hover: var(--color-surface-200);
+
+                --shadow-sm: 0 1px 2px 0 rgb(24 24 27 / 0.04);
+                --shadow-md: 0 4px 12px -2px rgb(228 228 231 / 0.25), 0 2px 4px -2px rgb(228 228 231 / 0.25);
+
+                --ring-surface-300: inset 0 0 0 1px var(--color-surface-300);
+                --ring-border: inset 0 0 0 1px var(--color-border);
+                --ring-primary: 0 0 0 2px var(--color-primary);
+
+                --radius-sm: 4px;
+                --radius-md: 8px;
+                --radius-lg: 8px;
+                --radius-xl: 12px;
+
+                --ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+                --font-sans: 'Funnel Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                --font-display: 'Lyon Display Web', Georgia, 'Times New Roman', serif;
+            }
+
+            :root[data-theme='dark'] {
+                color-scheme: dark;
+                /* Primary scale, canonical @cgsh-gaia/design-library values (dark mode).
+                   In dark mode --color-primary resolves to primary-300 (#aced98), a pale
+                   green tuned for text/link contrast on dark surfaces. When used as a
+                   filled surface (toggle-on, buttons), pair with --color-on-primary
+                   (primary-950) for the foreground so contrast is preserved. */
+                --color-primary: #aced98;
+                --color-primary-50: #f5fcf1;
+                --color-primary-100: #e5fbdd;
+                --color-primary-200: #cbf4be;
+                --color-primary-300: #aced98;
+                --color-primary-400: #6fd850;
+                --color-primary-500: #4bbe29;
+                --color-primary-600: #399d1c;
+                --color-primary-700: #2f7c19;
+                --color-primary-800: #296219;
+                --color-primary-900: #225017;
+                --color-primary-950: #0e2c07;
+                --color-on-primary: #0e2c07;
+
+                /*
+                 * Surface scale, tuned for this app.
+                 * Each step is a subtle rise from body; higher number = more elevated = LIGHTER.
+                 * background → surface-100 → surface-200 → surface-300 → surface-400
+                 * = #09090b → #101013 → #18181b → #27272a → #3f3f46
+                 */
+                --color-background: #09090b;
+                --color-surface-100: #101013;
+                --color-surface-200: #18181b;
+                --color-surface-300: #27272a;
+                --color-surface-400: #3f3f46;
+                --color-surface-interactive: #18181b;
+
+                --color-title: #fafafa;
+                --color-body: #e4e4e7;
+                --color-subtitle: #a1a1aa;
+                --color-muted: #71717a;
+
+                /* Dark mode leans on surface contrast, not borders.
+                   border-light is a subtle divider color \u2014 visible on cards (surface-200)
+                   without competing with the fuller --color-border. */
+                --color-border: #27272a;
+                --color-border-light: #1f1f22;
+                --color-border-dark: #3f3f46;
+
+                --color-error: #f87171;
+                --color-error-light: #fca5a5;
+                --color-error-bg: rgb(239 68 68 / 0.14);
+
+                --color-success: #4ade80;
+                --color-success-bg: color-mix(in srgb, var(--color-primary) 10%, transparent);
+
+                --color-contained-bg: #fafafa;
+                --color-contained-fg: #18181b;
+
+                /* In dark mode, the well collapses to background, border defines the frame. */
+                --color-well: var(--color-background);
+
+                /* Mockup nested-elevation tokens (dark). See light-mode block for rationale. */
+                --color-mockup-frame: var(--color-surface-100);
+                --color-mockup-card: var(--color-surface-200);
+                --color-menu-panel: var(--color-surface-300);
+                --color-menu-hover: var(--color-surface-400);
+
+                --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.35);
+                --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5);
+            }
+
+            /* Dark mode: swap form controls from transparent+border to filled+no-border.
+               Surface contrast handles definition; light mode keeps its borders. */
+            :root[data-theme='dark'] .ui-input,
+            :root[data-theme='dark'] .ui-btn.outlined {
+                background: var(--color-surface-300);
+                border-color: transparent;
+            }
+            :root[data-theme='dark'] .ui-select {
+                border-color: transparent;
+            }
+            /* Options: hide the default border in dark; state borders (hover, checked,
+               correct, incorrect) still render because they override border-color. */
+            :root[data-theme='dark'] .option:not([data-state]) {
+                background: var(--color-surface-200);
+            }
+            :root[data-theme='dark'] .option[data-state='reveal-correct'] {
+                background: color-mix(in srgb, var(--color-success-bg) 100%, transparent);
+            }
+            :root[data-theme='dark'] .option input {
+                background-color: var(--color-background);
+            }
+
+            /* ==========================================================
+               Base
+               ========================================================== */
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+            }
+
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+                background: var(--color-background);
+                color: var(--color-body);
+                font-family: var(--font-sans);
+                font-size: 14px;
+                line-height: 1.5;
+                -webkit-font-smoothing: antialiased;
+                text-rendering: optimizeLegibility;
+                min-height: 100dvh;
+            }
+
+            ::selection {
+                background: rgb(212 212 216 / 0.5);
+                color: var(--color-title);
+            }
+
+            *::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
+            }
+            *::-webkit-scrollbar-thumb {
+                background: color-mix(in srgb, var(--color-title) 15%, transparent);
+                border-radius: 999px;
+            }
+            *::-webkit-scrollbar-thumb:hover {
+                background: color-mix(in srgb, var(--color-title) 30%, transparent);
+            }
+
+            :focus-visible {
+                outline: 2px solid var(--color-primary);
+                border-color: transparent !important;
+            }
+
+            /* ==========================================================
+               Layout
+               ========================================================== */
+            .app {
+                display: flex;
+                flex-direction: column;
+                min-height: 100dvh;
+            }
+
+            .header-wrap {
+                position: sticky;
+                top: 0;
+                z-index: 40;
+                background: var(--color-surface-100);
+            }
+
+            .header {
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+                padding: 12px 24px;
+                background: var(--color-surface-100);
+                border-bottom: 1px solid var(--color-border-light);
+            }
+
+            .header-brand {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                color: var(--color-title);
+            }
+
+            .header-brand svg {
+                color: var(--color-title);
+            }
+
+            .header-brand .title {
+                font-weight: 500;
+                color: var(--color-title);
+                font-size: 14px;
+            }
+
+            .header-actions {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .header-meta {
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+                opacity: 0;
+                translate: 0 6px;
+                transition:
+                    opacity 200ms var(--ease),
+                    translate 200ms var(--ease);
+                pointer-events: none;
+            }
+            .header-meta.visible {
+                opacity: 1;
+                translate: 0 0;
+            }
+            .header-meta-step {
+                font-size: 12px;
+                font-weight: 500;
+                color: var(--color-muted);
+                line-height: 1;
+            }
+            .header-meta-title {
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--color-title);
+                line-height: 1.2;
+                white-space: nowrap;
+            }
+
+            .theme-toggle {
+                width: 32px;
+                height: 32px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                background: transparent;
+                color: var(--color-subtitle);
+                border: 0;
+                border-radius: var(--radius-lg);
+                cursor: pointer;
+                transition:
+                    background 160ms var(--ease),
+                    color 160ms var(--ease);
+            }
+            .theme-toggle:hover {
+                background: var(--color-surface-200);
+                color: var(--color-title);
+            }
+            .theme-toggle .icon-sun,
+            .theme-toggle .icon-moon {
+                position: absolute;
+                transition:
+                    opacity 240ms var(--ease),
+                    transform 240ms var(--ease);
+            }
+            .theme-toggle .icon-sun {
+                opacity: 0;
+                transform: rotate(-30deg) scale(0.8);
+            }
+            .theme-toggle .icon-moon {
+                opacity: 1;
+                transform: rotate(0deg) scale(1);
+            }
+            :root[data-theme='dark'] .theme-toggle .icon-sun {
+                opacity: 1;
+                transform: rotate(0deg) scale(1);
+            }
+            :root[data-theme='dark'] .theme-toggle .icon-moon {
+                opacity: 0;
+                transform: rotate(30deg) scale(0.8);
+            }
+            .no-transition .theme-toggle .icon-sun,
+            .no-transition .theme-toggle .icon-moon {
+                transition:
+                    opacity 240ms var(--ease),
+                    transform 240ms var(--ease) !important;
+            }
+
+            .progress-track {
+                position: relative;
+                height: 2px;
+                background: var(--color-surface-300);
+                overflow: hidden;
+            }
+            .progress-fill {
+                position: absolute;
+                inset: 0 auto 0 0;
+                width: 0%;
+                background: var(--color-primary);
+                transition: width 240ms var(--ease);
+            }
+
+            main.content {
+                flex: 1;
+                width: 100%;
+                max-width: 720px;
+                margin: 0 auto;
+                padding: 32px 24px 64px;
+            }
+
+            @media (max-width: 640px) {
+                .header {
+                    padding: 10px 16px;
+                }
+                main.content {
+                    padding: 20px 16px 48px;
+                }
+                .question-actions {
+                    align-items: center;
+                    flex-direction: row;
+                }
+                .question-actions > div {
+                    justify-content: flex-end;
+                    flex-wrap: wrap;
+                }
+            }
+
+            /* ==========================================================
+               Typography
+               ========================================================== */
+            h1 {
+                font-family: var(--font-display);
+                font-weight: 400;
+                font-size: clamp(28px, 4vw, 36px);
+                line-height: 1.15;
+                color: var(--color-title);
+                margin: 0 0 8px;
+                text-wrap: balance;
+            }
+
+            h2 {
+                font-weight: 500;
+                font-size: 20px;
+                line-height: 1.3;
+                color: var(--color-title);
+                margin: 0 0 4px;
+                text-wrap: balance;
+            }
+
+            h3 {
+                font-weight: 500;
+                font-size: 14px;
+                line-height: 1.4;
+                color: var(--color-title);
+                margin: 0;
+            }
+
+            p {
+                margin: 0;
+                text-wrap: pretty;
+            }
+
+            .text-subtitle {
+                color: var(--color-subtitle);
+            }
+            .text-muted {
+                color: var(--color-muted);
+            }
+            .text-title {
+                color: var(--color-title);
+            }
+            .text-error {
+                color: var(--color-error);
+            }
+            .text-success {
+                color: var(--color-success);
+            }
+            .text-sm {
+                font-size: 13px;
+            }
+            .text-xs {
+                font-size: 12px;
+            }
+            .text-base {
+                font-size: 14px;
+            }
+            .tabular {
+                font-variant-numeric: tabular-nums;
+            }
+
+            /* ==========================================================
+               Buttons
+               ========================================================== */
+            .btn {
+                appearance: none;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                height: 36px;
+                padding: 0 14px;
+                border-radius: var(--radius-lg);
+                font-family: inherit;
+                font-size: 14px;
+                font-weight: 500;
+                line-height: 1;
+                cursor: pointer;
+                text-decoration: none;
+                user-select: none;
+                border: 1px solid transparent;
+                background: transparent;
+                color: var(--color-body);
+                transition:
+                    background-color 120ms var(--ease),
+                    color 120ms var(--ease),
+                    border-color 120ms var(--ease),
+                    transform 80ms var(--ease);
+            }
+
+            .btn:active {
+                transform: scale(0.985);
+            }
+
+            .btn > svg:first-child {
+                margin-left: -4px;
+            }
+            .btn > svg:last-child {
+                margin-right: -4px;
+            }
+
+            .btn:disabled,
+            .btn[aria-disabled='true'] {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+
+            .btn-contained {
+                background: var(--color-contained-bg);
+                color: var(--color-contained-fg);
+            }
+            .btn-contained:hover:not(:disabled) {
+                background: color-mix(in srgb, var(--color-contained-bg) 88%, transparent);
+            }
+
+            .btn-outlined {
+                background: var(--color-surface-interactive);
+                color: var(--color-title);
+                border-color: var(--color-border);
+            }
+            .btn-outlined:hover:not(:disabled) {
+                border-color: var(--color-border-dark);
+            }
+
+            .btn-text {
+                background: transparent;
+                color: var(--color-title);
+                padding: 0 8px;
+            }
+            .btn-text:hover:not(:disabled) {
+                background: var(--color-surface-200);
+            }
+
+            .btn-lg {
+                height: 40px;
+                padding: 0 18px;
+                font-size: 16px;
+            }
+
+            .btn-icon {
+                width: 36px;
+                padding: 0;
+            }
+
+            /* ==========================================================
+               Card
+               ========================================================== */
+            .card {
+                background: var(--color-surface-100);
+                border-radius: var(--radius-lg);
+                box-shadow: var(--ring-surface-300), var(--shadow-md);
+            }
+
+            .card-padded {
+                padding: 24px;
+            }
+
+            /* ==========================================================
+               Screen transitions
+               ========================================================== */
+            .screen {
+                display: none;
+                animation: fade-in 180ms var(--ease) both;
+            }
+            .screen.active {
+                display: block;
+            }
+
+            @keyframes fade-in {
+                from {
+                    opacity: 0;
+                    transform: translateY(4px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @keyframes modal-in {
+                from {
+                    opacity: 0;
+                    transform: scale(0.94) translateY(6px);
+                }
+                to {
+                    opacity: 1;
+                    transform: scale(1) translateY(0);
+                }
+            }
+            .modal-animate {
+                animation: modal-in 180ms var(--ease) both;
+            }
+
+            .no-transition *,
+            .no-transition *::before,
+            .no-transition *::after {
+                transition-duration: 0s !important;
+                animation-duration: 0s !important;
+            }
+
+            @media (prefers-reduced-motion: reduce) {
+                *,
+                *::before,
+                *::after {
+                    animation-duration: 0.01ms !important;
+                    transition-duration: 0.01ms !important;
+                }
+            }
+
+            /* ==========================================================
+               Intro screen
+               ========================================================== */
+            .screen.intro {
+                display: flex;
+                flex-direction: column;
+                gap: 32px;
+                padding-top: 16px;
+            }
+
+            .intro-head {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .intro-head h1 {
+                margin: 0;
+            }
+
+            .intro-eyebrow {
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--color-subtitle);
+            }
+
+            .intro-lead {
+                font-size: 16px;
+                line-height: 1.55;
+                color: var(--color-body);
+                max-width: 60ch;
+                text-wrap: balance;
+                margin-top: 4px;
+            }
+
+            .intro-meta {
+                display: flex;
+                gap: 8px;
+                flex-wrap: wrap;
+                color: var(--color-subtitle);
+                font-size: 13px;
+            }
+
+            .intro-meta .dot {
+                color: var(--color-border-dark);
+            }
+
+            .intro-actions {
+                display: flex;
+                gap: 12px;
+                align-items: center;
+            }
+
+            .intro-list {
+                margin: 0;
+                padding: 0;
+                list-style: none;
+                display: grid;
+                gap: 14px;
+            }
+
+            .intro-list li {
+                display: grid;
+                grid-template-columns: 24px 1fr;
+                gap: 8px;
+                align-items: start;
+            }
+
+            .intro-list .num {
+                font-variant-numeric: tabular-nums;
+                color: var(--color-muted);
+                font-size: 12px;
+                font-weight: 500;
+                margin-top: 2px;
+            }
+
+            .intro-list .label {
+                color: var(--color-body);
+                font-size: 14px;
+            }
+
+            /* ==========================================================
+               Question screen
+               ========================================================== */
+            .question-head {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                margin-bottom: 20px;
+            }
+
+            .question-step {
+                font-size: 13px;
+                font-weight: 500;
+                color: var(--color-muted);
+            }
+
+            .question-prompt {
+                font-size: 18px;
+                line-height: 1.35;
+                color: var(--color-title);
+                font-weight: 500;
+                margin: 0 0 8px;
+                text-wrap: balance;
+            }
+
+            .mockup-frame {
+                background: var(--color-mockup-frame);
+                border-radius: 11px;
+                box-shadow: inset 0 0 0 1px var(--color-border-light);
+                padding-top: 8px;
+                margin-bottom: 32px;
+                position: relative;
+            }
+
+            .mockup-label {
+                display: none;
+            }
+
+            .mockup-content {
+                margin-top: 34px;
+            }
+
+            /* Option list */
+            .options {
+                display: grid;
+                gap: 8px;
+                margin: 0;
+                padding: 0;
+                border: 0;
+            }
+
+            .options legend {
+                padding: 0;
+                margin-bottom: 8px;
+                font-size: 13px;
+                color: var(--color-subtitle);
+                font-weight: 500;
+            }
+
+            .option {
+                display: grid;
+                grid-template-columns: 20px 1fr;
+                align-items: start;
+                gap: 12px;
+                padding: 12px 14px;
+                background: var(--color-surface-100);
+                border: 1px solid var(--color-border-light);
+                border-radius: var(--radius-lg);
+                cursor: pointer;
+                transition:
+                    border-color 120ms var(--ease),
+                    background-color 120ms var(--ease);
+            }
+            .option[data-state='correct'] {
+                border-color: var(--color-primary);
+                background: var(--color-success-bg);
+            }
+            .option[data-state='incorrect'] {
+                border-color: var(--color-error);
+                background: var(--color-error-bg);
+            }
+            .option[data-state='reveal-correct'] {
+                border-color: var(--color-primary);
+                background: color-mix(in srgb, var(--color-success-bg) 60%, transparent);
+            }
+            .option[data-state='muted'] {
+                opacity: 0.5;
+            }
+            .option[data-locked] {
+                cursor: default;
+            }
+
+            .option input {
+                appearance: none;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                margin: 0;
+                margin-top: 1px;
+                width: 18px;
+                height: 18px;
+                min-width: 18px;
+                flex-shrink: 0;
+                display: inline-block;
+                border: 1px solid var(--color-border);
+                border-radius: 50%;
+                background: var(--color-surface-interactive) no-repeat center;
+                background-size: 10px 10px;
+                cursor: pointer;
+                transition:
+                    border-color 120ms var(--ease),
+                    background-color 120ms var(--ease);
+            }
+            .option:not([data-locked]) input:checked {
+                border-color: var(--color-primary);
+                background-image: radial-gradient(circle, var(--color-primary) 0 4px, transparent 5px);
+            }
+            .option:hover:not([data-locked]) input:not(:checked) {
+                border-color: var(--color-primary);
+            }
+            .option[data-state='correct'] input,
+            .option[data-state='reveal-correct'] input {
+                border-color: var(--color-primary);
+                background-image: radial-gradient(circle, var(--color-primary) 0 4px, transparent 5px);
+            }
+            .option[data-state='incorrect'] input {
+                border-color: var(--color-error);
+                background-image: radial-gradient(circle, var(--color-error) 0 4px, transparent 5px);
+            }
+
+            .option-text {
+                font-size: 14px;
+                color: var(--color-body);
+                line-height: 1.45;
+            }
+
+            /* Reveal panel */
+            .reveal {
+                margin-top: 16px;
+                padding: 16px;
+                background: var(--color-surface-200);
+                border-radius: var(--radius-lg);
+                box-shadow: inset 0 0 0 1px var(--color-border-light);
+                display: none;
+                flex-direction: column;
+                gap: 8px;
+                animation: fade-in 180ms var(--ease) both;
+            }
+            .reveal.visible {
+                display: flex;
+            }
+
+            .reveal-head {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-weight: 500;
+                font-size: 14px;
+            }
+
+            .reveal-head svg {
+                flex-shrink: 0;
+            }
+
+            .reveal-head.correct {
+                color: var(--color-primary);
+            }
+            .reveal-head.incorrect {
+                color: var(--color-error);
+            }
+
+            .reveal-body {
+                color: var(--color-body);
+                font-size: 14px;
+                line-height: 1.55;
+            }
+
+            .reveal-body strong {
+                color: var(--color-title);
+                font-weight: 500;
+            }
+
+            .reveal-principle {
+                margin-top: 4px;
+                padding-top: 10px;
+                border-top: 1px solid var(--color-border-light);
+                display: flex;
+                gap: 8px;
+                align-items: baseline;
+                font-size: 14px;
+                color: var(--color-subtitle);
+            }
+
+            .reveal-principle .label {
+                color: var(--color-muted);
+                font-weight: 500;
+                font-size: 14px;
+                flex-shrink: 0;
+            }
+
+            .answer-error {
+                margin-top: 8px;
+                font-size: 13px;
+                color: var(--color-error);
+            }
+
+            .question-actions {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 8px;
+                margin-top: 20px;
+            }
+
+            /* ==========================================================
+               Mockup primitives
+               These mimic the real component styles so each scenario
+               looks like a small slice of a real Cleary tool.
+               ========================================================== */
+            /* Inner mini-app card sits ONE step above the mockup-frame
+               (frame is level 1 / surface-100, this is level 2 / surface-200).
+               In dark mode that's #18181b frame with #27272a card, card reads
+               as elevated. In light mode it's gray frame with white card ,
+               the card sits inside the frame like an elevated content surface. */
+            .ui-card {
+                background: var(--color-mockup-card);
+                border-radius: var(--radius-lg);
+                box-shadow: inset 0 0 0 1px var(--color-border-light);
+                padding: 16px;
+            }
+
+            .ui-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+                padding: 10px 0;
+            }
+            .ui-row + .ui-row {
+                border-top: 1px solid var(--color-border-light);
+            }
+            .ui-row-label {
+                color: var(--color-title);
+                font-size: 14px;
+                font-weight: 500;
+            }
+            .ui-row-sub {
+                color: var(--color-subtitle);
+                font-size: 12px;
+                margin-top: 2px;
+            }
+
+            .ui-toggle {
+                display: inline-block;
+                width: 32px;
+                height: 18px;
+                background: var(--color-surface-400);
+                border-radius: 999px;
+                position: relative;
+                flex-shrink: 0;
+                padding: 0;
+                border: 0;
+                transition: background-color 140ms var(--ease);
+            }
+            .ui-toggle::after {
+                content: '';
+                position: absolute;
+                top: 2px;
+                left: 2px;
+                width: 14px;
+                height: 14px;
+                background: var(--color-toggle-knob);
+                border-radius: 999px;
+                box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+                transition: left 140ms var(--ease);
+            }
+            .ui-toggle.on {
+                background: var(--color-primary);
+            }
+            .ui-toggle.on::after {
+                left: 16px;
+                background: var(--color-surface-200);
+            }
+            button.ui-toggle {
+                cursor: pointer;
+                font: inherit;
+                color: inherit;
+            }
+            button.ui-toggle:focus-visible {
+                outline: 2px solid var(--color-primary);
+                outline-offset: 2px;
+            }
+
+            .ui-hint {
+                margin-top: 12px;
+                padding-top: 12px;
+                border-top: 1px solid var(--color-border-light);
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 12px;
+                color: var(--color-subtitle);
+            }
+            .ui-hint svg {
+                color: var(--color-success);
+                flex-shrink: 0;
+            }
+
+            .mockup-switch {
+                position: absolute;
+                top: 8px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: inline-flex;
+                align-items: center;
+                padding: 3px 3px 3.5px;
+                background: var(--color-menu-panel);
+                border-radius: 999px;
+                box-shadow: inset 0 0 0 1px var(--color-border-light);
+                font-family: inherit;
+            }
+            .mockup-switch::before {
+                content: '';
+                position: absolute;
+                top: 3px;
+                bottom: 3px;
+                left: 3px;
+                width: calc(50% - 3px);
+                background: var(--color-surface-200);
+                border-radius: 999px;
+                box-shadow:
+                    var(--shadow-sm),
+                    inset 0 0 0 1px var(--color-border-light);
+                transition: transform 240ms var(--ease);
+            }
+            :root[data-theme='dark'] .mockup-switch::before {
+                background: var(--color-surface-400);
+                box-shadow: var(--shadow-sm);
+            }
+            .mockup-switch[data-variant='after']::before {
+                transform: translateX(100%);
+            }
+            .mockup-switch button {
+                position: relative;
+                background: transparent;
+                border: 0;
+                padding: 4px 14px;
+                font-family: inherit;
+                font-size: 12px;
+                font-weight: 500;
+                color: var(--color-subtitle);
+                border-radius: 999px;
+                cursor: pointer;
+                transition: color 200ms var(--ease);
+                min-width: 62px;
+                line-height: 1;
+            }
+            .mockup-switch button:disabled {
+                cursor: not-allowed;
+                color: var(--color-muted);
+                opacity: 0.55;
+            }
+            .mockup-switch button[aria-pressed='true']:not(:disabled) {
+                color: var(--color-title);
+            }
+            .mockup-switch button:focus-visible {
+                outline: 2px solid var(--color-primary);
+                outline-offset: 2px;
+            }
+
+            .ui-input {
+                display: block;
+                width: 100%;
+                background: transparent;
+                color: var(--color-title);
+                border: 1px solid var(--color-border);
+                border-radius: var(--radius-lg);
+                padding: 8px 10px;
+                font: inherit;
+                font-size: 14px;
+            }
+            .ui-input[aria-invalid='true'] {
+                border-color: var(--color-error);
+            }
+            .ui-input[aria-invalid='true']:focus-visible {
+                outline-color: var(--color-error);
+            }
+
+            .ui-label {
+                display: block;
+                color: var(--color-title);
+                font-size: 13px;
+                font-weight: 500;
+                margin-bottom: 4px;
+            }
+
+            .ui-field {
+                margin-bottom: 10px;
+            }
+
+            .ui-btn {
+                display: inline-flex;
+                align-items: center;
+                cursor: pointer;
+                min-width: 70px;
+                text-align: center;
+                justify-content: center;
+                gap: 6px;
+                padding: 6px 12px;
+                background: var(--color-contained-bg);
+                color: var(--color-contained-fg);
+                border-radius: var(--radius-lg);
+                font-size: 13px;
+                font-weight: 500;
+                border: 0;
+                font-family: inherit;
+            }
+            .ui-btn.outlined {
+                background: transparent;
+                color: var(--color-title);
+                border: 1px solid var(--color-border);
+            }
+            .ui-btn.danger {
+                background: var(--color-error);
+                color: #fff;
+            }
+            .ui-btn.disabled,
+            .ui-btn[aria-disabled='true'] {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            button.ui-btn {
+                cursor: pointer;
+                font: inherit;
+            }
+            button.ui-btn:focus-visible,
+            .btn:focus-visible {
+                outline: 2px solid var(--color-primary);
+                outline-offset: 2px;
+            }
+
+            .ui-toolbar {
+                display: flex;
+                gap: 6px;
+                justify-content: flex-end;
+                margin-top: 12px;
+                padding-top: 12px;
+                border-top: 1px solid var(--color-border-light);
+            }
+
+            .ui-section-title {
+                font-size: 14px;
+                font-weight: 500;
+                color: var(--color-title);
+                margin: 0 0 12px;
+            }
+
+            .ui-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 2px 8px;
+                background: var(--color-surface-200);
+                color: var(--color-subtitle);
+                border-radius: 999px;
+                font-size: 12px;
+                font-weight: 500;
+            }
+
+            .ui-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 13px;
+            }
+            .ui-table th,
+            .ui-table td {
+                padding: 8px 12px;
+                text-align: left;
+                border-bottom: 1px solid var(--color-border-light);
+            }
+            .ui-table th {
+                background: var(--color-surface-200);
+                color: var(--color-subtitle);
+                font-weight: 500;
+                font-size: 12px;
+            }
+            .ui-table td.num {
+                font-variant-numeric: tabular-nums;
+            }
+            .ui-table tr:last-child td {
+                border-bottom: 0;
+            }
+
+            .ui-select {
+                position: relative;
+                background: var(--color-menu-panel);
+                border: 1px solid var(--color-border);
+                border-radius: var(--radius-lg);
+                max-height: 200px;
+                overflow-y: auto;
+                font-size: 13px;
+            }
+            .ui-select-item {
+                padding: 8px 12px;
+                color: var(--color-body);
+                cursor: default;
+            }
+            .ui-select-item:hover {
+                background: var(--color-menu-hover);
+            }
+            .ui-select-item + .ui-select-item {
+                border-top: 1px solid var(--color-border-light);
+            }
+
+            .ui-tooltip {
+                position: relative;
+                display: inline-flex;
+            }
+            .ui-tooltip-bubble {
+                position: absolute;
+                bottom: calc(100% + 8px);
+                left: 50%;
+                transform: translateX(-50%);
+                background: var(--color-contained-bg);
+                color: var(--color-contained-fg);
+                font-size: 12px;
+                padding: 6px 10px;
+                border-radius: var(--radius-sm);
+                white-space: nowrap;
+                box-shadow: var(--shadow-md);
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 120ms var(--ease);
+            }
+            .ui-tooltip:hover .ui-tooltip-bubble,
+            .ui-tooltip:focus-within .ui-tooltip-bubble,
+            .ui-tooltip[data-open='true'] .ui-tooltip-bubble {
+                opacity: 1;
+            }
+            .ui-tooltip-bubble {
+                z-index: 30;
+            }
+            .ui-tooltip-bubble::after {
+                content: '';
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                transform: translateX(-50%);
+                border: 4px solid transparent;
+                border-top-color: var(--color-contained-bg);
+            }
+
+            .mockup-locked-overlay {
+                position: absolute;
+                inset: 43px 1px 1px;
+                border-radius: 11px;
+                background: color-mix(in srgb, var(--color-background) 65%, transparent);
+                backdrop-filter: blur(4px);
+                -webkit-backdrop-filter: blur(8px);
+                z-index: 20;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                transition: all 350ms var(--ease);
+                animation: fade-in 160ms var(--ease) both;
+            }
+            .mockup-locked-overlay-inner {
+                background: var(--color-surface-100);
+                border-radius: var(--radius-lg);
+                box-shadow: var(--ring-surface-300), var(--shadow-md);
+                padding: 10px 16px;
+                font-size: 13px;
+                color: var(--color-subtitle);
+                pointer-events: none;
+            }
+
+            .ui-toast {
+                position: absolute;
+                bottom: 12px;
+                right: 12px;
+                background: #27272a;
+                color: #fafafa;
+                padding: 10px 14px;
+                border-radius: var(--radius-lg);
+                font-size: 13px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                box-shadow: var(--shadow-md);
+            }
+            /* ==========================================================
+               Sonner-style toast stack
+               Per emilkowal.ski/ui/building-a-toast-component
+               - Interruptible transitions on individual transform props
+               - Stacked mode: translateY(lift * index) + scale(1 - 0.06 * index)
+               - Height normalized to front toast so back toasts poke out evenly
+               - Expand on hover via :has(), each toast at natural height
+                 with offset = sum of preceding heights + gap * index
+               - ::after fills the gap below each toast to keep hover continuous
+               - Enter/leave via [data-mounted] and [data-removed] flip
+               ========================================================== */
+            .mockup-toast-list {
+                position: absolute;
+                top: 12px;
+                left: 0;
+                right: 0;
+                padding: 0;
+                margin: 0;
+                list-style: none;
+                z-index: 100;
+                pointer-events: none;
+            }
+            .mockup-toast {
+                --toast-ease: cubic-bezier(0.32, 0.72, 0, 1);
+                --y-stack: 0px;
+                --s-stack: 1;
+                --o-stack: 1;
+                --y-expand: 0px;
+                --h-stack: auto;
+                --h-natural: auto;
+                position: absolute;
+                top: 0;
+                left: 50%;
+                translate: -50% var(--y-stack);
+                scale: var(--s-stack);
+                opacity: var(--o-stack);
+                height: var(--h-stack);
+                transform-origin: top center;
+                pointer-events: auto;
+                display: flex;
+                justify-content: center;
+                align-items: flex-start;
+                transition:
+                    translate 400ms var(--toast-ease),
+                    scale 400ms var(--toast-ease),
+                    opacity 400ms var(--toast-ease),
+                    height 400ms var(--toast-ease);
+            }
+            .mockup-toast[data-mounted='false'] {
+                translate: -50% -100%;
+                opacity: 0;
+            }
+            .mockup-toast[data-removed='true'] {
+                translate: -50% -100%;
+                opacity: 0;
+                pointer-events: none;
+            }
+            /* Expanded mode: any toast hovered triggers all to spread */
+            .mockup-toast-list:has(.mockup-toast:hover) .mockup-toast:not([data-mounted='false']):not([data-removed='true']) {
+                translate: -50% var(--y-expand);
+                scale: 1;
+                opacity: 1;
+                height: var(--h-natural);
+            }
+            /* Gap-filler pseudo so hover stays continuous across expanded gaps */
+            .mockup-toast::after {
+                content: '';
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                height: 10px;
+            }
+            /* Visual pill inside the wrapper, position: static so wrapper controls layout */
+            .mockup-toast-body {
+                background: #27272a;
+                color: #fafafa;
+                padding: 10px 14px;
+                border-radius: var(--radius-lg);
+                font-size: 13px;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                box-shadow: var(--shadow-md);
+                white-space: nowrap;
+            }
+
+            .ui-icon-btn {
+                width: 28px;
+                height: 28px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: transparent;
+                border: 0;
+                color: var(--color-subtitle);
+                border-radius: var(--radius-lg);
+                cursor: pointer;
+                font: inherit;
+            }
+
+            .stacked-records {
+                display: grid;
+                gap: 6px;
+            }
+            .stacked-records .record {
+                display: flex;
+                justify-content: space-between;
+                background: var(--color-surface-100);
+                box-shadow: inset 0 0 0 1px var(--color-border-light);
+                border-radius: var(--radius-sm);
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+
+            /* ==========================================================
+               Results
+               ========================================================== */
+            .result-score {
+                font-family: var(--font-display);
+                font-size: clamp(48px, 8vw, 72px);
+                line-height: 1;
+                color: var(--color-title);
+                font-variant-numeric: tabular-nums;
+            }
+            .result-grid {
+                display: grid;
+                gap: 12px;
+                margin: 20px 0;
+            }
+            .result-row {
+                display: grid;
+                grid-template-columns: 24px 1fr auto;
+                gap: 12px;
+                align-items: start;
+                padding: 12px 14px;
+                background: var(--color-surface-100);
+                border-radius: var(--radius-lg);
+                box-shadow: var(--ring-surface-300);
+                font-size: 13px;
+            }
+            .result-row .step {
+                font-size: 12px;
+                color: var(--color-muted);
+                font-variant-numeric: tabular-nums;
+                font-weight: 500;
+            }
+            .result-row .topic {
+                color: var(--color-title);
+                font-size: 14px;
+            }
+            .result-row .topic .principle {
+                color: var(--color-subtitle);
+                font-size: 14px;
+                margin-top: 2px;
+            }
+            .result-row .mark {
+                font-size: 12px;
+                font-weight: 500;
+            }
+            .result-row .mark.correct {
+                color: var(--color-success);
+            }
+            .result-row .mark.incorrect {
+                color: var(--color-error);
+            }
+
+            .takeaways {
+                margin-top: 24px;
+            }
+            .takeaways h3 {
+                margin-bottom: 12px;
+            }
+            .takeaways ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                display: grid;
+                gap: 8px;
+            }
+            .takeaways li {
+                display: grid;
+                grid-template-columns: 16px 1fr;
+                gap: 8px;
+                align-items: start;
+                color: var(--color-body);
+                font-size: 14px;
+                line-height: 1.55;
+            }
+            .takeaways li::before {
+                content: '';
+                width: 6px;
+                height: 6px;
+                margin-top: 8px;
+                background: var(--color-primary);
+                border-radius: 999px;
+            }
+
+            .results-actions {
+                display: flex;
+                gap: 8px;
+                margin-top: 24px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="app">
+            <div class="header-wrap">
+                <header class="header">
+                    <div class="header-brand">
+                        <svg width="22" height="22" viewBox="0 0 40 40" fill="none" aria-hidden="true" id="header-logo">
+                            <path
+                                fill="currentColor"
+                                d="M27.207 7.436c-4.647 3.996-7.81 7.696-9.724 10.81-.93.073-1.87.158-2.8.248-6.573.637-12.85.47-11.97-5.19.954-6.047 7.864-8.597 10.464-8.719 3.29-.158 4 .903 3.936 3.086-.063 2.182-.21 4.896.487 5.131 1.04.354 1.907-2.632 4.143-5.899C24.893 2.304 26.7.928 26.56.476c-.227-.759-1.343-.637-2.593.628-1.204 1.22-4.634 4.62-4.967 4.59-.333-.027-.937-2.864-5.36-2.92C7.203 2.689-1.293 9.204.167 16.28c1.05 5.095 8.743 4.245 16.546 3.317-1.733 3.29-1.926 5.783-.896 7.076 2.083 2.596 6.666 1.888 6.666 1.888l-3.263 5.944s-3.043.238-6.273.354c-2.57.093-3.717.283-4.064 1.622-.183.702 1.517 3.275 5.267 3.51 3.75.234 6.69-4.09 6.69-4.09s3.617-.535 5.21-.728c1.593-.192 1.573-1.044.717-1.002-1.55.08-4.977.215-4.977.215s5.14-7.43 5-8.018c-.14-.59-1.737-1.065-2.43-1.005-.693.06-3.96 2.3-5.903.413-1.77-1.718-.204-4.314 1.35-6.547a64.684 64.684 0 0 1 5.643-.433c1.147-.023 2.183-.028 3.123-.023-.186.21-.333.388-.463.516-1.777 1.955-3.09 3.184-2.88 3.354.48.41 2.693-1.308 5.257-3.85 5.08.136 6.496.646 6.63.459.26-.36-2.977-.965-5.81-1.285 3.186-3.28 6.666-7.577 8-10.54 2.486-5.656-1.68-8.96-12.1.008ZM16.72 37.75a3.23 3.23 0 0 1-1.374.335 3.263 3.263 0 0 1-1.393-.276c-.973-.472-.77-1.415.73-1.534 1.18-.096 3.23-.49 3.484-.334.253.156-.317 1.29-1.447 1.809ZM37.487 6.196c-.51 2.51-5.487 8.621-8.084 11.636a89.838 89.838 0 0 0-8.716.195c2.236-2.861 8.76-9.855 11.106-11.585 3.68-2.723 6.32-3.312 5.694-.246Z"
+                            />
+                        </svg>
+                        <span class="title" id="header-title">UX Quest</span>
+                    </div>
+                    <div class="header-meta" id="header-meta" aria-hidden="true">
+                        <span class="header-meta-step" id="header-meta-step"></span>
+                        <span class="header-meta-title" id="header-meta-title"></span>
+                    </div>
+                    <div class="header-actions">
+                        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle theme (Ctrl+Alt+D)">
+                            <svg
+                                class="icon-moon"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                            </svg>
+                            <svg
+                                class="icon-sun"
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
+                                <circle cx="12" cy="12" r="4" />
+                                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                            </svg>
+                        </button>
+                    </div>
+                </header>
+                <div class="progress-track" aria-hidden="true">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+            </div>
+
+            <main class="content" id="content">
+                <!-- Screens rendered by JS -->
+            </main>
+        </div>
+
+        <template id="tpl-intro">
+            <section class="screen active intro" aria-labelledby="intro-title">
+                <div class="intro-head">
+                    <div class="intro-eyebrow">Training exercise</div>
+                    <h1 id="intro-title">UX Quest</h1>
+                    <p class="intro-lead">
+                        Eight legal-product scenarios. Spot what's off, choose the best response, and see why it matters. Build sharper judgement for tools
+                        lawyers can trust.
+                    </p>
+                </div>
+
+                <div class="intro-meta">
+                    <span class="tabular">8 questions</span>
+                    <span class="dot" aria-hidden="true">·</span>
+                    <span>10 minutes</span>
+                    <span class="dot" aria-hidden="true">·</span>
+                    <span>Multiple choice</span>
+                </div>
+
+                <div class="card card-padded">
+                    <h3 style="margin-bottom: 16px">How it works</h3>
+                    <ol class="intro-list">
+                        <li>
+                            <span class="num">01</span
+                            ><span class="label">Look at the mini-interface. Imagine it's a real screen a lawyer or legal team member is using.</span>
+                        </li>
+                        <li>
+                            <span class="num">02</span
+                            ><span class="label">Choose one response. Sometimes it is a clear flaw; sometimes it is a missed opportunity.</span>
+                        </li>
+                        <li><span class="num">03</span><span class="label">Read the explanation. It gives the UX principle behind the call.</span></li>
+                    </ol>
+                </div>
+
+                <div class="intro-actions">
+                    <button class="btn btn-contained btn-lg" id="start-btn" type="button">Begin</button>
+                    <span class="text-sm text-muted">Press Enter to start</span>
+                </div>
+            </section>
+        </template>
+
+        <template id="tpl-question">
+            <section class="screen active" aria-labelledby="q-title">
+                <div class="question-head">
+                    <span class="question-step" data-bind="step"></span>
+                    <h2 id="q-title" data-bind="title"></h2>
+                </div>
+
+                <div class="mockup-frame">
+                    <span class="mockup-label">Mini-app</span>
+                    <div class="mockup-switch" data-bind="switch" hidden>
+                        <button type="button" data-variant="before" aria-pressed="true">Before</button>
+                        <button type="button" data-variant="after" aria-pressed="false">After</button>
+                    </div>
+                    <div class="mockup-content" data-bind="mockup"></div>
+                </div>
+
+                <form data-bind="form" novalidate>
+                    <p class="question-prompt" data-bind="prompt"></p>
+
+                    <fieldset class="options" data-bind="options"></fieldset>
+                    <p class="answer-error" data-bind="answer-error" role="alert" hidden>Pick an answer before checking.</p>
+
+                    <div class="reveal" data-bind="reveal">
+                        <div class="reveal-head" data-bind="reveal-head"></div>
+                        <div class="reveal-body" data-bind="reveal-body"></div>
+                        <div class="reveal-principle">
+                            <span class="label">Principle</span>
+                            <span data-bind="reveal-principle"></span>
+                        </div>
+                    </div>
+
+                    <div class="question-actions">
+                        <button class="btn btn-outlined" type="button" data-bind="back-btn">
+                            <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                            >
+                                <path d="M15 18l-6-6 6-6" />
+                            </svg>
+                            Back
+                        </button>
+                        <div style="display: flex; gap: 8px">
+                            <button class="btn btn-contained" type="submit" data-bind="check-btn">Check answer</button>
+                            <button class="btn btn-contained" type="button" data-bind="next-btn" style="display: none">
+                                Next question
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                >
+                                    <path d="M9 18l6-6-6-6" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+        </template>
+
+        <template id="tpl-results">
+            <section class="screen active" aria-labelledby="results-title">
+                <div class="intro-eyebrow">Complete</div>
+                <div class="result-score tabular">
+                    <span data-bind="score"></span> <span class="text-muted" style="font-size: 0.5em">/ <span data-bind="total"></span></span>
+                </div>
+                <h1 id="results-title" data-bind="headline" style="margin-top: 16px"></h1>
+                <p class="intro-lead" data-bind="subhead"></p>
+
+                <div class="result-grid" data-bind="grid"></div>
+
+                <div class="takeaways card card-padded">
+                    <h3>What to carry into the next thing you build</h3>
+                    <ul>
+                        <li>Match the control to the save model. Switches apply instantly; checkboxes can wait for 'Save'.</li>
+                        <li>Keep submit controls available. Validate on submit and show field-level errors.</li>
+                        <li>Single-field edits usually belong inline. Use modals for tasks that need more separation.</li>
+                        <li>Short, familiar choice sets beat long menus. Trim first, then add structure only if needed.</li>
+                        <li>Put decision-critical context inline. Tooltips are for optional extra detail.</li>
+                        <li>After a valid submit, show progress and block repeat activation until the request finishes.</li>
+                        <li>Label AI output where it appears and show what still needs human review.</li>
+                        <li>Update the control state immediately; debounce the results request behind it.</li>
+                    </ul>
+                </div>
+
+                <div class="results-actions">
+                    <button class="btn btn-contained" type="button" id="restart-btn">Try again</button>
+                </div>
+            </section>
+        </template>
+
+        <script>
+            // ==========================================================
+            // Question data
+            // Each correct option index references the radio order below.
+            // ==========================================================
+            const questions = [
+                {
+                    title: 'A settings panel',
+                    topic: 'Switches vs. save buttons',
+                    principle: "Match the control to the save model. Switches apply instantly; checkboxes can wait for 'Save'.",
+                    mockup: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title">Notification preferences</div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Activity in my matters</div>
+                                    <div class="ui-row-sub">Replies, mentions, and status changes</div>
+                                </div>
+                                <button type="button" class="ui-toggle on" role="switch" aria-checked="true" aria-label="Activity in my matters"></button>
+                            </div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Document uploads</div>
+                                    <div class="ui-row-sub">Anyone adds a new file</div>
+                                </div>
+                                <button type="button" class="ui-toggle" role="switch" aria-checked="false" aria-label="Document uploads"></button>
+                            </div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Weekly digest</div>
+                                    <div class="ui-row-sub">Friday summary email</div>
+                                </div>
+                                <button type="button" class="ui-toggle on" role="switch" aria-checked="true" aria-label="Weekly digest"></button>
+                            </div>
+                            <div class="ui-toolbar">
+                                <button type="button" class="ui-btn outlined">Cancel</button>
+                                <button type="button" class="ui-btn" data-action="save">Save</button>
+                            </div>
+                        </div>
+                    `,
+                    mockupCorrect: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title">Notification preferences</div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Activity in my matters</div>
+                                    <div class="ui-row-sub">Replies, mentions, and status changes</div>
+                                </div>
+                                <button type="button" class="ui-toggle on" role="switch" aria-checked="true" aria-label="Activity in my matters"></button>
+                            </div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Document uploads</div>
+                                    <div class="ui-row-sub">Anyone adds a new file</div>
+                                </div>
+                                <button type="button" class="ui-toggle" role="switch" aria-checked="false" aria-label="Document uploads"></button>
+                            </div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Weekly digest</div>
+                                    <div class="ui-row-sub">Friday summary email</div>
+                                </div>
+                                <button type="button" class="ui-toggle on" role="switch" aria-checked="true" aria-label="Weekly digest"></button>
+                            </div>
+                        </div>
+                    `,
+                    wire: (root, { corrected }) => {
+                        root.querySelectorAll('button.ui-toggle').forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                const on = btn.classList.toggle('on')
+                                btn.setAttribute('aria-checked', String(on))
+                                if (corrected) showMockupToast(root, 'Saved', 1200)
+                            })
+                        })
+                        if (!corrected) {
+                            const saveBtn = root.querySelector('button[data-action="save"]')
+                            if (saveBtn)
+                                saveBtn.addEventListener('click', () => {
+                                    showMockupToast(root, 'Preferences saved')
+                                })
+                        }
+                    },
+                    prompt: 'Review this settings panel. What improvement would help most?',
+                    options: [
+                        {
+                            text: "Remove 'Cancel' and keep 'Save' as the only toolbar action.",
+                            explain:
+                                "'Cancel' is a reasonable secondary action. Removing it tidies the toolbar but the fundamental problem remains — switches that look instant still need a 'Save' step.",
+                        },
+                        {
+                            text: 'Save each setting when it is toggled.',
+                            correct: true,
+                            explain:
+                                "This is the cleanest fix. Switches signal an immediate change, so each one should save when toggled and the 'Save' / 'Cancel' toolbar becomes unnecessary. The control and the commit model now match.",
+                        },
+                        {
+                            text: 'Replace the switches with checkboxes.',
+                            explain:
+                                "This works — checkboxes belong in a form that needs a 'Save' step. But it is the heavier redesign. Removing the toolbar and saving on toggle is simpler and keeps the switches, which users often prefer.",
+                        },
+                        {
+                            text: 'Make each switch larger so the touch target is easier to hit.',
+                            explain: 'Touch targets matter, but they are not the structural problem. The interaction model itself is the issue.',
+                        },
+                    ],
+                },
+                {
+                    title: 'A new matter form',
+                    topic: 'Form validation',
+                    principle: 'Keep submit controls available. Validate on submit and show field-level errors.',
+                    mockup: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title">New matter</div>
+                            <div class="ui-field">
+                                <label class="ui-label">Matter name <span style="color:var(--color-error)">*</span></label>
+                                <input class="ui-input" type="text" value="" placeholder="e.g. Acme / Stellar acquisition" />
+                            </div>
+                            <div class="ui-field">
+                                <label class="ui-label">Client <span style="color:var(--color-error)">*</span></label>
+                                <input class="ui-input" type="text" value="" placeholder="Search clients" />
+                            </div>
+                            <div class="ui-toolbar">
+                                <button type="button" class="ui-btn outlined">Cancel</button>
+                                <span class="ui-tooltip">
+                                    <button type="button" class="ui-btn disabled" aria-disabled="true" disabled>Create matter</button>
+                                    <span class="ui-tooltip-bubble">Fill in required fields</span>
+                                </span>
+                            </div>
+                        </div>
+                    `,
+                    mockupCorrect: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title">New matter</div>
+                            <div class="ui-field">
+                                <label class="ui-label">Matter name <span style="color:var(--color-error)">*</span></label>
+                                <input class="ui-input" type="text" value="" placeholder="e.g. Acme / Stellar acquisition" data-required />
+                            </div>
+                            <div class="ui-field">
+                                <label class="ui-label">Client <span style="color:var(--color-error)">*</span></label>
+                                <input class="ui-input" type="text" value="" placeholder="Search clients" data-required />
+                            </div>
+                            <div class="ui-toolbar">
+                                <button type="button" class="ui-btn outlined">Cancel</button>
+                                <button type="button" class="ui-btn" data-action="create">Create matter</button>
+                            </div>
+                        </div>
+                    `,
+                    wire: (root, { corrected }) => {
+                        if (!corrected) {
+                            const btn = root.querySelector('.ui-btn.disabled')
+                            const tooltip = root.querySelector('.ui-tooltip')
+                            const inputs = root.querySelectorAll('.ui-input')
+                            const check = () => {
+                                const allFilled = [...inputs].every(i => i.value.trim())
+                                btn.classList.toggle('disabled', !allFilled)
+                                btn.disabled = !allFilled
+                                btn.setAttribute('aria-disabled', String(!allFilled))
+                                tooltip.style.pointerEvents = allFilled ? 'none' : ''
+                            }
+                            inputs.forEach(i => i.addEventListener('input', check))
+                            return
+                        }
+                        const createBtn = root.querySelector('[data-action="create"]')
+                        if (createBtn)
+                            createBtn.addEventListener('click', () => {
+                                root.querySelectorAll('[data-required]').forEach(input => {
+                                    if (input.value.trim()) return
+                                    input.setAttribute('aria-invalid', 'true')
+                                    if (!(input.nextElementSibling && input.nextElementSibling.classList.contains('ui-field-error'))) {
+                                        const err = document.createElement('div')
+                                        err.className = 'ui-field-error'
+                                        err.style.cssText = 'margin-top:4px;font-size:12px;color:var(--color-error)'
+                                        err.textContent = 'Required'
+                                        input.after(err)
+                                    }
+                                })
+                            })
+                        root.querySelectorAll('[data-required]').forEach(input => {
+                            input.addEventListener('input', () => {
+                                if (!input.value.trim()) return
+                                input.removeAttribute('aria-invalid')
+                                if (input.nextElementSibling && input.nextElementSibling.classList.contains('ui-field-error')) input.nextElementSibling.remove()
+                            })
+                        })
+                    },
+                    prompt: 'Review this empty legal matter form. What improvement would help most?',
+                    options: [
+                        {
+                            text: "Colour 'Create matter' red until all required fields are filled.",
+                            explain:
+                                'Red signals error or destruction. The button has not failed, the user just has more to complete. Wrong colour, wrong signal.',
+                        },
+                        {
+                            text: "Show a toast after submit that says 'Required fields missing'.",
+                            explain:
+                                'A toast acknowledges the problem, but it separates the message from the field that needs attention. Field-level messages are easier to act on.',
+                        },
+                        {
+                            text: "Show 'Required' under every empty field on first load.",
+                            explain:
+                                'Errors on first load feel premature. Validation messages should appear after a submit attempt, or after the user has interacted with the field.',
+                        },
+                        {
+                            text: "Keep 'Create matter' enabled and validate on submit.",
+                            correct: true,
+                            explain:
+                                'The current disabled button hides the reason the user cannot continue, and native disabled controls are skipped by keyboard navigation. Keep the action available, then place each error next to the field that failed.',
+                        },
+                    ],
+                },
+                {
+                    title: 'A matter detail card',
+                    topic: 'Inline editing',
+                    principle: 'Single-field edits usually belong inline. Use modals for tasks that need more separation.',
+                    mockup: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title">Matter details</div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Matter name</div>
+                                    <div class="ui-row-sub" style="font-size:14px">Acme Corp - Series B</div>
+                                </div>
+                                <button type="button" class="ui-btn outlined" style="font-size:12px;padding:4px 10px" data-edit-modal>Edit</button>
+                            </div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Client</div>
+                                    <div class="ui-row-sub" style="font-size:14px">Acme Corp</div>
+                                </div>
+                            </div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Practice group</div>
+                                    <div class="ui-row-sub" style="font-size:14px">Corporate Finance</div>
+                                </div>
+                            </div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Status</div>
+                                    <div class="ui-row-sub" style="font-size:14px">Active</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div data-modal-backdrop style="display:none;position:absolute;inset:0;background:rgb(0 0 0/0.35);border-radius:11px;z-index:10;align-items:center;justify-content:center">
+                            <div data-modal-panel style="background:var(--color-mockup-card);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);padding:20px;width:280px;box-sizing:border-box">
+                                <div style="font-size:13px;font-weight:500;color:var(--color-title);margin-bottom:12px">Edit matter name</div>
+                                <input class="ui-input" type="text" value="Acme Corp - Series B" style="margin-bottom:12px" />
+                                <div class="ui-toolbar" style="margin:0;padding:0;border:0">
+                                    <button type="button" class="ui-btn outlined" data-modal-cancel>Cancel</button>
+                                    <button type="button" class="ui-btn" data-modal-save>Save</button>
+                                </div>
+                            </div>
+                        </div>
+                    `,
+                    mockupCorrect: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title">Matter details</div>
+                            <div class="ui-row" data-inline-row>
+                                <div style="flex:1;min-width:0">
+                                    <div class="ui-row-label">Matter name</div>
+                                    <div style="display:flex;align-items:center;gap:8px;margin-top:2px" data-inline-display-row>
+                                        <div class="ui-row-sub" style="font-size:14px;flex:1;min-width:0" data-display-value>Acme Corp - Series B</div>
+                                        <button type="button" class="ui-btn outlined" style="font-size:12px;padding:4px 10px;flex-shrink:0" data-edit-inline>Edit</button>
+                                    </div>
+                                    <div style="display:none;align-items:center;gap:8px;margin-top:4px" data-inline-edit-row>
+                                        <input class="ui-input" type="text" value="Acme Corp - Series B" style="height:36px;box-sizing:border-box;flex:1;min-width:0" data-inline-input />
+                                        <button type="button" class="ui-btn" style="font-size:13px;height:36px;padding:0 12px;flex-shrink:0" data-save-inline>Save</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Client</div>
+                                    <div class="ui-row-sub" style="font-size:14px">Acme Corp</div>
+                                </div>
+                            </div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Practice group</div>
+                                    <div class="ui-row-sub" style="font-size:14px">Corporate Finance</div>
+                                </div>
+                            </div>
+                            <div class="ui-row">
+                                <div>
+                                    <div class="ui-row-label">Status</div>
+                                    <div class="ui-row-sub" style="font-size:14px">Active</div>
+                                </div>
+                            </div>
+                        </div>
+                    `,
+                    wire: (root, { corrected }) => {
+                        if (!corrected) {
+                            const backdrop = root.querySelector('[data-modal-backdrop]')
+                            const panel = root.querySelector('[data-modal-panel]')
+                            const closeModal = () => {
+                                backdrop.style.display = 'none'
+                            }
+                            const editModalBtn = root.querySelector('[data-edit-modal]')
+                            if (editModalBtn)
+                                editModalBtn.addEventListener('click', () => {
+                                    backdrop.style.display = 'flex'
+                                    panel.classList.remove('modal-animate')
+                                    requestAnimationFrame(() => panel.classList.add('modal-animate'))
+                                })
+                            backdrop.addEventListener('click', e => {
+                                if (!panel.contains(e.target)) closeModal()
+                            })
+                            const onKeyDown = e => {
+                                if (e.key === 'Escape' && backdrop.style.display === 'flex') closeModal()
+                            }
+                            document.addEventListener('keydown', onKeyDown)
+                            const modalCancelBtn = root.querySelector('[data-modal-cancel]')
+                            if (modalCancelBtn) modalCancelBtn.addEventListener('click', closeModal)
+                            const modalSaveBtn = root.querySelector('[data-modal-save]')
+                            if (modalSaveBtn)
+                                modalSaveBtn.addEventListener('click', () => {
+                                    const val = root.querySelector('[data-modal-backdrop] .ui-input').value.trim()
+                                    if (val) {
+                                        root.querySelector('.ui-row-sub').textContent = val
+                                        showMockupToast(root, 'Matter name updated')
+                                    }
+                                    closeModal()
+                                })
+                        } else {
+                            const editBtn = root.querySelector('[data-edit-inline]')
+                            const saveBtn = root.querySelector('[data-save-inline]')
+                            const display = root.querySelector('[data-display-value]')
+                            const displayRow = root.querySelector('[data-inline-display-row]')
+                            const editRow = root.querySelector('[data-inline-edit-row]')
+                            const input = root.querySelector('[data-inline-input]')
+                            if (editBtn)
+                                editBtn.addEventListener('click', () => {
+                                    displayRow.style.display = 'none'
+                                    editRow.style.display = 'flex'
+                                    input.focus()
+                                })
+                            if (saveBtn)
+                                saveBtn.addEventListener('click', () => {
+                                    const val = input.value.trim()
+                                    if (val) {
+                                        display.textContent = val
+                                        showMockupToast(root, 'Matter name updated')
+                                    }
+                                    displayRow.style.display = 'flex'
+                                    editRow.style.display = 'none'
+                                })
+                        }
+                    },
+                    prompt: 'Review this matter detail card. What improvement would help most?',
+                    options: [
+                        {
+                            text: "Replace 'Edit' with a pencil icon to reduce visual weight.",
+                            explain:
+                                'Icon-only buttons remove the label, which makes the action harder to discover. That is a smaller issue than using a modal for a tiny edit.',
+                        },
+                        {
+                            text: 'Keep the modal but focus the input as soon as it opens.',
+                            explain:
+                                'Auto-focus is useful polish, but it does not fix the core issue. The user is still taken out of context for a one-field change.',
+                        },
+                        {
+                            text: 'Edit the value inline, directly on the detail card.',
+                            correct: true,
+                            explain:
+                                'For one text field, the modal makes the task feel larger than it is. Inline editing keeps the value, the action, and the result in the same place.',
+                        },
+                        {
+                            text: 'Add more fields to the modal so it feels more useful.',
+                            explain:
+                                'Adding fields to justify a modal inverts the logic. The question is whether the task needs a modal, not how to make the modal feel less wasteful.',
+                        },
+                    ],
+                },
+                {
+                    title: 'A sort menu',
+                    topic: 'Choice overload',
+                    principle: 'Short, familiar choice sets beat long menus. Trim first, then add structure only if needed.',
+                    mockup: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title" style="margin-bottom: 8px">Sort matters by</div>
+                            <div class="ui-select" role="listbox">
+                                <div class="ui-select-item">Most recent activity</div>
+                                <div class="ui-select-item">Oldest activity</div>
+                                <div class="ui-select-item">Alphabetical (A-Z)</div>
+                                <div class="ui-select-item">Alphabetical (Z-A)</div>
+                                <div class="ui-select-item">Recently viewed</div>
+                                <div class="ui-select-item">Recently modified</div>
+                                <div class="ui-select-item">By matter number</div>
+                                <div class="ui-select-item">By client name</div>
+                                <div class="ui-select-item">By status</div>
+                                <div class="ui-select-item">By priority</div>
+                                <div class="ui-select-item">By owner</div>
+                                <div class="ui-select-item">By practice group</div>
+                                <div class="ui-select-item">By date created</div>
+                                <div class="ui-select-item">By date closed</div>
+                            </div>
+                        </div>
+                    `,
+                    mockupCorrect: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title" style="margin-bottom: 8px">Sort matters by</div>
+                            <div class="ui-select" role="listbox">
+                                <div class="ui-select-item" style="background:var(--color-menu-hover); font-weight:500">Most recent activity</div>
+                                <div class="ui-select-item">Alphabetical (A-Z)</div>
+                                <div class="ui-select-item">By client name</div>
+                                <div class="ui-select-item">By owner</div>
+                                <div class="ui-select-item">By status</div>
+                            </div>
+                        </div>
+                    `,
+                    wire: root => {
+                        root.querySelectorAll('.ui-select-item').forEach(item => {
+                            item.addEventListener('click', () => {
+                                root.querySelectorAll('.ui-select-item').forEach(el => (el.style.background = ''))
+                                item.style.background = 'var(--color-menu-hover)'
+                            })
+                        })
+                    },
+                    prompt: 'Review this sort menu. What improvement would help most?',
+                    options: [
+                        {
+                            text: 'Sort the options alphabetically.',
+                            explain: 'Alphabetising the list makes it easier to scan, but the user still has to choose from too many options.',
+                        },
+                        {
+                            text: 'Reduce the menu to the sort orders people actually use.',
+                            correct: true,
+                            explain:
+                                "Most teams sort by recency, name, status, or owner. Use analytics and support evidence to trim the list, then set a sensible default. Hick's Law is a useful shorthand here: more choices slow the decision.",
+                        },
+                        {
+                            text: 'Add a search field above the menu.',
+                            explain:
+                                'Search can help long lists, but it does not solve the underlying choice problem. Trim first, then add search only if there is a genuine expert-user case.',
+                        },
+                        {
+                            text: "Group the options into 'Date', 'Name', and 'People' sections.",
+                            explain: 'Grouping helps, but it still asks the user to weigh fourteen choices. Smarter defaults beat better-labelled menus.',
+                        },
+                    ],
+                },
+                {
+                    title: 'A risk score',
+                    topic: 'Decision-critical context',
+                    principle: 'Put decision-critical context inline. Tooltips are for optional extra detail.',
+                    mockup: () => `
+                        <div class="ui-card">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px">
+                                <div class="ui-section-title" style="margin: 0">Document risk</div>
+                                <span class="ui-pill">AI-assisted</span>
+                            </div>
+                            <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px">
+                                <div style="font-size: 32px; font-weight: 500; color: var(--color-error); font-variant-numeric: tabular-nums">73</div>
+                                <div style="color: var(--color-subtitle); font-size: 13px">/ 100</div>
+                                <div class="ui-tooltip" style="margin-left: auto">
+                                    <button type="button" class="ui-icon-btn" aria-label="What does this mean?" data-tooltip-trigger>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                                    </button>
+                                    <span class="ui-tooltip-bubble" style="white-space:normal; width:160px; text-align:left">Missing signatures · Expired liability clause · Unsigned addendum</span>
+                                </div>
+                            </div>
+                            <div class="ui-toolbar">
+                                <button type="button" class="ui-btn outlined">Open document</button>
+                            </div>
+                        </div>
+                    `,
+                    mockupCorrect: () => `
+                        <div class="ui-card">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px">
+                                <div class="ui-section-title" style="margin: 0">Document risk</div>
+                                <span class="ui-pill">AI-assisted</span>
+                            </div>
+                            <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px">
+                                <div style="font-size: 32px; font-weight: 500; color: var(--color-error); font-variant-numeric: tabular-nums">73</div>
+                                <div style="color: var(--color-subtitle); font-size: 13px">/ 100</div>
+                            </div>
+                            <div style="font-size: 12px; color: var(--color-subtitle); margin-bottom: 4px; font-weight: 500">Key factors</div>
+                            <div style="font-size: 13px; color: var(--color-body); line-height: 1.6; margin-bottom: 10px">Missing signatures · Expired liability clause · Unsigned addendum</div>
+                            <div class="ui-hint">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                Review each factor before sharing this document
+                            </div>
+                            <div class="ui-toolbar">
+                                <button type="button" class="ui-btn outlined">Open document</button>
+                            </div>
+                        </div>
+                    `,
+                    wire: root => {
+                        root.querySelectorAll('[data-tooltip-trigger]').forEach(btn => {
+                            btn.addEventListener('click', e => {
+                                e.stopPropagation()
+                                const tooltip = btn.closest('.ui-tooltip')
+                                const open = tooltip && tooltip.dataset.open === 'true'
+                                root.querySelectorAll('.ui-tooltip[data-open="true"]').forEach(el => (el.dataset.open = 'false'))
+                                if (tooltip) tooltip.dataset.open = String(!open)
+                            })
+                        })
+                    },
+                    prompt: 'Review this risk score. What improvement would help most?',
+                    options: [
+                        {
+                            text: 'Make the tooltip open on click and keyboard focus.',
+                            explain:
+                                'That is better for access, but it still hides essential context behind an extra action. Information needed for the next decision should be visible without interaction.',
+                        },
+                        {
+                            text: "Replace the number with a 'High', 'Medium', or 'Low' badge.",
+                            explain:
+                                'A badge may help scanning, but replacing the number loses precision. If severity matters, pair text, colour, and the score rather than choosing only one.',
+                        },
+                        {
+                            text: 'Show the key factors inline near the score.',
+                            correct: true,
+                            explain:
+                                'The score is only useful if the lawyer can see what drove it. Put the factors and review prompt inline so the next action is clear on desktop, keyboard, and touch devices.',
+                        },
+                        {
+                            text: "Remove the 'AI-assisted' label to make the score feel clearer.",
+                            explain:
+                                "Removing the label would increase the trust risk. People need the 'AI-assisted' label so they can judge how carefully to review it.",
+                        },
+                    ],
+                },
+                {
+                    title: 'A document download',
+                    topic: 'In-flight actions',
+                    principle: 'After a valid submit, show progress and block repeat activation until the request finishes.',
+                    mockup: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title">Download memo</div>
+                            <p class="text-sm text-subtitle" style="margin: 0 0 16px">Generates a PDF. Usually takes 10-20 seconds.</p>
+                            <div class="text-xs text-muted" style="margin-bottom: 6px">Recent downloads</div>
+                            <div class="stacked-records" style="margin-bottom: 16px">
+                                <div class="record"><span>Acme_Memo_v3.pdf</span><span class="text-muted">12:04</span></div>
+                                <div class="record"><span>Acme_Memo_v2.pdf</span><span class="text-muted">Yesterday</span></div>
+                                <div class="record"><span>Acme_Memo_v1.pdf</span><span class="text-muted">Mon</span></div>
+                            </div>
+                            <div class="ui-toolbar" style="margin-top: 0">
+                                <button type="button" class="ui-btn" data-action="download">Download PDF</button>
+                            </div>
+                        </div>
+                    `,
+                    mockupCorrect: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title">Download memo</div>
+                            <p class="text-sm text-subtitle" style="margin: 0 0 16px">Generates a PDF. Usually takes 10-20 seconds.</p>
+                            <div class="text-xs text-muted" style="margin-bottom: 6px">Recent downloads</div>
+                            <div class="stacked-records" style="margin-bottom: 16px">
+                                <div class="record"><span>Acme_Memo_v3.pdf</span><span class="text-muted">12:04</span></div>
+                                <div class="record"><span>Acme_Memo_v2.pdf</span><span class="text-muted">Yesterday</span></div>
+                                <div class="record"><span>Acme_Memo_v1.pdf</span><span class="text-muted">Mon</span></div>
+                            </div>
+                            <div class="ui-toolbar" style="margin-top: 0">
+                                <button type="button" class="ui-btn" aria-live="polite" data-action="download-corrected">Download PDF</button>
+                            </div>
+                        </div>
+                        <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+                    `,
+                    wire: (root, { corrected }) => {
+                        const spinnerSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="animation:spin 1s linear infinite;vertical-align:middle;margin-right:6px"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`
+                        if (corrected) {
+                            const btn = root.querySelector('[data-action="download-corrected"]')
+                            if (!btn) return
+                            btn.addEventListener('click', () => {
+                                if (btn.getAttribute('aria-disabled') === 'true') return
+                                btn.classList.add('disabled')
+                                btn.setAttribute('aria-disabled', 'true')
+                                btn.innerHTML = `${spinnerSvg}Preparing PDF...`
+                                setTimeout(() => {
+                                    downloadBlankPdf('Acme_Memo.pdf')
+                                    btn.classList.remove('disabled')
+                                    btn.removeAttribute('aria-disabled')
+                                    btn.textContent = 'Download PDF'
+                                }, 1500)
+                            })
+                            return
+                        }
+                        const btn = root.querySelector('[data-action="download"]')
+                        if (btn)
+                            btn.addEventListener('click', () => {
+                                downloadBlankPdf('Acme_Memo.pdf')
+                            })
+                    },
+                    prompt: 'Review this document download. What improvement would help most?',
+                    options: [
+                        {
+                            text: 'Ask for confirmation before every download.',
+                            explain:
+                                'A confirmation step for a routine, reversible action adds friction. Solve duplicate submission at the source rather than interrupting every download.',
+                        },
+                        {
+                            text: 'Disable the button on click and show that the download is in progress.',
+                            correct: true,
+                            explain:
+                                'The user has already started a valid action, so the UI should show progress and prevent duplicate submissions until the request finishes. A disabled button is often fine; aria-disabled with a guarded handler is useful when the control should remain focusable.',
+                        },
+                        {
+                            text: 'Add a server-side guard against duplicate downloads.',
+                            explain:
+                                'A server guard is useful as a safety net, but the UI still looks ready and invites another click. Fix the feedback in the interface as well.',
+                        },
+                        {
+                            text: 'Show a warning toast after a second click.',
+                            explain:
+                                'The toast arrives too late. By then the user has already tried the action again. Prevent repeat activation as soon as the request starts.',
+                        },
+                    ],
+                },
+                {
+                    title: 'A document summary',
+                    topic: 'Labelling AI output',
+                    principle: 'Label AI output where it appears and show what still needs human review.',
+                    mockup: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title">Acme Corp - Master Services Agreement</div>
+                            <p class="text-sm text-muted" style="margin: 0 0 16px">Signed 14 March 2024 · 42 pages · v2</p>
+                            <div class="text-xs text-muted" style="margin-bottom: 6px; font-weight: 500">Summary</div>
+                            <p class="text-sm" style="line-height: 1.6; color: var(--color-body); margin: 0">
+                                Three-year MSA covering platform and professional services, auto-renewing annually unless either party gives 90 days notice. Liability capped at 12 months of fees. Mutual IP indemnification and a GDPR data processing addendum included.
+                            </p>
+                        </div>
+                    `,
+                    mockupCorrect: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title">Acme Corp - Master Services Agreement</div>
+                            <p class="text-sm text-muted" style="margin: 0 0 16px">Signed 14 March 2024 · 42 pages · v2</p>
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom: 6px">
+                                <div class="text-xs text-muted" style="font-weight: 500">Summary</div>
+                                <span class="ui-pill">AI-generated</span>
+                            </div>
+                            <p class="text-sm" style="line-height: 1.6; color: var(--color-body); margin: 0 0 10px">
+                                Three-year MSA covering platform and professional services, auto-renewing annually unless either party gives 90 days notice. Liability capped at 12 months of fees. Mutual IP indemnification and a GDPR data processing addendum included.
+                            </p>
+                            <div class="ui-hint">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                                Review before sharing, check dates, caps, and party names against the source
+                            </div>
+                        </div>
+                    `,
+                    prompt: 'Review this document summary. What improvement would help most?',
+                    options: [
+                        {
+                            text: 'Move the summary below the full source document.',
+                            explain: 'Burying useful information defeats the purpose of a summary. Surface it, but label it correctly.',
+                        },
+                        {
+                            text: 'Add a general AI disclaimer in the page footer.',
+                            explain:
+                                'A blanket footer disclaimer is too far from the content. The user is reading the summary, so the label and review guidance should sit with the summary.',
+                        },
+                        {
+                            text: 'Run the summary through a second model before showing it.',
+                            explain:
+                                'Engineering-side checks can help quality, but the user still needs to know the summary is AI-assisted and still needs to verify the source.',
+                        },
+                        {
+                            text: 'Label the summary and show what to verify.',
+                            correct: true,
+                            explain:
+                                'Two things are missing: provenance and review guidance. Both belong inline, next to the summary, so the lawyer understands how much trust to place in it before sharing or relying on it.',
+                        },
+                    ],
+                },
+                {
+                    title: 'A filter sidebar',
+                    topic: 'Responsive filters',
+                    principle: 'Update the control state immediately; debounce the results request behind it.',
+                    mockup: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title">Filter matters</div>
+                            <div class="ui-row">
+                                <span class="ui-row-label">Status</span>
+                                <button type="button" class="ui-toggle on" role="switch" aria-checked="true" aria-label="Status"></button>
+                            </div>
+                            <div class="ui-row">
+                                <span class="ui-row-label">Practice group</span>
+                                <button type="button" class="ui-toggle on" role="switch" aria-checked="true" aria-label="Practice group"></button>
+                            </div>
+                            <div class="ui-row">
+                                <span class="ui-row-label">Jurisdiction</span>
+                                <button type="button" class="ui-toggle" role="switch" aria-checked="false" aria-label="Jurisdiction"></button>
+                            </div>
+                            <div class="ui-row">
+                                <span class="ui-row-label">Partner</span>
+                                <button type="button" class="ui-toggle on" role="switch" aria-checked="true" aria-label="Partner"></button>
+                            </div>
+                            <div class="ui-row">
+                                <span class="ui-row-label">Date range</span>
+                                <button type="button" class="ui-toggle on" role="switch" aria-checked="true" aria-label="Date range"></button>
+                            </div>
+                            <div class="ui-row">
+                                <span class="ui-row-label">Confidential</span>
+                                <button type="button" class="ui-toggle" role="switch" aria-checked="false" aria-label="Confidential"></button>
+                            </div>
+                        </div>
+                    `,
+                    mockupCorrect: () => `
+                        <div class="ui-card">
+                            <div class="ui-section-title">Filter matters</div>
+                            <div class="ui-row">
+                                <span class="ui-row-label">Status</span>
+                                <button type="button" class="ui-toggle on" role="switch" aria-checked="true" aria-label="Status" data-debounce></button>
+                            </div>
+                            <div class="ui-row">
+                                <span class="ui-row-label">Practice group</span>
+                                <button type="button" class="ui-toggle on" role="switch" aria-checked="true" aria-label="Practice group" data-debounce></button>
+                            </div>
+                            <div class="ui-row">
+                                <span class="ui-row-label">Jurisdiction</span>
+                                <button type="button" class="ui-toggle" role="switch" aria-checked="false" aria-label="Jurisdiction" data-debounce></button>
+                            </div>
+                            <div class="ui-row">
+                                <span class="ui-row-label">Partner</span>
+                                <button type="button" class="ui-toggle on" role="switch" aria-checked="true" aria-label="Partner" data-debounce></button>
+                            </div>
+                            <div class="ui-row">
+                                <span class="ui-row-label">Date range</span>
+                                <button type="button" class="ui-toggle on" role="switch" aria-checked="true" aria-label="Date range" data-debounce></button>
+                            </div>
+                            <div class="ui-row">
+                                <span class="ui-row-label">Confidential</span>
+                                <button type="button" class="ui-toggle" role="switch" aria-checked="false" aria-label="Confidential" data-debounce></button>
+                            </div>
+                        </div>
+                    `,
+                    wire: (root, { corrected }) => {
+                        if (corrected) {
+                            let timer = null
+                            root.querySelectorAll('button[data-debounce]').forEach(btn => {
+                                btn.addEventListener('click', () => {
+                                    const on = btn.classList.toggle('on')
+                                    btn.setAttribute('aria-checked', String(on))
+                                    clearTimeout(timer)
+                                    timer = setTimeout(() => showMockupToast(root, 'Fetching results...', 1000), 600)
+                                })
+                            })
+                        } else {
+                            root.querySelectorAll('button.ui-toggle').forEach(btn => {
+                                btn.addEventListener('click', () => {
+                                    const on = btn.classList.toggle('on')
+                                    btn.setAttribute('aria-checked', String(on))
+                                    showMockupToast(root, 'Fetching results...', 1000)
+                                })
+                            })
+                        }
+                    },
+                    prompt: 'Review this filter sidebar. What improvement would help most?',
+                    options: [
+                        {
+                            text: "Use 'Apply filters' so requests only fire once.",
+                            explain:
+                                "This removes flicker, but it makes the user do extra work after every change. Use an 'Apply filters' action only when the filter set is expensive, destructive, or unusually complex.",
+                        },
+                        {
+                            text: 'Update checks immediately and debounce the results request.',
+                            correct: true,
+                            explain:
+                                "From the user perspective, the controls should respond at once. Behind the scenes, debounce the request so the list only reloads after they pause. A deliberate 'Reset' should still apply immediately.",
+                        },
+                        {
+                            text: 'Run one request every second while filters are changing.',
+                            explain:
+                                'A fixed timer is a blunt version of debounce. It can fire while the user is still adjusting. True debounce resets the clock on every change.',
+                        },
+                        {
+                            text: 'Cache the first result set and reuse it for later filters.',
+                            explain:
+                                'Caching helps repeat states, but filter combinations often need data that has not been fetched yet. It does not replace responsive state handling.',
+                        },
+                    ],
+                },
+            ]
+
+            // ==========================================================
+            // Mockup helpers, Sonner-style toast stack
+            // Per emilkowal.ski/ui/building-a-toast-component
+            // ==========================================================
+            const TOAST_LIFT = 12 // px offset per stack index (peek amount)
+            const TOAST_GAP = 8 // px gap between toasts when expanded
+            const TOAST_SCALE_STEP = 0.06 // scale reduction per stack index
+            const TOAST_VISIBLE = 3 // stack depth before fading to 0
+            const TOAST_LEAVE_MS = 450 // wait before removing from DOM after leave starts
+
+            function ensureToastList(host) {
+                let list = host.querySelector(':scope > .mockup-toast-list')
+                if (list) return list
+                list = document.createElement('ol')
+                list.className = 'mockup-toast-list'
+                host.appendChild(list)
+                return list
+            }
+
+            function relayoutToasts(list) {
+                // Newest first: DOM order is oldest-first (append order), so reverse.
+                const items = [...list.querySelectorAll('.mockup-toast:not([data-removed="true"])')].reverse()
+                // Ensure each toast's natural height is cached (measured once, before it starts shrinking).
+                items.forEach(item => {
+                    if (!item._h) item._h = item.offsetHeight
+                })
+                const frontHeight = items[0] && items[0]._h ? items[0]._h : 0
+                let cumulative = 0
+                items.forEach((item, i) => {
+                    item.dataset.stackIndex = String(i)
+                    item.dataset.front = i === 0 ? 'true' : 'false'
+                    item.style.setProperty('--y-stack', `${i * TOAST_LIFT}px`)
+                    item.style.setProperty('--s-stack', String(Math.max(0.6, 1 - i * TOAST_SCALE_STEP)))
+                    item.style.setProperty('--o-stack', i < TOAST_VISIBLE ? '1' : '0')
+                    item.style.setProperty('--h-stack', `${frontHeight}px`)
+                    item.style.setProperty('--h-natural', `${item._h}px`)
+                    item.style.setProperty('--y-expand', `${cumulative}px`)
+                    item.style.zIndex = String(1000 - i)
+                    cumulative += item._h + TOAST_GAP
+                })
+            }
+
+            function showMockupToast(host, text, duration = 1600) {
+                if (!host) return
+                const list = ensureToastList(host)
+                const item = document.createElement('li')
+                item.className = 'mockup-toast'
+                item.setAttribute('role', 'status')
+                item.dataset.mounted = 'false'
+                item.innerHTML = `
+                    <div class="mockup-toast-body">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+                        <span></span>
+                    </div>
+                `
+                item.querySelector('span').textContent = text
+                list.appendChild(item)
+                // Measure natural height while data-mounted='false' keeps it visually offscreen.
+                // offsetHeight forces layout so the starting styles paint before mount flip.
+                item._h = item.offsetHeight
+                // Set stack variables on all toasts (older ones shift back on this frame).
+                relayoutToasts(list)
+                // Next frame: flip data-mounted so the enter transition runs.
+                requestAnimationFrame(() => {
+                    item.dataset.mounted = 'true'
+                })
+                // Auto-dismiss: mark removed → shift remaining forward → drop from DOM.
+                setTimeout(() => {
+                    item.dataset.removed = 'true'
+                    requestAnimationFrame(() => relayoutToasts(list))
+                    setTimeout(() => {
+                        item.remove()
+                        if (list.querySelector('.mockup-toast')) relayoutToasts(list)
+                    }, TOAST_LEAVE_MS)
+                }, duration)
+            }
+
+            function downloadBlankPdf(filename) {
+                const objects = [
+                    '<</Type/Catalog/Pages 2 0 R>>',
+                    '<</Type/Pages/Kids[3 0 R]/Count 1>>',
+                    '<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Resources<<>>>>',
+                ]
+                let body = '%PDF-1.4\n'
+                const offsets = []
+                objects.forEach((obj, i) => {
+                    offsets.push(body.length)
+                    body += `${i + 1} 0 obj\n${obj}\nendobj\n`
+                })
+                const xrefStart = body.length
+                body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`
+                offsets.forEach(o => {
+                    body += `${String(o).padStart(10, '0')} 00000 n \n`
+                })
+                body += `trailer\n<</Size ${objects.length + 1}/Root 1 0 R>>\nstartxref\n${xrefStart}\n%%EOF\n`
+                const blob = new Blob([body], { type: 'application/pdf' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = filename
+                document.body.appendChild(a)
+                a.click()
+                a.remove()
+                setTimeout(() => URL.revokeObjectURL(url), 1000)
+            }
+
+            function fireConfetti() {
+                if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+                const canvas = document.createElement('canvas')
+                canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999'
+                canvas.width = window.innerWidth
+                canvas.height = window.innerHeight
+                document.body.appendChild(canvas)
+                const ctx = canvas.getContext('2d')
+
+                const isDark = document.documentElement.dataset.theme === 'dark'
+                const colors = isDark ? ['#aced98', '#6fd850', '#cbf4be', '#4bbe29', '#e5fbdd'] : ['#00b100', '#2ef526', '#068509', '#60fe58', '#9dff95']
+
+                const pieces = Array.from({ length: 55 }, () => {
+                    const angle = (-90 + (Math.random() - 0.5) * 130) * (Math.PI / 180)
+                    const speed = 4 + Math.random() * 6
+                    return {
+                        x: canvas.width / 2 + (Math.random() - 0.5) * 120,
+                        y: canvas.height * 0.72,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        w: 5 + Math.random() * 5,
+                        h: 3 + Math.random() * 4,
+                        rot: Math.random() * Math.PI * 2,
+                        rotV: (Math.random() - 0.5) * 0.25,
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        circle: Math.random() < 0.3,
+                        alpha: 1,
+                    }
+                })
+
+                const gravity = 0.22
+                const drag = 0.985
+                let frame
+                const tick = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height)
+                    let alive = false
+                    pieces.forEach(p => {
+                        p.vy += gravity
+                        p.vx *= drag
+                        p.vy *= drag
+                        p.x += p.vx
+                        p.y += p.vy
+                        p.rot += p.rotV
+                        if (p.y > canvas.height * 0.6) p.alpha -= 0.03
+                        p.alpha = Math.max(0, p.alpha)
+                        if (p.alpha === 0) return
+                        alive = true
+                        ctx.save()
+                        ctx.globalAlpha = p.alpha
+                        ctx.fillStyle = p.color
+                        ctx.translate(p.x, p.y)
+                        ctx.rotate(p.rot)
+                        if (p.circle) {
+                            ctx.beginPath()
+                            ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2)
+                            ctx.fill()
+                        } else {
+                            ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h)
+                        }
+                        ctx.restore()
+                    })
+                    if (alive) {
+                        frame = requestAnimationFrame(tick)
+                    } else {
+                        canvas.remove()
+                    }
+                }
+                frame = requestAnimationFrame(tick)
+                setTimeout(() => {
+                    cancelAnimationFrame(frame)
+                    canvas.remove()
+                }, 3000)
+            }
+
+            function showLockedOverlay(frame, onDismiss) {
+                if (frame.querySelector('.mockup-locked-overlay')) return
+                const overlay = document.createElement('div')
+                overlay.className = 'mockup-locked-overlay'
+                overlay.setAttribute('role', 'status')
+                overlay.innerHTML = `<div class="mockup-locked-overlay-inner">Answer the question to see the fix</div>`
+                overlay.addEventListener('click', () => {
+                    overlay.remove()
+                    if (onDismiss) onDismiss()
+                })
+                frame.appendChild(overlay)
+            }
+
+            function hideLockedOverlay(frame) {
+                const overlay = frame.querySelector('.mockup-locked-overlay')
+                if (overlay) overlay.remove()
+            }
+
+            // ==========================================================
+            // App state
+            // ==========================================================
+            const content = document.getElementById('content')
+            const progressFill = document.getElementById('progress-fill')
+            const headerMeta = document.getElementById('header-meta')
+            const headerMetaStep = document.getElementById('header-meta-step')
+            const headerMetaTitle = document.getElementById('header-meta-title')
+
+            let headObserver = null
+            function attachHeadObserver(questionHeadEl, stepText, titleText) {
+                detachHeadObserver()
+                headerMetaStep.textContent = stepText
+                headerMetaTitle.textContent = titleText
+                if (!('IntersectionObserver' in window)) return
+                headObserver = new IntersectionObserver(
+                    ([entry]) => {
+                        const visible = !entry.isIntersecting
+                        headerMeta.classList.toggle('visible', visible)
+                        headerMeta.setAttribute('aria-hidden', String(!visible))
+                    },
+                    { threshold: 0, rootMargin: '-70px 0px 0px 0px' }
+                )
+                headObserver.observe(questionHeadEl)
+            }
+            function detachHeadObserver(instant = false) {
+                if (headObserver) headObserver.disconnect()
+                headObserver = null
+                if (instant) {
+                    headerMeta.style.transition = 'none'
+                    headerMeta.classList.remove('visible')
+                    headerMeta.setAttribute('aria-hidden', 'true')
+                    requestAnimationFrame(() => {
+                        headerMeta.style.transition = ''
+                    })
+                } else {
+                    headerMeta.classList.remove('visible')
+                    headerMeta.setAttribute('aria-hidden', 'true')
+                }
+            }
+
+            let state = {
+                screen: 'intro', // intro | question | results
+                index: 0,
+                answers: new Array(questions.length).fill(null), // index of chosen option, or null
+                checked: new Array(questions.length).fill(false),
+                variant: new Array(questions.length).fill('before'), // 'before' | 'after', which mockup variant is displayed
+            }
+
+            // ==========================================================
+            // Render
+            // ==========================================================
+            function render() {
+                detachHeadObserver(true)
+                content.innerHTML = ''
+                updateProgress()
+                if (state.screen === 'intro') renderIntro()
+                else if (state.screen === 'question') renderQuestion()
+                else if (state.screen === 'results') renderResults()
+                const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                try {
+                    if (reducedMotion) window.scrollTo(0, 0)
+                    else window.scrollTo({ top: 0, behavior: 'smooth' })
+                } catch (e) {
+                    window.scrollTo(0, 0)
+                }
+            }
+
+            function updateProgress() {
+                if (state.screen === 'intro') {
+                    progressFill.style.width = '0%'
+                } else if (state.screen === 'question') {
+                    progressFill.style.width = `${(state.index / questions.length) * 100}%`
+                } else {
+                    progressFill.style.width = '100%'
+                }
+            }
+
+            function renderIntro() {
+                const node = document.getElementById('tpl-intro').content.cloneNode(true)
+                content.appendChild(node)
+                const startBtn = document.getElementById('start-btn')
+                startBtn.addEventListener('click', startQuiz)
+                startBtn.focus()
+            }
+
+            function startQuiz() {
+                state.screen = 'question'
+                state.index = 0
+                state.answers = new Array(questions.length).fill(null)
+                state.checked = new Array(questions.length).fill(false)
+                state.variant = new Array(questions.length).fill('before')
+                render()
+            }
+
+            function renderQuestion() {
+                const q = questions[state.index]
+                const correctIndex = q.options.findIndex(o => o.correct)
+                const node = document.getElementById('tpl-question').content.cloneNode(true)
+                const section = node.querySelector('section')
+
+                section.querySelector('[data-bind="step"]').textContent = `Question ${state.index + 1} of ${questions.length}`
+                section.querySelector('[data-bind="title"]').textContent = q.title
+                const mockupFrame = section.querySelector('.mockup-frame')
+                const mockupHost = section.querySelector('[data-bind="mockup"]')
+                const mockupLabel = section.querySelector('.mockup-label')
+                const mockupSwitch = section.querySelector('[data-bind="switch"]')
+                const hasCorrected = typeof q.mockupCorrect === 'function'
+                if (!state.checked[state.index] && state.variant[state.index] === 'after') state.variant[state.index] = 'before'
+
+                function paintMockup(variant) {
+                    const useCorrected = variant === 'after' && hasCorrected && state.checked[state.index]
+                    mockupHost.innerHTML = useCorrected ? q.mockupCorrect() : q.mockup()
+                    if (q.wire) q.wire(mockupHost, { corrected: useCorrected })
+                }
+
+                function updateSwitch() {
+                    if (!hasCorrected) {
+                        mockupSwitch.hidden = true
+                        mockupFrame.removeAttribute('data-has-switch')
+                        return
+                    }
+                    mockupSwitch.hidden = false
+                    mockupFrame.setAttribute('data-has-switch', '')
+                    const variant = state.variant[state.index]
+                    mockupSwitch.setAttribute('data-variant', variant)
+                    const beforeBtn = mockupSwitch.querySelector('[data-variant="before"]')
+                    const afterBtn = mockupSwitch.querySelector('[data-variant="after"]')
+                    beforeBtn.setAttribute('aria-pressed', variant === 'before' ? 'true' : 'false')
+                    afterBtn.setAttribute('aria-pressed', variant === 'after' ? 'true' : 'false')
+                }
+
+                mockupSwitch.querySelectorAll('button[data-variant]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const v = btn.dataset.variant
+                        if (v === 'after' && !state.checked[state.index]) {
+                            mockupSwitch.setAttribute('data-variant', 'after')
+                            mockupSwitch.querySelector('[data-variant="before"]').setAttribute('aria-pressed', 'false')
+                            mockupSwitch.querySelector('[data-variant="after"]').setAttribute('aria-pressed', 'true')
+                            showLockedOverlay(mockupFrame, () => updateSwitch())
+                            return
+                        }
+                        const wasLocked = !!mockupFrame.querySelector('.mockup-locked-overlay')
+                        hideLockedOverlay(mockupFrame)
+                        if (!wasLocked && state.variant[state.index] === v) return
+                        state.variant[state.index] = v
+                        updateSwitch()
+                        paintMockup(v)
+                    })
+                })
+
+                updateSwitch()
+                paintMockup(state.variant[state.index])
+                section.querySelector('[data-bind="prompt"]').textContent = q.prompt
+
+                const form = section.querySelector('[data-bind="form"]')
+                const optionsEl = section.querySelector('[data-bind="options"]')
+                const revealEl = section.querySelector('[data-bind="reveal"]')
+                const revealHead = section.querySelector('[data-bind="reveal-head"]')
+                const revealBody = section.querySelector('[data-bind="reveal-body"]')
+                const revealPrinciple = section.querySelector('[data-bind="reveal-principle"]')
+                const answerError = section.querySelector('[data-bind="answer-error"]')
+                const checkBtn = section.querySelector('[data-bind="check-btn"]')
+                const nextBtn = section.querySelector('[data-bind="next-btn"]')
+                const backBtn = section.querySelector('[data-bind="back-btn"]')
+
+                optionsEl.setAttribute('tabindex', '-1')
+                const legend = document.createElement('legend')
+                legend.textContent = 'Choose one response'
+                optionsEl.appendChild(legend)
+
+                q.options.forEach((opt, i) => {
+                    const id = `q${state.index}-opt${i}`
+                    const label = document.createElement('label')
+                    label.className = 'option'
+                    label.setAttribute('for', id)
+                    label.innerHTML = `
+                        <input type="radio" name="q-${state.index}" id="${id}" value="${i}" />
+                        <span class="option-text"></span>
+                    `
+                    label.querySelector('.option-text').textContent = opt.text
+                    optionsEl.appendChild(label)
+
+                    const radio = label.querySelector('input')
+                    if (state.answers[state.index] === i) radio.checked = true
+                    radio.addEventListener('change', () => {
+                        if (state.checked[state.index]) return
+                        state.answers[state.index] = i
+                        answerError.hidden = true
+                    })
+                })
+
+                if (state.index === 0) backBtn.style.visibility = 'hidden'
+
+                backBtn.addEventListener('click', () => {
+                    if (state.index === 0) {
+                        state.screen = 'intro'
+                    } else {
+                        state.index -= 1
+                    }
+                    render()
+                })
+
+                if (state.checked[state.index]) {
+                    showReveal(false)
+                }
+
+                form.addEventListener('submit', e => {
+                    e.preventDefault()
+                    if (state.checked[state.index]) return
+                    if (state.answers[state.index] === null) {
+                        answerError.hidden = false
+                        optionsEl.focus()
+                        return
+                    }
+                    answerError.hidden = true
+                    state.checked[state.index] = true
+                    hideLockedOverlay(mockupFrame)
+                    if (hasCorrected) {
+                        state.variant[state.index] = 'after'
+                        paintMockup('after')
+                    }
+                    updateSwitch()
+                    showReveal(true)
+                })
+
+                nextBtn.addEventListener('click', () => {
+                    if (state.index === questions.length - 1) {
+                        state.screen = 'results'
+                    } else {
+                        state.index += 1
+                    }
+                    render()
+                })
+
+                content.appendChild(node)
+
+                attachHeadObserver(content.querySelector('.question-head'), `Question ${state.index + 1} of ${questions.length}`, q.title)
+
+                function showReveal(celebrate = false) {
+                    const chosen = state.answers[state.index]
+                    const correct = chosen === correctIndex
+                    if (correct && celebrate) fireConfetti()
+                    revealHead.classList.add(correct ? 'correct' : 'incorrect')
+                    revealHead.innerHTML = correct
+                        ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg><span>Correct</span>`
+                        : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg><span>Incorrect</span>`
+
+                    const chosenExplain = q.options[chosen].explain
+                    const correctExplain = q.options[correctIndex].explain
+                    revealBody.innerHTML = correct
+                        ? `<strong>${q.options[correctIndex].text}</strong> ${correctExplain}`
+                        : `${chosenExplain}<br><br><strong>${q.options[correctIndex].text}</strong> ${correctExplain}`
+                    revealPrinciple.textContent = q.principle
+
+                    revealEl.classList.add('visible')
+
+                    optionsEl.querySelectorAll('.option').forEach((labelEl, i) => {
+                        labelEl.setAttribute('data-locked', 'true')
+                        labelEl.querySelector('input').disabled = true
+                        if (i === correctIndex) labelEl.setAttribute('data-state', chosen === correctIndex ? 'correct' : 'reveal-correct')
+                        else if (i === chosen) labelEl.setAttribute('data-state', 'incorrect')
+                        else labelEl.setAttribute('data-state', 'muted')
+                    })
+
+                    checkBtn.style.display = 'none'
+                    const chevronRight = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>`
+                    nextBtn.style.display = ''
+                    nextBtn.innerHTML = state.index === questions.length - 1 ? `See results ${chevronRight}` : `Next question ${chevronRight}`
+                    nextBtn.focus()
+                }
+            }
+
+            function renderResults() {
+                const node = document.getElementById('tpl-results').content.cloneNode(true)
+                const section = node.querySelector('section')
+                const score = state.answers.reduce((acc, ans, i) => acc + (ans === questions[i].options.findIndex(o => o.correct) ? 1 : 0), 0)
+
+                section.querySelector('[data-bind="score"]').textContent = String(score)
+                section.querySelector('[data-bind="total"]').textContent = String(questions.length)
+
+                const ratio = score / questions.length
+                let headline, subhead
+                if (ratio === 1) {
+                    headline = 'UX master.'
+                    subhead = 'The more interesting question: which of these patterns have you seen ship in one of our tools?'
+                } else if (ratio >= 0.75) {
+                    headline = 'Nice work.'
+                    subhead = 'The missed patterns are the useful part. They are usually the ones that quietly make it into production.'
+                } else if (ratio >= 0.5) {
+                    headline = 'Good start.'
+                    subhead = 'A few of these turn on a subtle distinction. The takeaways below list the rule behind each question.'
+                } else {
+                    headline = 'Worth a second pass.'
+                    subhead = "Read the takeaways below, then try again. You'll catch most of these the second time through."
+                }
+                section.querySelector('[data-bind="headline"]').textContent = headline
+                section.querySelector('[data-bind="subhead"]').textContent = subhead
+
+                const grid = section.querySelector('[data-bind="grid"]')
+                questions.forEach((q, i) => {
+                    const correctIndex = q.options.findIndex(o => o.correct)
+                    const correct = state.answers[i] === correctIndex
+                    const row = document.createElement('div')
+                    row.className = 'result-row'
+                    row.innerHTML = `
+                        <span class="step tabular">${String(i + 1).padStart(2, '0')}</span>
+                        <div class="topic">
+                            <div></div>
+                            <div class="principle"></div>
+                        </div>
+                        <span class="mark ${correct ? 'correct' : 'incorrect'}" aria-label="${correct ? 'Correct' : 'Incorrect'}">${correct ? '✓' : '✕'}</span>
+                    `
+                    row.querySelector('.topic > div').textContent = q.topic
+                    row.querySelector('.principle').textContent = q.title
+                    grid.appendChild(row)
+                })
+
+                content.appendChild(node)
+
+                document.getElementById('restart-btn').addEventListener('click', startQuiz)
+            }
+
+            // ==========================================================
+            // Boot
+            // ==========================================================
+            document.addEventListener('keydown', e => {
+                if (e.key !== 'Enter') return
+                const t = e.target
+                if (t instanceof HTMLButtonElement || t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement)
+                    return
+                if (state.screen === 'intro') {
+                    e.preventDefault()
+                    startQuiz()
+                } else if (state.screen === 'results') {
+                    e.preventDefault()
+                    startQuiz()
+                }
+            })
+
+            // ==========================================================
+            // Theme toggle (Ctrl+Alt+D and header button)
+            // Initial theme is set in <head> before paint.
+            // ==========================================================
+            const themeToggle = document.getElementById('theme-toggle')
+            function setTheme(next) {
+                document.documentElement.classList.add('no-transition')
+                document.documentElement.dataset.theme = next
+                requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.remove('no-transition')))
+                try {
+                    localStorage.setItem('ux-quest-theme', next)
+                } catch (e) {}
+                if (themeToggle) themeToggle.setAttribute('aria-label', next === 'dark' ? 'Switch to light mode' : 'Switch to dark mode')
+            }
+            function toggleTheme() {
+                setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark')
+            }
+            if (themeToggle) themeToggle.addEventListener('click', toggleTheme)
+            document.addEventListener('keydown', e => {
+                if (e.ctrlKey && e.altKey && (e.key === 'd' || e.key === 'D')) {
+                    e.preventDefault()
+                    toggleTheme()
+                }
+            })
+            // Follow system pref changes only when the user hasn't chosen explicitly.
+            try {
+                window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                    if (!localStorage.getItem('ux-quest-theme')) {
+                        document.documentElement.dataset.theme = e.matches ? 'dark' : 'light'
+                    }
+                })
+            } catch (e) {}
+            // Sync the toggle's accessible label to the current state on first render.
+            if (themeToggle)
+                themeToggle.setAttribute('aria-label', document.documentElement.dataset.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode')
+
+            render()
+        </script>
+    </body>
+</html>
