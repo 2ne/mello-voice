@@ -1951,6 +1951,10 @@
                     topic: 'Inline editing',
                     principle: 'Single-field edits usually belong inline. Use modals for tasks that need more separation.',
                     mockup: () => `
+                        <div style="font-size:13px;color:var(--color-subtitle);margin-bottom:10px;line-height:1.45">
+                            <span style="font-weight:500;color:var(--color-title)">Scenario:</span> A lawyer needs to rename this matter to
+                            <span style="color:var(--color-body)">Acme Corp — Series C</span>.
+                        </div>
                         <div class="ui-card">
                             <div class="ui-section-title">Matter details</div>
                             <div class="ui-row">
@@ -1991,6 +1995,10 @@
                         </div>
                     `,
                     mockupCorrect: () => `
+                        <div style="font-size:13px;color:var(--color-subtitle);margin-bottom:10px;line-height:1.45">
+                            <span style="font-weight:500;color:var(--color-title)">Scenario:</span> A lawyer needs to rename this matter to
+                            <span style="color:var(--color-body)">Acme Corp — Series C</span>.
+                        </div>
                         <div class="ui-card">
                             <div class="ui-section-title">Matter details</div>
                             <div class="ui-row" data-inline-row>
@@ -2084,7 +2092,7 @@
                                 })
                         }
                     },
-                    prompt: 'Review this matter detail card. What improvement would help most?',
+                    prompt: 'Review how this detail card handles renaming the matter name. What improvement would help most?',
                     options: [
                         {
                             text: "Replace 'Edit' with a pencil icon to reduce visual weight.",
