@@ -4,7 +4,10 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>UX Quest — Cleary</title>
-        <meta name="description" content="Review eight legal product interfaces, choose the best design improvement for each, and learn the UX reasoning behind every answer." />
+        <meta
+            name="description"
+            content="Review eight legal product interfaces, choose the best design improvement for each, and learn the UX reasoning behind every answer."
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@400;500;700&display=swap" />
@@ -1585,8 +1588,8 @@
                 <div class="intro-head">
                     <h1 id="intro-title">Sharpen your UX judgement</h1>
                     <p class="intro-lead">
-                        Review eight realistic legal product interfaces. For each one, identify the biggest usability issue and choose the design
-                        improvement that would create the best experience for the user.
+                        Review eight realistic legal product interfaces. For each one, identify the biggest usability issue and choose the design improvement
+                        that would create the best experience for the user.
                     </p>
                 </div>
 
@@ -1821,15 +1824,15 @@
                     prompt: 'Review this settings panel. What improvement would help most?',
                     options: [
                         {
-                            text: "Remove 'Cancel' and keep 'Save' as the only toolbar action.",
-                            explain:
-                                "'Cancel' is a reasonable secondary action. Removing it tidies the toolbar but the fundamental problem remains — switches that look instant still need a 'Save' step.",
-                        },
-                        {
                             text: 'Save each setting when it is toggled.',
                             correct: true,
                             explain:
                                 "This is the cleanest fix. Switches signal an immediate change, so each one should save when toggled and the 'Save' / 'Cancel' toolbar becomes unnecessary. The control and the commit model now match.",
+                        },
+                        {
+                            text: "Remove 'Cancel' and keep 'Save' as the only toolbar action.",
+                            explain:
+                                "'Cancel' is a reasonable secondary action. Removing it tidies the toolbar but the fundamental problem remains, switches that look instant still need a 'Save' step.",
                         },
                         {
                             text: 'Replace the switches with checkboxes.',
@@ -2265,14 +2268,8 @@
                     principle: 'After a valid submit, show progress and block repeat activation until the request finishes.',
                     mockup: () => `
                         <div class="ui-card">
-                            <div class="ui-section-title">Download memo</div>
-                            <p class="text-sm text-subtitle" style="margin: 0 0 16px">Generates a PDF. Usually takes 10-20 seconds.</p>
-                            <div class="text-xs text-muted" style="margin-bottom: 6px">Recent downloads</div>
-                            <div class="stacked-records" style="margin-bottom: 16px">
-                                <div class="record"><span>Acme_Memo_v3.pdf</span><span class="text-muted">12:04</span></div>
-                                <div class="record"><span>Acme_Memo_v2.pdf</span><span class="text-muted">Yesterday</span></div>
-                                <div class="record"><span>Acme_Memo_v1.pdf</span><span class="text-muted">Mon</span></div>
-                            </div>
+                            <div class="ui-section-title">Acme Corp - Engagement memo</div>
+                            <p class="text-sm text-subtitle" style="margin: 0 0 16px">Generates a PDF of this memo. Usually takes 10-20 seconds.</p>
                             <div class="ui-toolbar" style="margin-top: 0">
                                 <button type="button" class="ui-btn" data-action="download">Download PDF</button>
                             </div>
@@ -2280,14 +2277,8 @@
                     `,
                     mockupCorrect: () => `
                         <div class="ui-card">
-                            <div class="ui-section-title">Download memo</div>
-                            <p class="text-sm text-subtitle" style="margin: 0 0 16px">Generates a PDF. Usually takes 10-20 seconds.</p>
-                            <div class="text-xs text-muted" style="margin-bottom: 6px">Recent downloads</div>
-                            <div class="stacked-records" style="margin-bottom: 16px">
-                                <div class="record"><span>Acme_Memo_v3.pdf</span><span class="text-muted">12:04</span></div>
-                                <div class="record"><span>Acme_Memo_v2.pdf</span><span class="text-muted">Yesterday</span></div>
-                                <div class="record"><span>Acme_Memo_v1.pdf</span><span class="text-muted">Mon</span></div>
-                            </div>
+                            <div class="ui-section-title">Acme Corp - Engagement memo</div>
+                            <p class="text-sm text-subtitle" style="margin: 0 0 16px">Generates a PDF of this memo. Usually takes 10-20 seconds.</p>
                             <div class="ui-toolbar" style="margin-top: 0">
                                 <button type="button" class="ui-btn" aria-live="polite" data-action="download-corrected">Download PDF</button>
                             </div>
@@ -2371,11 +2362,11 @@
                             </p>
                             <div class="ui-hint">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                                Review before sharing, check dates, caps, and party names against the source
+                                AI summaries can miss clauses or misstate figures. Verify the 3-year term, 90-day notice, and 12-month liability cap against the source before sharing.
                             </div>
                         </div>
                     `,
-                    prompt: 'Review this document summary. What improvement would help most?',
+                    prompt: 'This summary is AI-generated. What improvement would help most?',
                     options: [
                         {
                             text: 'Move the summary below the full source document.',
